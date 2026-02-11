@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 고유 식별자 -->
+    <key>Label</key>
+    <string>com.fanding.notion-cron</string>
+
+    <!-- 실행할 프로그램 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/fanding/scripts/notion-cron-job.sh</string>
+    </array>
+
+    <!-- 작업 디렉토리 설정 -->
+    <key>WorkingDirectory</key>
+    <string>/Users/fanding/dev/web-temp</string>
+
+    <!-- 환경 변수 설정 -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:/Users/fanding/.local/bin</string>
+        <key>HOME</key>
+        <string>/Users/fanding</string>
+    </dict>
+
+    <!-- 5시간마다 실행 (18000초 = 5시간) -->
+    <key>StartInterval</key>
+    <integer>18000</integer>
+
+    <!-- 표준 출력 로그 -->
+    <key>StandardOutPath</key>
+    <string>/Users/fanding/scripts/logs/launchd-stdout.log</string>
+
+    <!-- 표준 에러 로그 -->
+    <key>StandardErrorPath</key>
+    <string>/Users/fanding/scripts/logs/launchd-stderr.log</string>
+
+    <!-- 시스템 부팅 시 자동 실행하지 않음 (사용자 로그인 후 실행) -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!-- 프로세스가 종료되면 자동으로 재시작하지 않음 -->
+    <key>KeepAlive</key>
+    <false/>
+
+    <!-- 실행 실패 시 재시도 활성화 -->
+    <key>ThrottleInterval</key>
+    <integer>300</integer>
+
+    <!-- 낮은 우선순위로 실행 (Nice 값) -->
+    <key>Nice</key>
+    <integer>1</integer>
+</dict>
+</plist>

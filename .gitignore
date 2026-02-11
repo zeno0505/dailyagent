@@ -1,0 +1,16 @@
+# 로그 파일
+logs/
+*.log
+
+# 임시 파일
+*.tmp
+/tmp/
+
+# 결과 파일
+notion-result-*.json
+
+# macOS
+.DS_Store
+
+# 개인 설정 (필요시)
+# claude-automation-settings.json
