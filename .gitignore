@@ -1,16 +1,37 @@
-# 로그 파일
+# 로그 디렉토리
 logs/
 *.log
 
-# 임시 파일
-*.tmp
-/tmp/
+# Cronicle API 키
+cronicle/.cronicle-api-key
 
-# 결과 파일
-notion-result-*.json
+# 세션 파일
+.omc/
 
-# macOS
+# Node.js
+node_modules/
+npm-debug.log*
+
+# 환경 변수
+.env
+.env.local
+
+# OS
 .DS_Store
+Thumbs.db
 
-# 개인 설정 (필요시)
-# claude-automation-settings.json
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 백업 파일
+*.backup
+*.bak
+
+# 임시 파일
+tmp/
+temp/
+*.tmp

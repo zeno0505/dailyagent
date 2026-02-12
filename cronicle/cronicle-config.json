@@ -1,0 +1,82 @@
+{
+	"base_app_url": "http://localhost:3012",
+	"email_from": "cronicle@localhost",
+	"smtp_hostname": "localhost",
+	"smtp_port": 25,
+	
+	"secret_key": "CHANGE_ME_RANDOMLY_GENERATED_SECRET_KEY_FOR_SECURITY",
+	
+	"log_dir": "/opt/cronicle/logs",
+	"log_filename": "cronicle.log",
+	"log_columns": ["hires_epoch", "date", "hostname", "component", "category", "code", "msg", "data"],
+	"log_archive_path": "/opt/cronicle/logs/archives/[yyyy]/[mm]/[dd]/[filename]-[yyyy]-[mm]-[dd].log.gz",
+	
+	"pid_file": "/opt/cronicle/logs/cronicle.pid",
+	"debug_level": 9,
+	"maintenance": false,
+	
+	"Storage": {
+		"engine": "Filesystem",
+		"Filesystem": {
+			"base_dir": "/opt/cronicle/data",
+			"key_namespaces": 1
+		}
+	},
+	
+	"WebServer": {
+		"http_port": 3012,
+		"http_htdocs_dir": "/opt/cronicle/htdocs",
+		"http_max_upload_size": 104857600,
+		"http_static_ttl": 3600,
+		"http_static_index": "index.html",
+		"http_server_signature": "Cronicle 1.0",
+		"http_gzip_text": true,
+		"http_timeout": 120,
+		"http_regex_log": ".+",
+		"http_recent_requests": 10,
+		"http_max_connections": 255,
+		
+		"https": false,
+		"https_port": 3013,
+		"https_cert_file": "conf/ssl.crt",
+		"https_key_file": "conf/ssl.key",
+		"https_force": false,
+		"https_timeout": 120,
+		"https_header_detect": {
+			"Front-End-Https": "^on$",
+			"X-Url-Scheme": "^https$",
+			"X-Forwarded-Protocol": "^https$",
+			"X-Forwarded-Proto": "^https$",
+			"X-Forwarded-Ssl": "^on$"
+		}
+	},
+	
+	"email_templates": {
+		"job_success": "Job <b>@[job_title]</b> succeeded on @[hostname].",
+		"job_failure": "Job <b>@[job_title]</b> failed on @[hostname]:<br/><br/><pre>@[job_log]</pre>",
+		"job_launch_failure": "Failed to launch scheduled job <b>@[job_title]</b>:<br/><br/><pre>@[description]</pre>"
+	},
+	
+	"web_socket_use_hostnames": true,
+	"server_comm_use_hostnames": true,
+	"web_direct_connect": false,
+	
+	"socket_io_transports": ["websocket", "polling"],
+	
+	"udp_broadcast_port": 3014,
+	
+	"job_memory_max": 1073741824,
+	"job_memory_sustain": 0,
+	"job_cpu_max": 0,
+	"job_cpu_sustain": 0,
+	"job_log_max_size": 10485760,
+	"job_env": {},
+	
+	"child_kill_timeout": 10,
+	"child_exec_timeout": 0,
+	"max_jobs": 0,
+	"max_log_size": 10485760,
+	
+	"queue_dir": "/opt/cronicle/queue",
+	"daemon_enabled": true
+}
