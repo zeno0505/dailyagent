@@ -1,0 +1,40 @@
+{
+  "permissionMode": "auto",
+  "allowedTools": [
+    "Bash(git *)",
+    "Bash(cd *)",
+    "Bash(ls *)",
+    "Bash(cat *)",
+    "Read",
+    "Write",
+    "Edit",
+    "StrReplace",
+    "Grep",
+    "Glob",
+    "LS",
+    "Shell",
+    "CallMcpTool",
+    "CallMcpTool(notion, *)",
+    "CallMcpTool(notion, notion-query-database-view)",
+    "CallMcpTool(notion, notion-fetch)",
+    "CallMcpTool(notion, notion-update-page)",
+    "CallMcpTool(notion, notion-create-pages)",
+    "CallMcpTool(notion, notion-create-comment)",
+    "CallMcpTool(notion, notion-search)",
+    "CallMcpTool(user-Notion, *)",
+    "CallMcpTool(user-Notion, notion-query-database-view)",
+    "CallMcpTool(user-Notion, notion-fetch)",
+    "CallMcpTool(user-Notion, notion-update-page)",
+    "CallMcpTool(user-Notion, notion-create-pages)",
+    "CallMcpTool(user-Notion, notion-create-comment)",
+    "CallMcpTool(user-Notion, notion-search)",
+    "FetchMcpResource",
+    "FetchMcpResource(notion, *)",
+    "FetchMcpResource(user-Notion, *)"
+  ],
+  "disallowedTools": [
+    "Bash(rm -rf *)",
+    "Bash(sudo *)",
+    "Delete"
+  ]
+}

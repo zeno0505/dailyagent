@@ -2,8 +2,8 @@
 logs/
 *.log
 
-# Cronicle API 키
-cronicle/.cronicle-api-key
+# Cronicle API 키 (legacy)
+legacy/cronicle/.cronicle-api-key
 
 # 세션 파일
 .omc/

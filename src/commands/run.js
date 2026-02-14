@@ -1,0 +1,58 @@
+'use strict';
+
+const chalk = require('chalk');
+const ora = require('ora');
+const { isInitialized } = require('../config');
+const { getJob } = require('../jobs');
+const { executeJob } = require('../core/executor');
+
+async function runCommand(name) {
+  if (!isInitialized()) {
+    console.log(chalk.red('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.'));
+    process.exit(1);
+  }
+
+  const job = await getJob(name);
+  if (!job) {
+    console.log(chalk.red(`\n  작업 "${name}"을(를) 찾을 수 없습니다.`));
+    console.log(`  ${chalk.cyan('dailyagent list')} 명령으로 작업 목록을 확인하세요.\n`);
+    process.exit(1);
+  }
+
+  console.log(chalk.bold(`\n  작업 실행: ${name}\n`));
+  console.log(chalk.gray(`  작업 디렉토리: ${job.working_dir}`));
+  console.log(chalk.gray(`  에이전트: ${job.agent}`));
+  console.log(chalk.gray(`  타임아웃: ${job.timeout}`));
+  console.log('');
+
+  const spinner = ora({
+    text: 'Claude Code 실행 중...',
+    color: 'cyan',
+  }).start();
+
+  try {
+    const result = await executeJob(name);
+
+    spinner.succeed('작업이 완료되었습니다!');
+    console.log('');
+
+    if (result && result.raw_output) {
+      console.log(chalk.gray('  결과:'));
+      console.log(chalk.gray('  ' + '-'.repeat(60)));
+      // Show last portion of raw output
+      const lines = result.raw_output.split('\n').slice(-20);
+      lines.forEach((line) => console.log(chalk.gray('  ' + line)));
+      console.log(chalk.gray('  ' + '-'.repeat(60)));
+    } else if (result) {
+      console.log(chalk.gray('  결과:'));
+      console.log(chalk.gray('  ' + JSON.stringify(result, null, 2).split('\n').join('\n  ')));
+    }
+
+    console.log('');
+  } catch (err) {
+    spinner.fail(`작업 실패: ${err.message}`);
+    process.exit(1);
+  }
+}
+
+module.exports = { runCommand };
