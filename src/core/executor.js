@@ -33,6 +33,11 @@ async function executeJob(jobName) {
     throw new Error(`작업 "${jobName}"을(를) 찾을 수 없습니다.`);
   }
 
+  if (job.status === 'paused') {
+    await logger.info(`작업 "${jobName}"은(는) 일시 중지 상태입니다. 건너뜁니다.`);
+    return { skipped: true, reason: 'paused' };
+  }
+
   const workDir = job.working_dir.replace(/^~/, process.env.HOME);
 
   // 2. Validate environment
