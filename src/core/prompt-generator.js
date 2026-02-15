@@ -157,8 +157,9 @@ ${JSON.stringify(taskInfo, null, 2)}
 ${JSON.stringify(workResult, null, 2)}
 \`\`\`
 
-## 7단계: Notion 업데이트
-MCP 도구 \`notion-update-page\`를 사용하여 페이지 업데이트:
+## Notion 업데이트
+위 JSON 작업 정보를 읽고 작업된 내용을 Notion 페이지에 업데이트 합니다.
+- **MCP 도구 \`notion-update-page\` 사용**
 - 데이터베이스 URL: ${notionDbUrl}
 
 ${isSuccess ? `**성공 케이스 - 속성 업데이트:**
@@ -198,8 +199,8 @@ ${isSuccess ? `**성공 케이스 - 속성 업데이트:**
 
 \`\`\``}
 
-## 8단계: 결과 보고
-JSON 형식으로 최종 결과를 반환:
+## 결과 보고
+위 JSON 작업 정보를 읽고 작업된 내용을 결과로 반환합니다.
 \`\`\`json
 {
   "success": ${isSuccess},
