@@ -126,7 +126,7 @@ ${workDir} 디렉토리에서:
 /**
  * Phase 3: Notion 업데이트 + 결과 보고
  */
-function generateFinishPrompt({ taskInfo, workResult, columns }) {
+function generateFinishPrompt({ taskInfo, workResult, columns, notionDbUrl }) {
   const col = resolveColumns(columns);
   const isSuccess = workResult.success !== false && !workResult.error;
 
@@ -144,10 +144,11 @@ ${JSON.stringify(workResult, null, 2)}
 
 ## 7단계: Notion 업데이트
 MCP 도구 \`notion-update-page\`를 사용하여 페이지 업데이트:
+- 데이터베이스 URL: ${notionDbUrl}
 
 ${isSuccess ? `**성공 케이스 - 속성 업데이트:**
 - ${col.status}: "${col.statusWait}" → "${col.statusComplete}"
-- ${col.workBranch}: {브랜치명} (작업 결과의 branch_name 값)
+- ${col.workBranch}: "작업 브랜치명"
 
 **본문에 작업 결과 추가:**
 \`\`\`markdown
@@ -157,8 +158,6 @@ ${isSuccess ? `**성공 케이스 - 속성 업데이트:**
 ## 자동화 작업 완료
 
 **완료 시간:** {YYYY-MM-DD HH:MM:SS}
-
-**Git 브랜치:** \`{브랜치명}\`
 
 **커밋 해시:** \`{커밋해시}\`
 

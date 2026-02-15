@@ -131,6 +131,7 @@ async function executeJob(jobName) {
     // ========================================
     await logger.info('--- Phase 3: Notion 업데이트 시작 ---');
     const finishPrompt = generateFinishPrompt({
+      notionDbUrl: config.notion.database_url,
       taskInfo,
       workResult,
       columns: config.notion,
