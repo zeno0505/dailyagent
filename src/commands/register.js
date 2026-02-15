@@ -4,7 +4,7 @@ const inquirer = require('inquirer');
 const chalk = require('chalk');
 const path = require('path');
 const fs = require('fs-extra');
-const { isInitialized, loadConfig } = require('../config');
+const { isInitialized } = require('../config');
 const { addJob } = require('../jobs');
 
 async function registerCommand() {
@@ -12,8 +12,6 @@ async function registerCommand() {
     console.log(chalk.red('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.'));
     process.exit(1);
   }
-
-  const config = await loadConfig();
 
   console.log(chalk.bold('\n  새 작업 등록\n'));
 
@@ -33,7 +31,7 @@ async function registerCommand() {
       name: 'agent',
       message: 'AI 에이전트:',
       choices: ['claude-code'],
-      default: config.defaults.agent,
+      default: 'claude-code',
     },
     {
       type: 'input',
@@ -57,7 +55,7 @@ async function registerCommand() {
       type: 'input',
       name: 'timeout',
       message: '타임아웃 (예: 30m, 1h):',
-      default: config.defaults.timeout,
+      default: '30m',
     },
   ]);
 

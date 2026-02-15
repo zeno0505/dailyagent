@@ -74,12 +74,6 @@ async function initCommand() {
       message: '작업 브랜치 컬럼명:',
       default: DEFAULT_CONFIG.notion.column_work_branch,
     },
-    {
-      type: 'input',
-      name: 'default_timeout',
-      message: '기본 타임아웃 (예: 30m, 1h):',
-      default: DEFAULT_CONFIG.defaults.timeout,
-    },
   ]);
 
   const config = {
@@ -92,10 +86,6 @@ async function initCommand() {
       column_status_complete: answers.column_status_complete,
       column_base_branch: answers.column_base_branch,
       column_work_branch: answers.column_work_branch,
-    },
-    defaults: {
-      agent: 'claude-code',
-      timeout: answers.default_timeout,
     },
   };
 

@@ -59,7 +59,7 @@ async function executeJob(jobName) {
       prompt,
       workDir,
       settingsFile,
-      timeout: job.timeout || config.defaults.timeout,
+      timeout: job.timeout || '30m',
       logger,
     });
 

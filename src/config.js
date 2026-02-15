@@ -21,10 +21,6 @@ const DEFAULT_CONFIG = {
     column_base_branch: '기준 브랜치',
     column_work_branch: '작업 브랜치',
   },
-  defaults: {
-    agent: 'claude-code',
-    timeout: '30m',
-  },
 };
 
 async function ensureConfigDir() {
