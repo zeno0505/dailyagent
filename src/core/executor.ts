@@ -54,7 +54,7 @@ export async function executeJob(jobName: string): Promise<unknown> {
 
   try {
     // ========================================
-    // Phase 1: Notion 조회 (model: haiku, timeout: 5m)
+    // Phase 1: Notion 조회 (model: sonnet, timeout: 5m)
     // ========================================
     await logger.info('--- Phase 1: Notion 조회 시작 ---');
     const initPrompt = generateInitialPrompt({
@@ -72,7 +72,7 @@ export async function executeJob(jobName: string): Promise<unknown> {
       settingsFile,
       timeout: '5m',
       logger,
-      model: 'haiku',
+      model: 'sonnet',
     });
     await logger.info(`Phase 1 완료: ${JSON.stringify(initResult)}`);
 
@@ -130,7 +130,7 @@ export async function executeJob(jobName: string): Promise<unknown> {
     }
 
     // ========================================
-    // Phase 3: Notion 업데이트 (model: haiku, timeout: 5m)
+    // Phase 3: Notion 업데이트 (model: sonnet, timeout: 5m)
     // ========================================
     await logger.info('--- Phase 3: Notion 업데이트 시작 ---');
     const finishPrompt = generateFinishPrompt({
@@ -150,7 +150,7 @@ export async function executeJob(jobName: string): Promise<unknown> {
       settingsFile,
       timeout: '5m',
       logger,
-      model: 'haiku',
+      model: 'sonnet',
     });
     await logger.info(`Phase 3 완료: ${JSON.stringify(result)}`);
 
