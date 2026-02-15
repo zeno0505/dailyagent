@@ -103,6 +103,19 @@ ${workDir} 디렉토리에서:
 2. Push 결과 확인
 3. 브랜치 URL 또는 커밋 해시 기록
 
+## 7단계: PR(Pull Request) 생성
+1. \`gh\` CLI 설치 여부 확인: \`which gh\`
+2. \`gh\` CLI가 설치되어 있지 않은 경우:
+   - PR 생성은 건너뛰고, 결과 JSON의 \`pr_url\`을 \`null\`로 설정
+   - \`pr_skipped_reason\`에 "gh CLI가 설치되어 있지 않습니다. PR 생성은 gh 설치 후 가능합니다."로 설정
+   - **오류를 발생시키지 않고** 다음 단계로 진행
+3. \`gh\` CLI가 설치되어 있는 경우:
+   - base 브랜치(작업 정보의 \`base_branch\`)를 대상으로 PR 생성
+   - \`gh pr create --base <base_branch> --title "<작업 제목>" --body "<작업 요약>"\`
+   - PR 제목은 작업 제목을 사용
+   - PR 본문에 작업 요약 및 변경된 파일 목록 포함
+   - 생성된 PR URL을 기록
+
 ## 결과 출력
 반드시 아래 JSON 형식으로만 결과를 반환하세요. 다른 텍스트 없이 JSON만 출력:
 \`\`\`json
@@ -112,7 +125,9 @@ ${workDir} 디렉토리에서:
     { "hash": "커밋해시", "message": "커밋메시지" }
   ],
   "files_changed": ["파일1", "파일2"],
-  "summary": "작업 요약"
+  "summary": "작업 요약",
+  "pr_url": "PR URL 또는 null",
+  "pr_skipped_reason": "PR 생성을 건너뛴 이유 또는 null"
 }
 \`\`\`
 
@@ -161,6 +176,8 @@ ${isSuccess ? `**성공 케이스 - 속성 업데이트:**
 
 **커밋 해시:** \`{커밋해시}\`
 
+**PR:** ${workResult.pr_url ? `[${workResult.pr_url}](${workResult.pr_url})` : workResult.pr_skipped_reason || 'PR 정보 없음'}
+
 **수행 작업 요약:**
 {작업 요약}
 
@@ -191,6 +208,7 @@ JSON 형식으로 최종 결과를 반환:
   "branch_name": "${isSuccess ? (workResult.branch_name || '') : ''}",
   "commits": ${isSuccess ? JSON.stringify(workResult.commits || []) : '[]'},
   "files_changed": ${isSuccess ? JSON.stringify(workResult.files_changed || []) : '[]'},
+  "pr_url": "${isSuccess ? (workResult.pr_url || '') : ''}",
   "summary": "${isSuccess ? (workResult.summary || '') : (workResult.error || '')}",
   "notion_updated": true
 }
