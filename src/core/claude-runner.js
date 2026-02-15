@@ -18,7 +18,7 @@ function parseTimeout(timeoutStr) {
   return val * multipliers[unit];
 }
 
-async function runClaude({ prompt, workDir, settingsFile, timeout = '30m', logger }) {
+async function runClaude({ prompt, workDir, settingsFile, timeout = '30m', logger, model }) {
   const timeoutMs = parseTimeout(timeout);
 
   // Verify claude CLI exists
@@ -35,6 +35,10 @@ async function runClaude({ prompt, workDir, settingsFile, timeout = '30m', logge
     '--no-session-persistence',
     '--dangerously-skip-permissions',
   ];
+
+  if (model) {
+    args.push('--model', model);
+  }
 
   if (settingsFile && await fs.pathExists(settingsFile)) {
     args.push('--settings', settingsFile);
