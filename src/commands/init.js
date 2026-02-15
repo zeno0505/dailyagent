@@ -80,12 +80,6 @@ async function initCommand() {
       message: '기본 타임아웃 (예: 30m, 1h):',
       default: DEFAULT_CONFIG.defaults.timeout,
     },
-    {
-      type: 'input',
-      name: 'default_base_branch',
-      message: '기본 기준 브랜치:',
-      default: DEFAULT_CONFIG.defaults.base_branch,
-    },
   ]);
 
   const config = {
@@ -102,7 +96,6 @@ async function initCommand() {
     defaults: {
       agent: 'claude-code',
       timeout: answers.default_timeout,
-      base_branch: answers.default_base_branch,
     },
   };
 

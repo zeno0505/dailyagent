@@ -4,7 +4,7 @@
  * AI 프롬프트 템플릿 생성기
  * notion-cron-job.sh의 PROMPT heredoc (68~199행)을 JS 템플릿으로 포팅
  */
-function generatePrompt({ notionDbUrl, workDir, baseBranch, columns }) {
+function generatePrompt({ notionDbUrl, workDir, columns }) {
   const col = {
     status: columns.column_status || '상태',
     statusWait: columns.column_status_wait || '작업 대기',

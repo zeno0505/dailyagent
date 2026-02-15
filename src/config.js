@@ -24,7 +24,6 @@ const DEFAULT_CONFIG = {
   defaults: {
     agent: 'claude-code',
     timeout: '30m',
-    base_branch: 'main',
   },
 };
 

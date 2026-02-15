@@ -46,7 +46,6 @@ async function executeJob(jobName) {
     const prompt = generatePrompt({
       notionDbUrl: config.notion.database_url,
       workDir,
-      baseBranch: job.base_branch || config.defaults.base_branch,
       columns: config.notion,
     });
     await logger.info('프롬프트 생성 완료');

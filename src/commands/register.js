@@ -59,12 +59,6 @@ async function registerCommand() {
       message: '타임아웃 (예: 30m, 1h):',
       default: config.defaults.timeout,
     },
-    {
-      type: 'input',
-      name: 'base_branch',
-      message: '기본 기준 브랜치:',
-      default: config.defaults.base_branch,
-    },
   ]);
 
   try {
@@ -74,7 +68,6 @@ async function registerCommand() {
       working_dir: answers.working_dir,
       schedule: answers.schedule,
       timeout: answers.timeout,
-      base_branch: answers.base_branch,
     });
 
     console.log('');
