@@ -41,11 +41,13 @@ async function listCommand() {
   console.log(chalk.gray('  ' + '-'.repeat(header.length)));
 
   for (const job of jobs) {
-    const statusColor = job.last_status === 'success'
-      ? chalk.green
-      : job.last_status === 'error'
-        ? chalk.red
-        : chalk.gray;
+    const statusColor = job.status === 'paused'
+      ? chalk.yellow
+      : job.last_status === 'success'
+        ? chalk.green
+        : job.last_status === 'error'
+          ? chalk.red
+          : chalk.gray;
 
     const lastRun = job.last_run
       ? new Date(job.last_run).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
@@ -56,7 +58,7 @@ async function listCommand() {
       job.agent.padEnd(agentW),
       (job.working_dir.length > dirW ? '...' + job.working_dir.slice(-(dirW - 3)) : job.working_dir).padEnd(dirW),
       job.schedule.padEnd(schedW),
-      statusColor((job.last_status || '-').padEnd(statusW)),
+      statusColor((job.status === 'paused' ? 'paused' : (job.last_status || '-')).padEnd(statusW)),
       lastRun.padEnd(lastRunW),
     ].join('  ');
 
