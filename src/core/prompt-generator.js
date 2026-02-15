@@ -112,8 +112,8 @@ ${workDir} 디렉토리에서:
 3. \`gh\` CLI가 설치되어 있는 경우:
    - 먼저 인증 상태 확인: \`gh auth status\`
    - 인증되지 않은 경우 PR 생성을 건너뛰고 \`pr_skipped_reason\`에 "gh CLI 인증이 필요합니다. gh auth login을 실행하세요."로 설정
-   - 인증된 경우 base 브랜치(작업 정보의 \`base_branch\`)를 대상으로 PR 생성
-   - \`gh pr create --base <base_branch> --title "<작업 제목>" --body "<작업 요약>"\`
+   - 인증된 경우 base 브랜치(작업 정보의 \`base_branch\`)를 대상으로 Draft PR 생성
+   - \`gh pr create --draft --base <base_branch> --title "<작업 제목>" --body "<작업 요약>"\`
    - PR 제목은 작업 제목을 사용
    - PR 본문에 작업 요약 및 변경된 파일 목록 포함
    - PR 생성에 실패해도 **오류를 발생시키지 않고** \`pr_skipped_reason\`에 실패 이유를 설정
