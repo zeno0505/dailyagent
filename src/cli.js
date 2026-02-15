@@ -2,6 +2,7 @@
 
 const { Command } = require('commander');
 const pkg = require('../package.json');
+const chalk = require('chalk');
 
 const program = new Command();
 
@@ -35,6 +36,14 @@ program
   });
 
 program
+  .command('unregister <name>')
+  .description('등록된 작업 삭제')
+  .action(async (name) => {
+    const { unregisterCommand } = require('./commands/unregister');
+    await unregisterCommand(name);
+  });
+
+program
   .command('run <name>')
   .description('지정된 작업 즉시 실행')
   .action(async (name) => {
@@ -57,5 +66,6 @@ program
     const { resumeCommand } = require('./commands/resume');
     await resumeCommand(name);
   });
+
 
 module.exports = { program };
