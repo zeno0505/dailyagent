@@ -23,40 +23,42 @@ program
   .command('register')
   .description('새 작업 등록')
   .action(execWithCatch(async () => {
-      const { registerCommand } = require('./commands/register');
-      await registerCommand();
-    }));
+    const { registerCommand } = require('./commands/register');
+    await registerCommand();
+  }));
 
 program
   .command('list')
   .description('등록된 작업 목록 조회')
   .action(execWithCatch(async () => {
-      const { listCommand } = require('./commands/list');
-      await listCommand();
-    }));
+    const { listCommand } = require('./commands/list');
+    await listCommand();
+  }));
 
 program
   .command('unregister <name>')
   .description('등록된 작업 삭제')
   .action(execWithCatch(async (name) => {
-      const { unregisterCommand } = require('./commands/unregister');
-      await unregisterCommand(name);
-    }));
+    const { unregisterCommand } = require('./commands/unregister');
+    await unregisterCommand(name);
+  }));
 
 program
   .command('run <name>')
   .description('지정된 작업 즉시 실행')
   .action(execWithCatch(async (name) => {
-      const { runCommand } = require('./commands/run');
-      await runCommand(name);
-    }));
+    const { runCommand } = require('./commands/run');
+    await runCommand(name);
+  }));
 
-async function execWithCatch(action) {
-  try {
-    return await action();
-  } catch (error) {
-    console.error(chalk.red(`\n  오류: ${error.message}\n`));
-    process.exit(1);
+function execWithCatch (action) {
+  return async (...args) => {
+    try {
+      return await action(...args);
+    } catch (error) {
+      console.error(chalk.red(`\n  오류: ${error.message}\n`));
+      process.exit(1);
+    }
   }
 }
 
