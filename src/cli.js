@@ -67,5 +67,13 @@ program
     await resumeCommand(name);
   });
 
+program
+  .command('status <name>')
+  .description('작업 상태 및 실행 이력 조회')
+  .option('-n, --count <number>', '표시할 실행 이력 수', parseInt)
+  .action(async (name, options) => {
+    const { statusCommand } = require('./commands/status');
+    await statusCommand(name, options);
+  });
 
 module.exports = { program };
