@@ -1,5 +1,7 @@
 {
   "name": "dailyagent",
+  "author": "Zeno",
+  "email": "zeno55.dev@gmail.com",
   "version": "0.1.0",
   "description": "AI-powered task automation CLI that integrates with Notion and Claude Code",
   "type": "module",
