@@ -196,6 +196,21 @@ async function validateEnvironment(workDir, logger) {
   } catch {
     throw new Error('claude 명령어를 찾을 수 없습니다. Claude Code를 설치해주세요.');
   }
+
+  // Check gh CLI (non-blocking)
+  try {
+    const ghVersion = execSync('gh --version', { encoding: 'utf8' }).trim().split('\n')[0];
+    await logger.info(`GitHub CLI 버전: ${ghVersion}`);
+    // Check gh auth status
+    try {
+      execSync('gh auth status', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+      await logger.info('GitHub CLI 인증 상태: 정상');
+    } catch {
+      await logger.warn('GitHub CLI 인증이 필요합니다. PR 생성이 실패할 수 있습니다. "gh auth login"을 실행하세요.');
+    }
+  } catch {
+    await logger.warn('gh CLI가 설치되어 있지 않습니다. PR 자동 생성은 건너뜁니다.');
+  }
 }
 
 function resolveSettingsFile() {
