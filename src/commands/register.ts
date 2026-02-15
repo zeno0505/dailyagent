@@ -1,13 +1,11 @@
-'use strict';
+import inquirer from 'inquirer';
+import chalk from 'chalk';
+import path from 'path';
+import fs from 'fs-extra';
+import { isInitialized } from '../config';
+import { addJob } from '../jobs';
 
-const inquirer = require('inquirer');
-const chalk = require('chalk');
-const path = require('path');
-const fs = require('fs-extra');
-const { isInitialized } = require('../config');
-const { addJob } = require('../jobs');
-
-async function registerCommand() {
+export async function registerCommand(): Promise<void> {
   if (!isInitialized()) {
     console.log(chalk.red('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.'));
     process.exit(1);
@@ -20,7 +18,7 @@ async function registerCommand() {
       type: 'input',
       name: 'name',
       message: '작업 이름 (영문, 하이픈 허용):',
-      validate: (val) => {
+      validate: (val: string) => {
         if (!val) return '작업 이름을 입력해주세요.';
         if (!/^[a-z0-9-]+$/.test(val)) return '영문 소문자, 숫자, 하이픈만 사용 가능합니다.';
         return true;
@@ -37,9 +35,9 @@ async function registerCommand() {
       type: 'input',
       name: 'working_dir',
       message: '작업 디렉토리 (절대경로 또는 ~/ 사용):',
-      validate: (val) => {
+      validate: (val: string) => {
         if (!val) return '작업 디렉토리를 입력해주세요.';
-        const resolved = val.replace(/^~/, process.env.HOME);
+        const resolved = val.replace(/^~/, process.env.HOME || '~');
         if (!fs.pathExistsSync(resolved)) return `디렉토리가 존재하지 않습니다: ${resolved}`;
         if (!fs.pathExistsSync(path.join(resolved, '.git'))) return `Git 저장소가 아닙니다: ${resolved}`;
         return true;
@@ -61,11 +59,11 @@ async function registerCommand() {
 
   try {
     await addJob({
-      name: answers.name,
-      agent: answers.agent,
-      working_dir: answers.working_dir,
-      schedule: answers.schedule,
-      timeout: answers.timeout,
+      name: answers.name as string,
+      agent: answers.agent as string,
+      working_dir: answers.working_dir as string,
+      schedule: answers.schedule as string,
+      timeout: answers.timeout as string,
     });
 
     console.log('');
@@ -74,9 +72,8 @@ async function registerCommand() {
     console.log(`  실행: ${chalk.cyan(`dailyagent run ${answers.name}`)}`);
     console.log('');
   } catch (err) {
-    console.log(chalk.red(`\n  오류: ${err.message}\n`));
+    const error = err as Error;
+    console.log(chalk.red(`\n  오류: ${error.message}\n`));
     process.exit(1);
   }
 }
-
-module.exports = { registerCommand };

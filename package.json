@@ -2,12 +2,25 @@
   "name": "dailyagent",
   "version": "0.1.0",
   "description": "AI-powered task automation CLI that integrates with Notion and Claude Code",
-  "main": "src/cli.js",
+  "type": "module",
+  "main": "dist/cli.js",
   "bin": {
     "dailyagent": "./bin/dailyagent.js"
   },
+  "files": [
+    "dist",
+    "bin",
+    "templates"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
-    "start": "node bin/dailyagent.js"
+    "build": "tsc",
+    "dev": "tsx bin/dailyagent.ts",
+    "start": "node dist/cli.js",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "cli",
@@ -18,10 +31,16 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "chalk": "^4.1.2",
+    "chalk": "^5.3.0",
     "commander": "^12.1.0",
     "fs-extra": "^11.2.0",
-    "inquirer": "^8.2.6",
-    "ora": "^5.4.1"
+    "inquirer": "^13.2.4",
+    "ora": "^8.1.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "@types/node": "^20.17.6",
+    "@types/fs-extra": "^11.0.4",
+    "tsx": "^4.19.2"
   }
 }

@@ -1,12 +1,10 @@
-'use strict';
+import chalk from 'chalk';
+import ora from 'ora';
+import { isInitialized } from '../config';
+import { getJob } from '../jobs';
+import { executeJob } from '../core/executor';
 
-const chalk = require('chalk');
-const ora = require('ora');
-const { isInitialized } = require('../config');
-const { getJob } = require('../jobs');
-const { executeJob } = require('../core/executor');
-
-async function runCommand(name) {
+export async function runCommand(name: string): Promise<void> {
   if (!isInitialized()) {
     console.log(chalk.red('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.'));
     process.exit(1);
@@ -36,11 +34,11 @@ async function runCommand(name) {
     spinner.succeed('작업이 완료되었습니다!');
     console.log('');
 
-    if (result && result.raw_output) {
+    if (result && typeof result === 'object' && 'raw_output' in result) {
       console.log(chalk.gray('  결과:'));
       console.log(chalk.gray('  ' + '-'.repeat(60)));
       // Show last portion of raw output
-      const lines = result.raw_output.split('\n').slice(-20);
+      const lines = String(result.raw_output).split('\n').slice(-20);
       lines.forEach((line) => console.log(chalk.gray('  ' + line)));
       console.log(chalk.gray('  ' + '-'.repeat(60)));
     } else if (result) {
@@ -50,9 +48,8 @@ async function runCommand(name) {
 
     console.log('');
   } catch (err) {
-    spinner.fail(`작업 실패: ${err.message}`);
+    const error = err as Error;
+    spinner.fail(`작업 실패: ${error.message}`);
     process.exit(1);
   }
 }
-
-module.exports = { runCommand };

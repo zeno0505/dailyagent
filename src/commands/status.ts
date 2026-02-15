@@ -1,14 +1,16 @@
-'use strict';
-
-const chalk = require('chalk');
-const path = require('path');
-const fs = require('fs-extra');
-const { isInitialized, LOGS_DIR } = require('../config');
-const { getJob } = require('../jobs');
+import chalk from 'chalk';
+import path from 'path';
+import fs from 'fs-extra';
+import { isInitialized, LOGS_DIR } from '../config';
+import { getJob } from '../jobs';
 
 const DEFAULT_HISTORY_COUNT = 10;
 
-async function statusCommand(name, options) {
+interface StatusOptions {
+  count?: number;
+}
+
+export async function statusCommand(name: string, options: StatusOptions = {}): Promise<void> {
   if (!isInitialized()) {
     console.log(chalk.red('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.'));
     process.exit(1);
@@ -53,18 +55,18 @@ async function statusCommand(name, options) {
   console.log('');
 }
 
-function formatDate(dateStr) {
+function formatDate(dateStr: string | null): string {
   if (!dateStr) return chalk.gray('-');
   return new Date(dateStr).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 }
 
-function formatStatus(status) {
+function formatStatus(status: string): string {
   if (status === 'active') return chalk.green('활성');
   if (status === 'paused') return chalk.yellow('일시 중지');
   return chalk.gray(status || '-');
 }
 
-function formatLastStatus(status) {
+function formatLastStatus(status: string | null): string {
   if (!status) return chalk.gray('-');
   if (status === 'success') return chalk.green('성공');
   if (status === 'error') return chalk.red('에러');
@@ -72,7 +74,7 @@ function formatLastStatus(status) {
   return chalk.gray(status);
 }
 
-async function getJobLogs(jobName, count) {
+async function getJobLogs(jobName: string, count: number): Promise<Array<{ file: string; date: string }>> {
   if (!(await fs.pathExists(LOGS_DIR))) return [];
 
   const files = await fs.readdir(LOGS_DIR);
@@ -86,10 +88,8 @@ async function getJobLogs(jobName, count) {
     // 파일명: jobName-2025-01-15_12-30-00.log → 날짜 추출
     const tsMatch = file.match(/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}/);
     const date = tsMatch
-      ? tsMatch[0].replace('_', ' ').replace(/-/g, (m, offset) => (offset > 10 ? ':' : '-'))
+      ? tsMatch[0]!.replace('_', ' ').replace(/-/g, (m, offset) => (offset > 10 ? ':' : '-'))
       : '-';
     return { file, date };
   });
 }
-
-module.exports = { statusCommand };

@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
-'use strict';
-
-const { program } = require('../src/cli');
-
-program.parse(process.argv);
+import('../dist/cli.js')
+  .then(({ program }) => {
+    program.parse(process.argv);
+  })
+  .catch((err) => {
+    console.error('Error loading DailyAgent CLI:', err);
+    process.exit(1);
+  });

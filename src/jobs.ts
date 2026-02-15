@@ -1,23 +1,22 @@
-'use strict';
+import fs from 'fs-extra';
+import path from 'path';
+import { JOBS_FILE, LOCKS_DIR } from './config';
+import type { Job, JobsData, JobStatus } from './types/jobs';
 
-const fs = require('fs-extra');
-const path = require('path');
-const { JOBS_FILE, LOCKS_DIR } = require('./config');
+const DEFAULT_JOBS_DATA: JobsData = { jobs: [] };
 
-const DEFAULT_JOBS_DATA = { jobs: [] };
-
-async function loadJobs() {
+export async function loadJobs(): Promise<JobsData> {
   if (!(await fs.pathExists(JOBS_FILE))) {
     return { ...DEFAULT_JOBS_DATA };
   }
-  return fs.readJson(JOBS_FILE);
+  return fs.readJson(JOBS_FILE) as Promise<JobsData>;
 }
 
-async function saveJobs(data) {
+export async function saveJobs(data: JobsData): Promise<void> {
   await fs.writeJson(JOBS_FILE, data, { spaces: 2 });
 }
 
-async function addJob(job) {
+export async function addJob(job: Omit<Job, 'status' | 'created_at' | 'last_run' | 'last_status'>): Promise<void> {
   const data = await loadJobs();
   const existing = data.jobs.find((j) => j.name === job.name);
   if (existing) {
@@ -25,7 +24,7 @@ async function addJob(job) {
   }
   data.jobs.push({
     ...job,
-    status: 'active',
+    status: 'active' as JobStatus,
     created_at: new Date().toISOString(),
     last_run: null,
     last_status: null,
@@ -33,28 +32,28 @@ async function addJob(job) {
   await saveJobs(data);
 }
 
-async function getJob(name) {
+export async function getJob(name: string): Promise<Job | null> {
   const data = await loadJobs();
-  return data.jobs.find((j) => j.name === name) || null;
+  return data.jobs.find((j) => j.name === name) ?? null;
 }
 
-async function listJobs() {
+export async function listJobs(): Promise<Job[]> {
   const data = await loadJobs();
   return data.jobs;
 }
 
-async function updateJob(name, updates) {
+export async function updateJob(name: string, updates: Partial<Job>): Promise<Job> {
   const data = await loadJobs();
   const idx = data.jobs.findIndex((j) => j.name === name);
   if (idx === -1) {
     throw new Error(`작업 "${name}"을(를) 찾을 수 없습니다.`);
   }
-  data.jobs[idx] = { ...data.jobs[idx], ...updates };
+  data.jobs[idx] = { ...data.jobs[idx]!, ...updates };
   await saveJobs(data);
-  return data.jobs[idx];
+  return data.jobs[idx]!;
 }
 
-async function removeJob(name) {
+export async function removeJob(name: string): Promise<void> {
   const data = await loadJobs();
   const idx = data.jobs.findIndex((j) => j.name === name);
   if (idx === -1) {
@@ -66,11 +65,11 @@ async function removeJob(name) {
 
 // PID-based locking
 
-function lockPath(jobName) {
+function lockPath(jobName: string): string {
   return path.join(LOCKS_DIR, `${jobName}.lock`);
 }
 
-async function acquireLock(jobName) {
+export async function acquireLock(jobName: string): Promise<void> {
   await fs.ensureDir(LOCKS_DIR);
   const lockFile = lockPath(jobName);
 
@@ -83,10 +82,10 @@ async function acquireLock(jobName) {
       process.kill(pid, 0);
       throw new Error(`작업 "${jobName}"이(가) 이미 실행 중입니다 (PID: ${pid}).`);
     } catch (err) {
-      if (err.code === 'ESRCH') {
+      if ((err as NodeJS.ErrnoException).code === 'ESRCH') {
         // Process not running, stale lock
         await fs.remove(lockFile);
-      } else if (err.message.includes('이미 실행 중')) {
+      } else if ((err as Error).message.includes('이미 실행 중')) {
         throw err;
       }
     }
@@ -95,19 +94,7 @@ async function acquireLock(jobName) {
   await fs.writeFile(lockFile, String(process.pid));
 }
 
-async function releaseLock(jobName) {
+export async function releaseLock(jobName: string): Promise<void> {
   const lockFile = lockPath(jobName);
   await fs.remove(lockFile);
 }
-
-module.exports = {
-  loadJobs,
-  saveJobs,
-  addJob,
-  getJob,
-  listJobs,
-  updateJob,
-  removeJob,
-  acquireLock,
-  releaseLock,
-};

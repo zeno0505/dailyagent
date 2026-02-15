@@ -1,23 +1,25 @@
-'use strict';
-
-const inquirer = require('inquirer');
-const chalk = require('chalk');
-const path = require('path');
-const fs = require('fs-extra');
-const {
+import inquirer from 'inquirer';
+import chalk from 'chalk';
+import path from 'path';
+import fs from 'fs-extra';
+import { fileURLToPath } from 'url';
+import {
   CONFIG_DIR,
   CONFIG_FILE,
   DEFAULT_CONFIG,
   ensureConfigDir,
   saveConfig,
   isInitialized,
-} = require('../config');
+} from '../config';
 
-async function initCommand() {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export async function initCommand(): Promise<void> {
   console.log(chalk.bold('\n  DailyAgent 설정 초기화\n'));
 
   if (isInitialized()) {
-    const { overwrite } = await inquirer.prompt([
+    const { overwrite } = await inquirer.prompt<{ overwrite: boolean }>([
       {
         type: 'confirm',
         name: 'overwrite',
@@ -36,7 +38,7 @@ async function initCommand() {
       type: 'input',
       name: 'database_url',
       message: 'Notion 데이터베이스 URL:',
-      validate: (val) => (val.includes('notion.so') ? true : 'Notion URL을 입력해주세요.'),
+      validate: (val: string) => (val.includes('notion.so') ? true : 'Notion URL을 입력해주세요.'),
     },
     {
       type: 'input',
@@ -79,13 +81,13 @@ async function initCommand() {
   const config = {
     version: DEFAULT_CONFIG.version,
     notion: {
-      database_url: answers.database_url,
-      column_priority: answers.column_priority,
-      column_status: answers.column_status,
-      column_status_wait: answers.column_status_wait,
-      column_status_complete: answers.column_status_complete,
-      column_base_branch: answers.column_base_branch,
-      column_work_branch: answers.column_work_branch,
+      database_url: answers.database_url as string,
+      column_priority: answers.column_priority as string,
+      column_status: answers.column_status as string,
+      column_status_wait: answers.column_status_wait as string,
+      column_status_complete: answers.column_status_complete as string,
+      column_base_branch: answers.column_base_branch as string,
+      column_work_branch: answers.column_work_branch as string,
     },
   };
 
@@ -110,5 +112,3 @@ async function initCommand() {
   console.log(`  ${chalk.cyan('dailyagent run <name>')} 작업 실행`);
   console.log('');
 }
-
-module.exports = { initCommand };

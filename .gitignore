@@ -12,6 +12,16 @@ legacy/cronicle/.cronicle-api-key
 node_modules/
 npm-debug.log*
 
+# TypeScript
+dist/
+*.tsbuildinfo
+
+# TypeScript 컴파일 결과물 (src 디렉토리 내)
+src/**/*.d.ts
+src/**/*.d.ts.map
+src/**/*.js
+src/**/*.js.map
+
 # 환경 변수
 .env
 .env.local
