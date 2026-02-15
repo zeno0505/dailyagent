@@ -42,7 +42,7 @@ async function unregisterCommand(name) {
   }
 
   // 로그 파일 삭제 여부 확인
-  const logFile = path.join(LOGS_DIR, `${name}.log`);
+  const logFile = path.join(LOGS_DIR, `${path.basename(name)}.log`);
   const logExists = await fs.pathExists(logFile);
 
   if (logExists) {
@@ -62,7 +62,7 @@ async function unregisterCommand(name) {
   }
 
   // 잔여 락 파일 정리
-  const lockFile = path.join(LOCKS_DIR, `${name}.lock`);
+  const lockFile = path.join(LOCKS_DIR, `${path.basename(name)}.lock`);
   if (await fs.pathExists(lockFile)) {
     await fs.remove(lockFile);
   }
