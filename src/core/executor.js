@@ -8,6 +8,7 @@ const { getJob, updateJob, acquireLock, releaseLock } = require('../jobs');
 const { Logger } = require('../logger');
 const { generatePrompt } = require('./prompt-generator');
 const { runClaude } = require('./claude-runner');
+const chalk = require('chalk');
 
 /**
  * 작업 실행 오케스트레이터
@@ -49,6 +50,10 @@ async function executeJob(jobName) {
       columns: config.notion,
     });
     await logger.info('프롬프트 생성 완료');
+    console.log(chalk.gray('--------------------------------'));
+    console.log(chalk.gray('프롬프트:'));
+    console.log(chalk.gray(prompt));
+    console.log(chalk.gray('--------------------------------'));
 
     // 5. Resolve settings file
     const settingsFile = resolveSettingsFile();
