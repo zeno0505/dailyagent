@@ -35,6 +35,14 @@ program
   });
 
 program
+  .command('unregister <name>')
+  .description('등록된 작업 삭제')
+  .action(async (name) => {
+    const { unregisterCommand } = require('./commands/unregister');
+    await unregisterCommand(name);
+  });
+
+program
   .command('run <name>')
   .description('지정된 작업 즉시 실행')
   .action(async (name) => {
