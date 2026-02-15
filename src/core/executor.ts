@@ -49,8 +49,9 @@ export async function executeJob(jobName: string): Promise<unknown> {
   await acquireLock(jobName);
   await logger.info('PID 잠금 획득');
 
-  // Resolve settings file
+  // Resolve settings file and MCP config
   const settingsFile = resolveSettingsFile();
+  const mcpConfig = resolveMcpConfig();
 
   try {
     // ========================================
@@ -70,6 +71,7 @@ export async function executeJob(jobName: string): Promise<unknown> {
       prompt: initPrompt,
       workDir,
       settingsFile,
+      mcpConfig,
       timeout: '5m',
       logger,
       model: 'sonnet',
@@ -112,6 +114,7 @@ export async function executeJob(jobName: string): Promise<unknown> {
         prompt: workPrompt,
         workDir,
         settingsFile,
+        mcpConfig,
         timeout: String(job.timeout || '30m'),
         logger,
       });
@@ -148,6 +151,7 @@ export async function executeJob(jobName: string): Promise<unknown> {
       prompt: finishPrompt,
       workDir,
       settingsFile,
+      mcpConfig,
       timeout: '5m',
       logger,
       model: 'sonnet',
@@ -222,6 +226,15 @@ function resolveSettingsFile(): string | undefined {
   const pkgSettings = path.join(__dirname, '..', '..', 'templates', 'claude-settings.json');
   if (fs.pathExistsSync(pkgSettings)) {
     return pkgSettings;
+  }
+  return undefined;
+}
+
+function resolveMcpConfig(): string | undefined {
+  // Check for .mcp.json in package root
+  const mcpJson = path.join(__dirname, '..', '..', '.mcp.json');
+  if (fs.pathExistsSync(mcpJson)) {
+    return mcpJson;
   }
   return undefined;
 }

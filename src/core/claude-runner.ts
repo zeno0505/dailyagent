@@ -19,6 +19,7 @@ interface ClaudeOptions {
   prompt: string;
   workDir: string;
   settingsFile?: string | undefined;
+  mcpConfig?: string | undefined;
   timeout?: string | undefined;
   logger?: Logger | undefined;
   model?: string | undefined;
@@ -30,13 +31,14 @@ interface ClaudeResult {
   [key: string]: unknown;
 }
 
-export async function runClaude({ 
-  prompt, 
-  workDir, 
-  settingsFile, 
-  timeout = '30m', 
-  logger, 
-  model 
+export async function runClaude({
+  prompt,
+  workDir,
+  settingsFile,
+  mcpConfig,
+  timeout = '30m',
+  logger,
+  model
 }: ClaudeOptions): Promise<ClaudeResult> {
   const timeoutMs = parseTimeout(timeout);
 
@@ -56,6 +58,11 @@ export async function runClaude({
 
   if (model) {
     args.push('--model', model);
+  }
+
+  if (mcpConfig && await fs.pathExists(mcpConfig)) {
+    args.push('--mcp-config', mcpConfig);
+    if (logger) await logger.info(`MCP 설정 파일 사용: ${mcpConfig}`);
   }
 
   if (settingsFile && await fs.pathExists(settingsFile)) {
