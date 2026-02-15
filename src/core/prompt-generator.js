@@ -9,6 +9,7 @@ function generatePrompt({ notionDbUrl, workDir, columns }) {
     status: columns.column_status || '상태',
     statusWait: columns.column_status_wait || '작업 대기',
     statusComplete: columns.column_status_complete || '검토 전',
+    columnPriority: columns.column_priority || '우선순위',
     baseBranch: columns.column_base_branch || '기준 브랜치',
     workBranch: columns.column_work_branch || '작업 브랜치',
   };
@@ -24,7 +25,7 @@ MCP 도구 \`notion-query-database-view\`를 사용하여 데이터 조회:
 - 데이터베이스 URL: ${notionDbUrl}
 - "${col.status}"가 ${col.statusWait}이면서, "${col.baseBranch}"가 설정된 항목 조회
 - 만약 "선행 작업"이 존재하는데, 선행 작업이 완료되지 않았다면 해당 항목은 무시
-- 우선순위가 가장 높거나 가장 오래된 항목 1개 선택
+- ${col.columnPriority}가 가장 높거나 가장 오래된 항목 1개 선택
 - 만약 "${col.statusWait}" 항목이 없으면 작업을 종료하고 그 사실을 보고
 
 ### 2단계: 작업 상세 내용 확인
@@ -56,12 +57,19 @@ ${workDir} 디렉토리에서:
    - 예: \`feat: 로그인 폼 컴포넌트\`
    - \`git add <files>\` → \`git commit -m "<message>"\`
 
-### 5단계: Git Push
+### 5단계: 작업 검증
+기존에 작업한 내용을 확인하여
+1. 기존에 계획했던 작업이 목적에 맞게 수행되었는지 검토
+2. 현재 작업으로 인하여 발생하는 사이드 이펙트는 없는지 확인
+3. 만약 검토 결과 문제가 있다면 수정하고 다시 검토
+4. 검토 결과 문제가 없다면 다음 단계로 이동
+
+### 6단계: Git Push
 1. 원격 저장소에 브랜치 푸시: \`git push -u origin <브랜치명>\`
 2. Push 결과 확인
 3. 브랜치 URL 또는 커밋 해시 기록
 
-### 6단계: Notion 업데이트
+### 7단계: Notion 업데이트
 MCP 도구 \`notion-update-page\`를 사용하여 페이지 업데이트:
 
 **속성 업데이트:**
@@ -81,23 +89,12 @@ MCP 도구 \`notion-update-page\`를 사용하여 페이지 업데이트:
 
 **커밋 해시:** \`{커밋해시}\`
 
-**커밋 메시지:**
-- {커밋메시지1}
-- {커밋메시지2}
-
 **수행 작업 요약:**
 {작업 요약}
 
-**주요 변경사항:**
-- {변경사항1}
-- {변경사항2}
-
-**변경된 파일:**
-- \`{파일경로1}\`
-- \`{파일경로2}\`
 \`\`\`
 
-### 7단계: 결과 보고
+### 8단계: 결과 보고
 JSON 형식으로 결과를 반환:
 \`\`\`json
 {
@@ -141,8 +138,8 @@ JSON 형식으로 결과를 반환:
 5. 모든 명령은 ${workDir} 디렉토리에서 실행
 
 ## 언어
-- 커밋 메시지는 영어로 작성
-- Notion 업데이트 내용은 한국어와 영어 혼용 가능`;
+- 커밋 메시지는 접두사(feat, fix, refactor)와 한국어로 작성
+`;
 }
 
 module.exports = { generatePrompt };
