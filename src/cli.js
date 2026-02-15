@@ -42,4 +42,20 @@ program
     await runCommand(name);
   });
 
+program
+  .command('pause <name>')
+  .description('작업 일시 중지')
+  .action(async (name) => {
+    const { pauseCommand } = require('./commands/pause');
+    await pauseCommand(name);
+  });
+
+program
+  .command('resume <name>')
+  .description('일시 중지된 작업 재개')
+  .action(async (name) => {
+    const { resumeCommand } = require('./commands/resume');
+    await resumeCommand(name);
+  });
+
 module.exports = { program };
