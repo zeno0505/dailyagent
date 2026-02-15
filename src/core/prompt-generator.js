@@ -10,6 +10,7 @@ function generatePrompt({ notionDbUrl, workDir, baseBranch, columns }) {
     statusWait: columns.column_status_wait || '작업 대기',
     statusComplete: columns.column_status_complete || '검토 전',
     baseBranch: columns.column_base_branch || '기준 브랜치',
+    workBranch: columns.column_work_branch || '작업 브랜치',
   };
 
   return `# Notion 작업 자동화 실행
@@ -65,7 +66,7 @@ MCP 도구 \`notion-update-page\`를 사용하여 페이지 업데이트:
 
 **속성 업데이트:**
 - ${col.status}: "${col.statusWait}" → "${col.statusComplete}"
-- 작업 브랜치: {브랜치명} (작업했던 브랜치 명을 기록)
+- ${col.workBranch}: {브랜치명} (작업했던 브랜치 명을 기록)
 
 **본문에 작업 결과 추가:**
 \`\`\`markdown

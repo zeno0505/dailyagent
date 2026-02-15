@@ -19,6 +19,7 @@ const DEFAULT_CONFIG = {
     column_status_wait: '작업 대기',
     column_status_complete: '검토 전',
     column_base_branch: '기준 브랜치',
+    column_work_branch: '작업 브랜치',
   },
   defaults: {
     agent: 'claude-code',
