@@ -2,6 +2,7 @@
 
 const { Command } = require('commander');
 const pkg = require('../package.json');
+const chalk = require('chalk');
 
 const program = new Command();
 
@@ -13,41 +14,50 @@ program
 program
   .command('init')
   .description('설정 초기화 위저드')
-  .action(async () => {
+  .action(execWithCatch(async () => {
     const { initCommand } = require('./commands/init');
     await initCommand();
-  });
+  }));
 
 program
   .command('register')
   .description('새 작업 등록')
-  .action(async () => {
-    const { registerCommand } = require('./commands/register');
-    await registerCommand();
-  });
+  .action(execWithCatch(async () => {
+      const { registerCommand } = require('./commands/register');
+      await registerCommand();
+    }));
 
 program
   .command('list')
   .description('등록된 작업 목록 조회')
-  .action(async () => {
-    const { listCommand } = require('./commands/list');
-    await listCommand();
-  });
+  .action(execWithCatch(async () => {
+      const { listCommand } = require('./commands/list');
+      await listCommand();
+    }));
 
 program
   .command('unregister <name>')
   .description('등록된 작업 삭제')
-  .action(async (name) => {
-    const { unregisterCommand } = require('./commands/unregister');
-    await unregisterCommand(name);
-  });
+  .action(execWithCatch(async (name) => {
+      const { unregisterCommand } = require('./commands/unregister');
+      await unregisterCommand(name);
+    }));
 
 program
   .command('run <name>')
   .description('지정된 작업 즉시 실행')
-  .action(async (name) => {
-    const { runCommand } = require('./commands/run');
-    await runCommand(name);
-  });
+  .action(execWithCatch(async (name) => {
+      const { runCommand } = require('./commands/run');
+      await runCommand(name);
+    }));
+
+async function execWithCatch(action) {
+  try {
+    return await action();
+  } catch (error) {
+    console.error(chalk.red(`\n  오류: ${error.message}\n`));
+    process.exit(1);
+  }
+}
 
 module.exports = { program };
