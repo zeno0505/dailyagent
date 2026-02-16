@@ -74,6 +74,7 @@ const AGENT_CONFIGS: Record<Agent, CliAgentConfig> = {
       '-p',
       '--output-format', 'json',
       '--no-session-persistence',
+      '--dangerously-skip-permissions',
     ],
     displayName: 'Claude Code',
   },
@@ -82,21 +83,25 @@ const AGENT_CONFIGS: Record<Agent, CliAgentConfig> = {
     args: [
       '-p',
       '--output-format', 'json',
+      '--approve-mcps',
+      '--trust',
+      '--yolo',
     ],
     displayName: 'Cursor Agent',
   },
 };
 
-async function getAgentArgs(args: string[], options: RunnerOptions) {
+async function getAgentArgs(config: CliAgentConfig, options: RunnerOptions) {
   const { model, logger, settingsFile } = options;
+  const args: string[] = [];
 
-  // Common
+  // Common: Add model parameter if specified
   if (model) {
     args.push('--model', model);
   }
 
-  // Claude Code
-  if (model === 'claude-code') {
+  // Claude Code specific: Add settings file if exists
+  if (config.command === 'claude') {
     if (settingsFile && await fs.pathExists(settingsFile)) {
       args.push('--settings', settingsFile);
       if (logger) await logger.info(`설정 파일 사용: ${settingsFile}`);
@@ -125,7 +130,9 @@ export async function runCli<T>(
 
   const args = [...config.args];
 
-  args.push(...(await getAgentArgs(args, options)));
+  // Add agent-specific arguments
+  const additionalArgs = await getAgentArgs(config, options);
+  args.push(...additionalArgs);
   
   return new Promise((resolve, reject) => {
     if (logger) logger.info(`${config.displayName} 실행 시작`);

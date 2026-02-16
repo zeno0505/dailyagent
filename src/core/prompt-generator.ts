@@ -28,18 +28,14 @@ export function generateInitialPrompt({ notionDbUrl, columns }: { notionDbUrl: s
   return `# Phase 1: Notion 작업 조회
 
 ## 1단계: Notion 데이터베이스 조회
-MCP 도구 \`notion-query-database-view\`를 사용하여 데이터 조회:
+Notion MCP 도구를 사용하여 데이터 조회:
 - 데이터베이스 URL: ${notionDbUrl}
 - "${col.status}"가 ${col.statusWait}이면서, "${col.baseBranch}"가 설정된 항목 조회
 - 만약 "선행 작업"이 존재하는데, 선행 작업이 완료되지 않았다면 해당 항목은 무시
 - ${col.columnPriority}가 가장 높거나 가장 오래된 항목 1개 선택
-- 만약 "${col.statusWait}" 항목이 없으면 아래 JSON을 반환하고 종료:
-\`\`\`json
-{ "no_tasks": true }
-\`\`\`
 
 ## 2단계: 작업 상세 내용 확인
-MCP 도구 \`notion-fetch\`를 사용하여 선택된 페이지의 상세 내용 읽기:
+Notion MCP 도구를 사용하여 선택된 페이지의 상세 내용 읽기:
 - 페이지 ID 또는 URL 사용
 - 작업 요구사항, 기술 스택, 관련 파일 등 분석
 - 작업 범위와 복잡도 평가
