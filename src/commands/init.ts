@@ -66,6 +66,12 @@ export async function initCommand(): Promise<void> {
     },
     {
       type: 'input',
+      name: 'column_status_error',
+      message: '에러 상태값:',
+      default: DEFAULT_CONFIG.notion.column_status_error,
+    },
+    {
+      type: 'input',
       name: 'column_base_branch',
       message: '기준 브랜치 컬럼명:',
       default: DEFAULT_CONFIG.notion.column_base_branch,
@@ -86,6 +92,7 @@ export async function initCommand(): Promise<void> {
       column_status: answers.column_status as string,
       column_status_wait: answers.column_status_wait as string,
       column_status_complete: answers.column_status_complete as string,
+      column_status_error: answers.column_status_error as string,
       column_base_branch: answers.column_base_branch as string,
       column_work_branch: answers.column_work_branch as string,
     },

@@ -17,6 +17,7 @@ export const DEFAULT_CONFIG: DailyAgentConfig = {
     column_status: '상태',
     column_status_wait: '작업 대기',
     column_status_complete: '검토 전',
+    column_status_error: '작업 실패',
     column_base_branch: '기준 브랜치',
     column_work_branch: '작업 브랜치',
   },

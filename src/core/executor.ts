@@ -1,22 +1,17 @@
-import path from 'path';
-import fs from 'fs-extra';
-import { execSync } from 'child_process';
 import { loadConfig } from '../config';
 import { getJob, updateJob, acquireLock, releaseLock } from '../jobs';
 import { Logger } from '../logger';
 import { generateInitialPrompt, generateWorkPrompt, generateFinishPrompt } from './prompt-generator';
 import { runClaude } from './claude-runner';
 import chalk from 'chalk';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { TaskInfo, WorkResult } from '../types/core';
+import { resolveSettingsFile, updateNotionOnError, validateEnvironment } from '../helper/exec-helper';
 
 /**
  * 작업 실행 오케스트레이터
  * 3단계 분리: Phase 1 (Notion 조회) → Phase 2 (코드 작업) → Phase 3 (Notion 업데이트)
  */
-export async function executeJob(jobName: string): Promise<unknown> {
+export async function executeJob (jobName: string): Promise<unknown> {
   const logger = new Logger(jobName);
   await logger.init();
 
@@ -66,7 +61,7 @@ export async function executeJob(jobName: string): Promise<unknown> {
     console.log(chalk.gray(initPrompt));
     console.log(chalk.gray('--------------------------------'));
 
-    const initResult = await runClaude({
+    const initResult = await runClaude<TaskInfo>({
       prompt: initPrompt,
       workDir,
       settingsFile,
@@ -77,8 +72,8 @@ export async function executeJob(jobName: string): Promise<unknown> {
     await logger.info(`Phase 1 완료: ${JSON.stringify(initResult)}`);
 
     // Phase 1 JSON 파싱 실패 체크
-    if (initResult.raw_output) {
-      throw new Error(`Phase 1 결과 파싱 실패: ${initResult.raw_output}`);
+    if (!initResult.result) {
+      throw new Error(`Phase 1 결과 파싱 실패: ${initResult.rawOutput}`);
     }
 
     // 작업 대기 항목 없으면 조기 종료
@@ -91,7 +86,7 @@ export async function executeJob(jobName: string): Promise<unknown> {
       return initResult;
     }
 
-    const taskInfo = initResult;
+    const taskInfo = initResult.result;
 
     // ========================================
     // Phase 2: 코드 작업 + Git Push (model: 기본값, timeout: job.timeout)
@@ -106,27 +101,33 @@ export async function executeJob(jobName: string): Promise<unknown> {
     console.log(chalk.gray(workPrompt));
     console.log(chalk.gray('--------------------------------'));
 
-    let workResult: { success?: boolean; error?: string; [key: string]: unknown };
+    let workResult: WorkResult;
     try {
-      const phase2Result = await runClaude({
+      const workRunnerResult = await runClaude<WorkResult>({
         prompt: workPrompt,
         workDir,
         settingsFile,
         timeout: String(job.timeout || '30m'),
         logger,
       });
-      await logger.info(`Phase 2 완료: ${JSON.stringify(phase2Result)}`);
+      await logger.info(`Phase 2 완료: ${JSON.stringify(workRunnerResult)}`);
 
       // Phase 2 JSON 파싱 실패 체크
-      if (phase2Result.raw_output) {
-        workResult = { success: false, error: `Phase 2 결과 파싱 실패: ${phase2Result.raw_output}` };
+      if (!workRunnerResult.result) {
+        workResult = { success: false, error: `Phase 2 결과 파싱 실패: ${workRunnerResult.rawOutput}` };
       } else {
-        workResult = phase2Result;
+        workResult = workRunnerResult.result;
       }
     } catch (err) {
       const error = err as Error;
       await logger.error(`Phase 2 실패: ${error.message}`);
       workResult = { success: false, error: error.message };
+    }
+
+    // Phase 2 실패 시 Notion 직접 업데이트
+    if (workResult.success === false || workResult.error) {
+      await logger.info('--- Phase 2 실패로 인한 Notion 직접 업데이트 ---');
+      await updateNotionOnError({ taskInfo, workDir, workResult, config, settingsFile, logger });
     }
 
     // ========================================
@@ -179,49 +180,4 @@ export async function executeJob(jobName: string): Promise<unknown> {
     await releaseLock(jobName);
     await logger.info('PID 잠금 해제');
   }
-}
-
-async function validateEnvironment(workDir: string, logger: Logger): Promise<void> {
-  // Check working directory
-  if (!(await fs.pathExists(workDir))) {
-    throw new Error(`작업 디렉토리가 존재하지 않습니다: ${workDir}`);
-  }
-  await logger.info(`작업 디렉토리: ${workDir}`);
-
-  // Check git repo
-  if (!(await fs.pathExists(path.join(workDir, '.git')))) {
-    throw new Error(`Git 저장소가 아닙니다: ${workDir}`);
-  }
-
-  // Check claude CLI
-  try {
-    const version = execSync('claude --version', { encoding: 'utf8' }).trim();
-    await logger.info(`Claude Code CLI 버전: ${version}`);
-  } catch {
-    throw new Error('claude 명령어를 찾을 수 없습니다. Claude Code를 설치해주세요.');
-  }
-
-  // Check gh CLI (non-blocking)
-  try {
-    const ghVersion = execSync('gh --version', { encoding: 'utf8' }).trim().split('\n')[0];
-    await logger.info(`GitHub CLI 버전: ${ghVersion}`);
-    // Check gh auth status
-    try {
-      execSync('gh auth status', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-      await logger.info('GitHub CLI 인증 상태: 정상');
-    } catch {
-      await logger.warn('GitHub CLI 인증이 필요합니다. PR 생성이 실패할 수 있습니다. "gh auth login"을 실행하세요.');
-    }
-  } catch {
-    await logger.warn('gh CLI가 설치되어 있지 않습니다. PR 자동 생성은 건너뜁니다.');
-  }
-}
-
-function resolveSettingsFile(): string | undefined {
-  // Check for template settings file in package
-  const pkgSettings = path.join(__dirname, '..', '..', 'templates', 'claude-settings.json');
-  if (fs.pathExistsSync(pkgSettings)) {
-    return pkgSettings;
-  }
-  return undefined;
 }

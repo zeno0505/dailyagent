@@ -1,6 +1,7 @@
 import { spawn, execSync } from 'child_process';
 import fs from 'fs-extra';
 import type { Logger } from '../logger';
+import { ClaudeOptions, ClaudeResult } from '../types/core';
 
 export function parseTimeout(timeoutStr: string): number {
   const match = timeoutStr.match(/^(\d+)(s|m|h)$/);
@@ -15,29 +16,14 @@ export function parseTimeout(timeoutStr: string): number {
   return val * multipliers[unit];
 }
 
-interface ClaudeOptions {
-  prompt: string;
-  workDir: string;
-  settingsFile?: string | undefined;
-  timeout?: string | undefined;
-  logger?: Logger | undefined;
-  model?: string | undefined;
-}
-
-interface ClaudeResult {
-  raw_output?: string;
-  exit_code?: number;
-  [key: string]: unknown;
-}
-
-export async function runClaude({ 
+export async function runClaude<T>({ 
   prompt, 
   workDir, 
   settingsFile, 
   timeout = '30m', 
   logger, 
   model 
-}: ClaudeOptions): Promise<ClaudeResult> {
+}: ClaudeOptions): Promise<ClaudeResult<T>> {
   const timeoutMs = parseTimeout(timeout);
 
   // Verify claude CLI exists
@@ -105,11 +91,11 @@ export async function runClaude({
 
       // Parse JSON result
       try {
-        const result = JSON.parse(stdout) as ClaudeResult;
-        resolve(result);
+        const result = JSON.parse(stdout) as T;
+        resolve({ rawOutput: stdout, exitCode: code, result });
       } catch {
-        // If not valid JSON, return raw output
-        resolve({ raw_output: stdout, exit_code: code });
+        const error = { rawOutput: stdout, exitCode: code };
+        resolve(error);
       }
     });
 

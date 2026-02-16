@@ -34,11 +34,11 @@ export async function runCommand(name: string): Promise<void> {
     spinner.succeed('작업이 완료되었습니다!');
     console.log('');
 
-    if (result && typeof result === 'object' && 'raw_output' in result) {
+    if (result && typeof result === 'object' && 'rawOutput' in result) {
       console.log(chalk.gray('  결과:'));
       console.log(chalk.gray('  ' + '-'.repeat(60)));
       // Show last portion of raw output
-      const lines = String(result.raw_output).split('\n').slice(-20);
+      const lines = String(result.rawOutput).split('\n').slice(-20);
       lines.forEach((line) => console.log(chalk.gray('  ' + line)));
       console.log(chalk.gray('  ' + '-'.repeat(60)));
     } else if (result) {
