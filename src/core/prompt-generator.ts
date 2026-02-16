@@ -7,6 +7,7 @@ interface ColumnConfig {
   column_status?: string;
   column_status_wait?: string;
   column_status_complete?: string;
+  column_status_error?: string;
   column_priority?: string;
   column_base_branch?: string;
   column_work_branch?: string;
@@ -16,6 +17,7 @@ interface ResolvedColumns {
   status: string;
   statusWait: string;
   statusComplete: string;
+  statusError: string;
   columnPriority: string;
   baseBranch: string;
   workBranch: string;
@@ -26,6 +28,7 @@ function resolveColumns(columns: ColumnConfig): ResolvedColumns {
     status: columns.column_status || '상태',
     statusWait: columns.column_status_wait || '작업 대기',
     statusComplete: columns.column_status_complete || '검토 전',
+    statusError: columns.column_status_error || '작업 실패',
     columnPriority: columns.column_priority || '우선순위',
     baseBranch: columns.column_base_branch || '기준 브랜치',
     workBranch: columns.column_work_branch || '작업 브랜치',
@@ -233,7 +236,7 @@ ${isSuccess ? `**성공 케이스 - 속성 업데이트:**
 {작업 요약}
 
 \`\`\`` : `**실패 케이스 - 속성 업데이트:**
-- ${col.status}: "${col.statusWait}" → "에러"
+- ${col.status}: "${col.statusWait}" → "${col.statusError}"
 
 **본문에 에러 내용 추가:**
 \`\`\`markdown

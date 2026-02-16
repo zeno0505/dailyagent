@@ -129,6 +129,12 @@ export async function executeJob(jobName: string): Promise<unknown> {
       workResult = { success: false, error: error.message };
     }
 
+    // Phase 2 실패 시 Notion 직접 업데이트
+    if (workResult.success === false || workResult.error) {
+      await logger.info('--- Phase 2 실패로 인한 Notion 직접 업데이트 ---');
+      await updateNotionOnError(taskInfo, workResult, config, settingsFile, logger);
+    }
+
     // ========================================
     // Phase 3: Notion 업데이트 (model: sonnet, timeout: 5m)
     // ========================================
@@ -224,4 +230,66 @@ function resolveSettingsFile(): string | undefined {
     return pkgSettings;
   }
   return undefined;
+}
+
+async function updateNotionOnError(
+  taskInfo: unknown,
+  workResult: { error?: string; [key: string]: unknown },
+  config: { notion: { database_url: string; column_status?: string; column_status_error?: string } },
+  settingsFile: string | undefined,
+  logger: Logger
+): Promise<void> {
+  try {
+    const errorPrompt = `# Notion 에러 상태 업데이트
+
+작업 정보:
+\`\`\`json
+${JSON.stringify(taskInfo, null, 2)}
+\`\`\`
+
+에러 내용:
+\`\`\`
+${(workResult.error || 'Unknown error').toString()}
+\`\`\`
+
+MCP 도구 \`notion-update-page\`를 사용하여 아래 작업을 수행하세요:
+
+1. 페이지 ID: 위 JSON의 "task_id" 사용
+2. 속성 업데이트:
+   - "${config.notion.column_status || '상태'}": "${config.notion.column_status_error || '작업 실패'}"
+
+3. 페이지 본문에 아래 내용을 추가하세요:
+\`\`\`markdown
+
+---
+
+## 자동화 작업 실패
+
+**실패 시간:** ${new Date().toISOString()}
+
+**에러 내용:**
+${(workResult.error || 'Unknown error').toString()}
+
+\`\`\`
+
+완료 후 결과를 JSON으로 반환하세요:
+\`\`\`json
+{ "success": true, "message": "Notion 에러 상태 업데이트 완료" }
+\`\`\``;
+
+    const result = await runClaude({
+      prompt: errorPrompt,
+      workDir: process.cwd(),
+      settingsFile,
+      timeout: '5m',
+      logger,
+      model: 'sonnet',
+    });
+
+    await logger.info(`Notion 에러 업데이트 완료: ${JSON.stringify(result)}`);
+  } catch (err) {
+    const error = err as Error;
+    await logger.error(`Notion 에러 업데이트 실패: ${error.message}`);
+    // 에러 업데이트 실패는 warning으로만 처리 (주요 작업은 이미 실패)
+  }
 }
