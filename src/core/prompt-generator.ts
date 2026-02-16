@@ -3,21 +3,9 @@
  * 3단계 분리: Phase 1 (Notion 조회), Phase 2 (코드 작업), Phase 3 (Notion 업데이트)
  */
 
+import { resolveColumns } from "../config";
 import { ColumnConfig } from "../types/config";
 import { TaskInfo, WorkResult } from "../types/core";
-
-
-function resolveColumns(columns: ColumnConfig) {
-  return {
-    status: columns.column_status || '상태',
-    statusWait: columns.column_status_wait || '작업 대기',
-    statusComplete: columns.column_status_complete || '검토 전',
-    statusError: columns.column_status_error || '작업 실패',
-    columnPriority: columns.column_priority || '우선순위',
-    baseBranch: columns.column_base_branch || '기준 브랜치',
-    workBranch: columns.column_work_branch || '작업 브랜치',
-  } as const;
-}
 
 /**
  * Phase 1: Notion DB 조회 + 페이지 상세 읽기
@@ -30,7 +18,7 @@ export function generateInitialPrompt({ databaseUrl, columns }: { databaseUrl: s
 ## 1단계: Notion 데이터베이스 조회
 Notion MCP 도구를 사용하여 데이터 조회:
 - 데이터베이스 URL: ${databaseUrl}
-- "${col.status}"가 ${col.statusWait}이면서, "${col.baseBranch}"가 설정된 항목 조회
+- "${col.columnStatus}"가 ${col.statusWait}이면서, "${col.columnBaseBranch}"가 설정된 항목 조회
 - 만약 "선행 작업"이 존재하는데, 선행 작업이 완료되지 않았다면 해당 항목은 무시
 - ${col.columnPriority}가 가장 높거나 가장 오래된 항목 1개 선택
 
@@ -176,8 +164,8 @@ ${JSON.stringify(workResult, null, 2)}
 - 데이터베이스 URL: ${databaseUrl}
 
 ${isSuccess ? `**성공 케이스 - 속성 업데이트:**
-- ${col.status}: "${col.statusWait}" → "${col.statusComplete}"
-- ${col.workBranch}: "작업 브랜치명"
+- ${col.columnStatus}: "${col.statusWait}" → "${col.statusReview}"
+- ${col.columnWorkBranch}: "작업 브랜치명"
 
 **본문에 작업 결과 추가:**
 \`\`\`markdown
@@ -196,7 +184,7 @@ ${isSuccess ? `**성공 케이스 - 속성 업데이트:**
 {작업 요약}
 
 \`\`\`` : `**실패 케이스 - 속성 업데이트:**
-- ${col.status}: "${col.statusWait}" → "${col.statusError}"
+- ${col.columnStatus}: "${col.statusWait}" → "${col.statusError}"
 
 **본문에 에러 내용 추가:**
 \`\`\`markdown

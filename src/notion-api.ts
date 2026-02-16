@@ -3,6 +3,8 @@
  * MCP 대신 직접 Notion API를 호출하여 토큰 소비를 최소화
  */
 
+import { resolveColumns } from './config';
+import { parseDateProperty, parseRelationProperty, parseSelectProperty } from './helper/notion-api';
 import { ColumnConfig } from './types/config';
 import { TaskInfo } from './types/core';
 
@@ -16,19 +18,67 @@ export interface NotionQueryResult {
   results: NotionPage[];
 }
 
+interface TaskCandidate {
+  page: NotionPage;
+  priority: number;
+  createdTime: Date;
+  prerequisiteCompleted: boolean;
+}
+
+/**
+ * 선행 작업이 완료되었는지 확인
+ */
+async function checkPrerequisiteCompleted(
+  apiToken: string,
+  prerequisitePageId: string,
+  columns: ColumnConfig
+): Promise<boolean> {
+  const { columnStatus, statusComplete } = resolveColumns(columns);
+  const pageResponse = await fetch(`https://api.notion.com/v1/pages/${prerequisitePageId}`, {
+    headers: {
+      'Authorization': `Bearer ${apiToken}`,
+      'Notion-Version': '2025-09-03',
+    },
+  });
+
+  if (!pageResponse.ok) {
+    // 선행 작업 페이지를 찾을 수 없으면 완료된 것으로 간주
+    return true;
+  }
+
+  const pageData = (await pageResponse.json()) as NotionPage;
+  const statusProp = pageData.properties[columnStatus];
+  const statusValue = parseSelectProperty(statusProp);
+
+  if (statusValue) {
+    return statusValue === statusComplete;
+  }
+
+  return false;
+}
+
+/**
+ * 우선도 계산: 우선순위가 높을수록, 작업 일자가 오래될수록 높은 점수
+ */
+function calculatePriority({ createdTime, priority }: TaskCandidate): number {
+  const daysSinceCreation = (Date.now() - createdTime.getTime()) / (1000 * 60 * 60 * 24);
+  // 우선순위는 가중치 100, 경과 일수는 가중치 1
+  return priority * 100 + daysSinceCreation;
+}
+
 /**
  * Notion API를 사용하여 작업 대기 항목 조회
+ * - 여러 항목을 가져와서 클라이언트에서 우선도 계산
+ * - 선행 작업이 완료된 항목만 선택
  */
 export async function fetchPendingTask(
   apiToken: string,
   datasourceId: string,
   columns: ColumnConfig
 ): Promise<TaskInfo | null> {  
-  const statusColumn = columns.column_status || '상태';
-  const statusWait = columns.column_status_wait || '작업 대기';
-  const baseBranchColumn = columns.column_base_branch || '기준 브랜치';
+  const { columnStatus, statusWait, columnBaseBranch, columnPriority, columnPrerequisite, columnCreatedTime } = resolveColumns(columns);
 
-  // 데이터베이스 쿼리
+  // 데이터베이스 쿼리 (여러 항목 가져오기)
   const queryResponse = await fetch(`https://api.notion.com/v1/data_sources/${datasourceId}/query`, {
     method: 'POST',
     headers: {
@@ -40,13 +90,13 @@ export async function fetchPendingTask(
       filter: {
         and: [
           {
-            property: statusColumn,
+            property: columnStatus,
             status: {
               equals: statusWait,
             },
           },
           {
-            property: baseBranchColumn,
+            property: columnBaseBranch,
             rich_text: {
               is_not_empty: true,
             },
@@ -55,11 +105,15 @@ export async function fetchPendingTask(
       },
       sorts: [
         {
-          property: columns.column_priority || '우선순위',
+          property: columnPriority,
           direction: 'descending',
         },
+        {
+          property: columnCreatedTime,
+          direction: 'ascending',
+        },
       ],
-      page_size: 1,
+      page_size: 20,  // 여러 항목을 가져와서 클라이언트에서 필터링
     }),
   });
 
@@ -74,16 +128,69 @@ export async function fetchPendingTask(
     return null;
   }
 
-  const page = queryResult.results[0];
-  if (!page) {
+  // 각 항목의 우선도 계산 및 선행 작업 확인
+  const candidates: TaskCandidate[] = [];
+
+  for (const page of queryResult.results) {
+    const properties = page.properties;
+
+    // 우선순위 추출
+    let priority = 0;
+    const priorityProp = properties[columnPriority];
+    const properyValue = parseSelectProperty(priorityProp);
+    if (properyValue) {
+      priority = parseInt(properyValue.replace(/[^0-9]/g, ''), 10) || 0;
+    }
+
+    // 작업 일자 추출
+    let createdTime = new Date();
+    const createdTimeProp = properties[columnCreatedTime];
+    const createdTimeValue = parseDateProperty(createdTimeProp);
+    if (createdTimeValue) {
+      createdTime = createdTimeValue;
+    }
+
+    // 선행 작업 확인
+    let prerequisiteCompleted = true;
+    const prerequisiteProp = properties[columnPrerequisite];
+    const prerequisiteValue = parseRelationProperty(prerequisiteProp);
+    if (prerequisiteValue) {
+      const checkArr = await Promise.all(prerequisiteValue.map((id) => checkPrerequisiteCompleted(apiToken, id, columns)));
+      prerequisiteCompleted = checkArr.every((result) => result);
+    }
+
+    candidates.push({
+      page,
+      priority,
+      createdTime,
+      prerequisiteCompleted,
+    });
+  }
+
+  // 선행 작업이 완료된 항목만 필터링
+  const validCandidates = candidates.filter((c) => c.prerequisiteCompleted);
+
+  if (validCandidates.length === 0) {
     return null;
   }
+
+  // 우선도 계산 및 정렬
+  validCandidates.sort((a, b) => {
+    return calculatePriority(b) - calculatePriority(a);  // 높은 우선도가 먼저
+  });
+
+  // 최우선 항목 선택
+  const selectedCandidate = validCandidates[0];
+  if (!selectedCandidate) {
+    return null;
+  }
+  const page = selectedCandidate.page;
 
   // 페이지 상세 정보 조회
   const pageResponse = await fetch(`https://api.notion.com/v1/pages/${page.id}`, {
     headers: {
       'Authorization': `Bearer ${apiToken}`,
-      'Notion-Version': '2022-06-28',
+      'Notion-Version': '2025-09-03',
     },
   });
 
@@ -98,7 +205,7 @@ export async function fetchPendingTask(
   const blocksResponse = await fetch(`https://api.notion.com/v1/blocks/${page.id}/children`, {
     headers: {
       'Authorization': `Bearer ${apiToken}`,
-      'Notion-Version': '2022-06-28',
+      'Notion-Version': '2025-09-03',
     },
   });
 
@@ -138,7 +245,7 @@ export async function fetchPendingTask(
   // 속성 추출
   const properties = pageData.properties;
   const titleProp = properties['제목'] || properties['Name'] || properties['Title'];
-  const baseBranchProp = properties[baseBranchColumn];
+  const baseBranchProp = properties[columnBaseBranch];
 
   let taskTitle = '';
   if (titleProp && typeof titleProp === 'object' && 'title' in titleProp) {
@@ -179,7 +286,7 @@ export async function updateNotionPage(
     method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${apiToken}`,
-      'Notion-Version': '2022-06-28',
+      'Notion-Version': '2025-09-03',
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -234,7 +341,7 @@ export async function updateNotionPage(
       method: 'PATCH',
       headers: {
         'Authorization': `Bearer ${apiToken}`,
-        'Notion-Version': '2022-06-28',
+        'Notion-Version': '2025-09-03',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

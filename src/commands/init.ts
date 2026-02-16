@@ -76,13 +76,19 @@ export async function initCommand(): Promise<void> {
     {
       type: 'input',
       name: 'column_status_wait',
-      message: '대기 상태값:',
+      message: '자동화 준비 완료 상태 값:',
       default: DEFAULT_CONFIG.notion.column_status_wait,
     },
     {
       type: 'input',
+      name: 'column_status_review',
+      message: '자동화 완료 상태 값:',
+      default: DEFAULT_CONFIG.notion.column_status_review,
+    },
+    {
+      type: 'input',
       name: 'column_status_complete',
-      message: '완료 상태값:',
+      message: '작업 완료 상태 값:',
       default: DEFAULT_CONFIG.notion.column_status_complete,
     },
     {
@@ -103,6 +109,18 @@ export async function initCommand(): Promise<void> {
       message: '작업 브랜치 컬럼명:',
       default: DEFAULT_CONFIG.notion.column_work_branch,
     },
+    {
+      type: 'input',
+      name: 'column_prerequisite',
+      message: '선행 작업 컬럼명:',
+      default: DEFAULT_CONFIG.notion.column_prerequisite,
+    },
+    {
+      type: 'input',
+      name: 'column_created_time',
+      message: '작업 일자 컬럼명:',
+      default: DEFAULT_CONFIG.notion.column_created_time,
+    },
   ]);
 
   const config = {
@@ -115,10 +133,12 @@ export async function initCommand(): Promise<void> {
       column_priority: answers.column_priority,
       column_status: answers.column_status,
       column_status_wait: answers.column_status_wait,
-      column_status_complete: answers.column_status_complete,
+      column_status_review: answers.column_status_review,
       column_status_error: answers.column_status_error,
       column_base_branch: answers.column_base_branch,
       column_work_branch: answers.column_work_branch,
+      column_prerequisite: answers.column_prerequisite,
+      column_created_time: answers.column_created_time,
     },
   };
 

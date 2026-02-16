@@ -209,7 +209,7 @@ export async function executeJob (jobName: string): Promise<unknown> {
       const statusColumn = config.notion.column_status || '상태';
       const workBranchColumn = config.notion.column_work_branch || '작업 브랜치';
       const statusValue = isSuccess
-        ? config.notion.column_status_complete || '검토 전'
+        ? config.notion.column_status_review || '검토 전'
         : config.notion.column_status_error || '작업 실패';
 
       const properties: Record<string, unknown> = {
