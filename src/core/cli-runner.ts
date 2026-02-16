@@ -1,6 +1,7 @@
 import { spawn, execSync } from 'child_process';
 import fs from 'fs-extra';
 import { RunnerOptions, RunnerResult, CliAgentConfig } from '../types/core';
+import { Agent } from '../types/jobs';
 
 /**
  * Parse timeout string (e.g., "30m" → 1800000)
@@ -66,7 +67,7 @@ export function sanitizeOutput(output: string): string {
 /**
  * CLI Agent configurations
  */
-const AGENT_CONFIGS: Record<string, CliAgentConfig> = {
+const AGENT_CONFIGS: Record<Agent, CliAgentConfig> = {
   'claude-code': {
     command: 'claude',
     args: [
@@ -177,12 +178,12 @@ export async function runCli<T>(
  * Run Claude Code
  */
 export async function runClaude<T>(options: RunnerOptions): Promise<RunnerResult<T>> {
-  return runCli<T>(AGENT_CONFIGS['claude-code']!, options);
+  return runCli<T>(AGENT_CONFIGS['claude-code'], options);
 }
 
 /**
  * Run Cursor Agent
  */
 export async function runCursor<T>(options: RunnerOptions): Promise<RunnerResult<T>> {
-  return runCli<T>(AGENT_CONFIGS.cursor!, options);
+  return runCli<T>(AGENT_CONFIGS.cursor, options);
 }
