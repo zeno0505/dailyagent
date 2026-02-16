@@ -5,7 +5,7 @@ import { generateInitialPrompt, generateWorkPrompt, generateFinishPrompt } from 
 import { runClaude, runCursor } from './cli-runner';
 import chalk from 'chalk';
 import { TaskInfo, WorkResult } from '../types/core';
-import { resolveSettingsFile, updateNotionOnError, validateEnvironment } from '../helper/exec-helper';
+import { resolveSettingsFile, updateNotionOnError, validateEnvironment } from '../helper/executor';
 
 /**
  * 작업 실행 오케스트레이터
