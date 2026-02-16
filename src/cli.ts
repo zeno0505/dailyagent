@@ -81,3 +81,13 @@ program
     const { statusCommand } = await import('./commands/status');
     await statusCommand(name, options);
   });
+
+program
+  .command('logs <name>')
+  .description('작업의 로그 파일 조회')
+  .option('-f, --follow', '실시간 로그 모니터링 (최신 로그 표시)')
+  .option('-n, --lines <number>', '표시할 로그 줄 수', parseInt)
+  .action(async (name: string, options: { follow?: boolean; lines?: number }) => {
+    const { logsCommand } = await import('./commands/logs');
+    await logsCommand(name, options);
+  });
