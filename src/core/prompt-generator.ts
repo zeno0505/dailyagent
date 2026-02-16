@@ -3,27 +3,11 @@
  * 3단계 분리: Phase 1 (Notion 조회), Phase 2 (코드 작업), Phase 3 (Notion 업데이트)
  */
 
-interface ColumnConfig {
-  column_status?: string;
-  column_status_wait?: string;
-  column_status_complete?: string;
-  column_status_error?: string;
-  column_priority?: string;
-  column_base_branch?: string;
-  column_work_branch?: string;
-}
+import { ColumnConfig } from "../types/config";
+import { TaskInfo, WorkResult } from "../types/core";
 
-interface ResolvedColumns {
-  status: string;
-  statusWait: string;
-  statusComplete: string;
-  statusError: string;
-  columnPriority: string;
-  baseBranch: string;
-  workBranch: string;
-}
 
-function resolveColumns(columns: ColumnConfig): ResolvedColumns {
+function resolveColumns(columns: ColumnConfig) {
   return {
     status: columns.column_status || '상태',
     statusWait: columns.column_status_wait || '작업 대기',
@@ -32,7 +16,7 @@ function resolveColumns(columns: ColumnConfig): ResolvedColumns {
     columnPriority: columns.column_priority || '우선순위',
     baseBranch: columns.column_base_branch || '기준 브랜치',
     workBranch: columns.column_work_branch || '작업 브랜치',
-  };
+  } as const;
 }
 
 /**
@@ -74,14 +58,6 @@ MCP 도구 \`notion-fetch\`를 사용하여 선택된 페이지의 상세 내용
 `;
 }
 
-interface TaskInfo {
-  task_id?: string;
-  task_title?: string;
-  base_branch?: string;
-  requirements?: string;
-  page_url?: string;
-  [key: string]: unknown;
-}
 
 /**
  * Phase 2: Git 준비 → 코드 작업 → 검증 → Git Push
@@ -151,7 +127,7 @@ ${workDir} 디렉토리에서:
 반드시 아래 JSON 형식으로만 결과를 반환하세요. 다른 텍스트 없이 JSON만 출력:
 \`\`\`json
 {
-  "branch_name": "브랜치명",
+  "branch_name": "작업한 브랜치명",
   "commits": [
     { "hash": "커밋해시", "message": "커밋메시지" }
   ],
@@ -167,18 +143,6 @@ ${workDir} 디렉토리에서:
 2. 모든 명령은 ${workDir} 디렉토리에서 실행
 3. 커밋 메시지는 접두사(feat, fix, refactor)와 한국어로 작성
 `;
-}
-
-interface WorkResult {
-  success?: boolean;
-  error?: string;
-  branch_name?: string;
-  commits?: Array<{ hash: string; message: string }>;
-  files_changed?: string[];
-  summary?: string;
-  pr_url?: string;
-  pr_skipped_reason?: string;
-  [key: string]: unknown;
 }
 
 /**
