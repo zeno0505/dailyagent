@@ -2,10 +2,10 @@ import { loadConfig } from '../config';
 import { getJob, updateJob, acquireLock, releaseLock } from '../jobs';
 import { Logger } from '../logger';
 import { generateInitialPrompt, generateWorkPrompt, generateFinishPrompt } from './prompt-generator';
-import { runClaude } from './claude-runner';
+import { runClaude, runCursor } from './cli-runner';
 import chalk from 'chalk';
 import { TaskInfo, WorkResult } from '../types/core';
-import { resolveSettingsFile, updateNotionOnError, validateEnvironment } from '../helper/exec-helper';
+import { resolveSettingsFile, updateNotionOnError, validateEnvironment } from '../helper/executor';
 
 /**
  * 작업 실행 오케스트레이터
@@ -47,6 +47,9 @@ export async function executeJob (jobName: string): Promise<unknown> {
   // Resolve settings file
   const settingsFile = resolveSettingsFile();
 
+  // Select agent runner once (instead of repeating 3 times)
+  const runAgent = job.agent === 'cursor' ? runCursor : runClaude;
+
   try {
     // ========================================
     // Phase 1: Notion 조회 (model: sonnet, timeout: 5m)
@@ -61,19 +64,22 @@ export async function executeJob (jobName: string): Promise<unknown> {
     console.log(chalk.gray(initPrompt));
     console.log(chalk.gray('--------------------------------'));
 
-    const initResult = await runClaude<TaskInfo>({
+    const initResult = await runAgent<TaskInfo>({
       prompt: initPrompt,
       workDir,
       settingsFile,
       timeout: '5m',
       logger,
-      model: 'sonnet',
+      model: job.model || 'sonnet',
     });
-    await logger.info(`Phase 1 완료: ${JSON.stringify(initResult)}`);
+
+    // SECURITY: Remove rawOutput from logging
+    const { rawOutput: _, ...logSafeInit } = initResult;
+    await logger.info(`Phase 1 완료: ${JSON.stringify(logSafeInit)}`);
 
     // Phase 1 JSON 파싱 실패 체크
     if (!initResult.result) {
-      throw new Error(`Phase 1 결과 파싱 실패: ${initResult.rawOutput}`);
+      throw new Error(`Phase 1 결과 파싱 실패`);
     }
 
     // 작업 대기 항목 없으면 조기 종료
@@ -103,18 +109,22 @@ export async function executeJob (jobName: string): Promise<unknown> {
 
     let workResult: WorkResult;
     try {
-      const workRunnerResult = await runClaude<WorkResult>({
+      const workRunnerResult = await runAgent<WorkResult>({
         prompt: workPrompt,
         workDir,
         settingsFile,
         timeout: String(job.timeout || '30m'),
         logger,
+        model: job.model,
       });
-      await logger.info(`Phase 2 완료: ${JSON.stringify(workRunnerResult)}`);
+
+      // SECURITY: Remove rawOutput from logging
+      const { rawOutput: __, ...logSafeWork } = workRunnerResult;
+      await logger.info(`Phase 2 완료: ${JSON.stringify(logSafeWork)}`);
 
       // Phase 2 JSON 파싱 실패 체크
       if (!workRunnerResult.result) {
-        workResult = { success: false, error: `Phase 2 결과 파싱 실패: ${workRunnerResult.rawOutput}` };
+        workResult = { success: false, error: `Phase 2 결과 파싱 실패` };
       } else {
         workResult = workRunnerResult.result;
       }
@@ -145,15 +155,18 @@ export async function executeJob (jobName: string): Promise<unknown> {
     console.log(chalk.gray(finishPrompt));
     console.log(chalk.gray('--------------------------------'));
 
-    const result = await runClaude({
+    const result = await runAgent({
       prompt: finishPrompt,
       workDir,
       settingsFile,
       timeout: '5m',
       logger,
-      model: 'sonnet',
+      model: job.model || 'sonnet',
     });
-    await logger.info(`Phase 3 완료: ${JSON.stringify(result)}`);
+
+    // SECURITY: Remove rawOutput from logging
+    const { rawOutput: ___, ...logSafeFinish } = result;
+    await logger.info(`Phase 3 완료: ${JSON.stringify(logSafeFinish)}`);
 
     // 7. Update job metadata
     await updateJob(jobName, {

@@ -1,6 +1,6 @@
 import { Logger } from "../logger";
 
-export interface ClaudeOptions {
+export interface RunnerOptions {
   prompt: string;
   workDir: string;
   settingsFile?: string | undefined;
@@ -9,10 +9,16 @@ export interface ClaudeOptions {
   model?: string | undefined;
 }
 
-export interface ClaudeResult<T> {
+export interface RunnerResult<T> {
   rawOutput?: string;
   exitCode?: number;
   result?: T;
+}
+
+export interface CliAgentConfig {
+  command: string;
+  args: string[];
+  displayName: string;
 }
 
 
