@@ -5,7 +5,9 @@ import path from 'path';
 import fs from 'fs-extra';
 import { execSync } from 'child_process';
 import { WorkResult } from '../types/core';
-import { runClaude } from '../core/cli-runner';
+import { runClaude, runCursor } from '../core/cli-runner';
+import { updateNotionPage } from '../notion-api';
+import { Job } from '../types/jobs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,15 +61,49 @@ interface UpdateNotionOnErrorParams {
   taskInfo: unknown,
   workDir: string,
   workResult: WorkResult,
+  job: Job,
   config: DailyAgentConfig,
   settingsFile: string | undefined,
   logger: Logger
 }
 export async function updateNotionOnError(
-  { taskInfo, workDir, workResult, config, settingsFile, logger }: UpdateNotionOnErrorParams
+  { taskInfo, workDir, workResult, job, config, settingsFile, logger }: UpdateNotionOnErrorParams
 ): Promise<void> {
   try {
-    const errorPrompt = `# Notion 에러 상태 업데이트
+    // Notion API 사용 여부에 따라 분기
+    if (config.notion.use_api && config.notion.api_token) {
+      // Notion API 직접 호출
+      await logger.info('Notion API를 사용하여 에러 상태 업데이트');
+      
+      if (!config.notion.api_token) {
+        throw new Error('Notion API 토큰이 설정되지 않았습니다.');
+      }
+
+      const statusColumn = config.notion.column_status || '상태';
+      const statusError = config.notion.column_status_error || '작업 실패';
+      const taskInfoTyped = taskInfo as { task_id: string };
+
+      const properties: Record<string, unknown> = {
+        [statusColumn]: {
+          select: {
+            name: statusError,
+          },
+        },
+      };
+
+      const content = `\n---\n\n## 자동화 작업 실패\n\n**실패 시간:** ${new Date().toISOString()}\n\n**에러 내용:**\n${(workResult.error || 'Unknown error').toString()}\n`;
+
+      await updateNotionPage(
+        config.notion.api_token,
+        taskInfoTyped.task_id,
+        properties,
+        content
+      );
+
+      await logger.info('Notion 에러 업데이트 완료 (API)');
+    } else {
+      // MCP 사용 (기존 방식)
+      const errorPrompt = `# Notion 에러 상태 업데이트
 
 작업 정보:
 \`\`\`json
@@ -104,18 +140,18 @@ ${(workResult.error || 'Unknown error').toString()}
 { "success": true, "message": "Notion 에러 상태 업데이트 완료" }
 \`\`\``;
 
-    const result = await runClaude({
-      prompt: errorPrompt,
-      workDir,
-      settingsFile,
-      timeout: '5m',
-      logger,
-      model: 'sonnet',
-    });
+      const runAgent = job.agent === 'claude-code' ? runClaude : runCursor;
+      const result = await runAgent({
+        prompt: errorPrompt,
+        workDir,
+        settingsFile: config.notion.use_api ? undefined : settingsFile,
+        timeout: '5m',
+        logger,
+        model: job.model,
+      });
 
-    // SECURITY: Remove rawOutput from logging
-    const { rawOutput, ...logSafeResult } = result;
-    await logger.info(`Notion 에러 업데이트 완료: ${JSON.stringify(logSafeResult)}`);
+      await logger.info(`Notion 에러 업데이트 완료: ${JSON.stringify(result)}`);
+    }
   } catch (err) {
     const errMessage = err instanceof Error ? err.message : String(err);
     await logger.error(`Notion 에러 업데이트 실패: ${errMessage}`);
