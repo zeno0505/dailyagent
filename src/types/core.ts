@@ -21,10 +21,6 @@ export interface CliAgentConfig {
   displayName: string;
 }
 
-// Backwards compatibility aliases
-export type ClaudeOptions = RunnerOptions;
-export type ClaudeResult<T> = RunnerResult<T>;
-
 
 /**
  * Phase 1 결과 타입 : 실행할 태스크
