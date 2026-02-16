@@ -9,9 +9,27 @@ export interface ColumnConfig {
 }
 
 export interface NotionConfig extends ColumnConfig {
-  database_url: string;
-  use_api?: boolean; // true: Notion API 사용, false: MCP 사용 (기본값)
-  api_token?: string; // Notion API 토큰 (use_api가 true일 때 필요)
+  /**
+   * 사용자가 직접 Notion API를 사용하고 싶은 경우 사용
+   * - true: Notion API 사용
+   * - false: MCP 사용 (기본값)
+   */
+  use_api?: boolean;
+  /**
+   * (use_api가 false일 때 사용)
+   * Notion 데이터베이스 URL
+   */
+  database_url?: string;
+  /**
+   * (use_api가 true일 때 사용)
+   * Notion API 토큰
+   */
+  api_token?: string;
+  /**
+   * (use_api가 true일 때 사용)
+   * Notion 데이터소스 ID
+   */
+  datasource_id?: string;
 }
 
 export interface DailyAgentConfig {

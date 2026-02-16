@@ -35,16 +35,17 @@ export async function initCommand(): Promise<void> {
 
   const answers = await inquirer.prompt([
     {
-      type: 'input',
-      name: 'database_url',
-      message: 'Notion 데이터베이스 URL:',
-      validate: (val: string) => (val.includes('notion.so') ? true : 'Notion URL을 입력해주세요.'),
-    },
-    {
       type: 'confirm',
       name: 'use_api',
       message: 'Notion API를 직접 사용하시겠습니까? (MCP 대신 API 사용 시 토큰 소비 감소)',
       default: false,
+    },
+    {
+      type: 'input',
+      name: 'database_url',
+      message: 'Notion 데이터베이스 URL:',
+      when: (answers) => !answers.use_api,
+      validate: (val: string) => (val.includes('notion.so') ? true : 'Notion URL을 입력해주세요.'),
     },
     {
       type: 'password',
@@ -52,6 +53,13 @@ export async function initCommand(): Promise<void> {
       message: 'Notion API 토큰 (Internal Integration Token):',
       when: (answers) => answers.use_api,
       validate: (val: string) => (val.length > 0 ? true : 'API 토큰을 입력해주세요.'),
+    },
+    {
+      type: 'input',
+      name: 'datasource_id',
+      message: 'Notion 데이터소스 ID (API 사용 시 필요):',
+      when: (answers) => answers.use_api,
+      validate: (val: string) => (val.length > 0 ? true : '데이터소스 ID를 입력해주세요.'),
     },
     {
       type: 'input',
@@ -103,6 +111,7 @@ export async function initCommand(): Promise<void> {
       database_url: answers.database_url,
       use_api: answers.use_api,
       api_token: answers.api_token || undefined,
+      datasource_id: answers.datasource_id,
       column_priority: answers.column_priority,
       column_status: answers.column_status,
       column_status_wait: answers.column_status_wait,

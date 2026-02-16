@@ -71,10 +71,14 @@ export async function executeJob (jobName: string): Promise<unknown> {
       if (!apiToken) {
         throw new Error('Notion API 토큰이 설정되지 않았습니다.');
       }
+      const datasourceId = config.notion.datasource_id;
+      if (!datasourceId) {
+        throw new Error('Notion 데이터소스 ID가 설정되지 않았습니다.');
+      }
 
       taskInfo = await fetchPendingTask(
         apiToken,
-        config.notion.database_url,
+        datasourceId,
         config.notion
       );
 
@@ -91,8 +95,15 @@ export async function executeJob (jobName: string): Promise<unknown> {
     } else {
       // MCP 사용 (기존 방식)
       await logger.info('MCP를 사용하여 작업 조회');
+
+
+      const databaseUrl = config.notion.database_url;
+      if (!databaseUrl) {
+        throw new Error('Notion 데이터베이스 URL이 설정되지 않았습니다.');
+      }
+
       const initPrompt = generateInitialPrompt({
-        notionDbUrl: config.notion.database_url,
+        databaseUrl: databaseUrl,
         columns: config.notion,
       });
       console.log(chalk.gray('--------------------------------'));
@@ -176,7 +187,7 @@ export async function executeJob (jobName: string): Promise<unknown> {
     // Phase 2 실패 시 Notion 직접 업데이트
     if (workResult.success === false || workResult.error) {
       await logger.info('--- Phase 2 실패로 인한 Notion 직접 업데이트 ---');
-      await updateNotionOnError({ taskInfo, workDir, workResult, config, settingsFile, logger });
+      await updateNotionOnError({ taskInfo, workDir, workResult, config, settingsFile, job, logger });
     }
 
     // ========================================
@@ -203,7 +214,7 @@ export async function executeJob (jobName: string): Promise<unknown> {
 
       const properties: Record<string, unknown> = {
         [statusColumn]: {
-          select: {
+          status: {
             name: statusValue,
           },
         },
@@ -254,8 +265,12 @@ export async function executeJob (jobName: string): Promise<unknown> {
     } else {
       // MCP 사용 (기존 방식)
       await logger.info('MCP를 사용하여 업데이트');
+      const databaseUrl = config.notion.database_url;
+      if (!databaseUrl) {
+        throw new Error('Notion 데이터베이스 URL이 설정되지 않았습니다.');
+      }
       const finishPrompt = generateFinishPrompt({
-        notionDbUrl: config.notion.database_url,
+        databaseUrl: databaseUrl,
         taskInfo,
         workResult,
         columns: config.notion,

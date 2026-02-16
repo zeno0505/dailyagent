@@ -22,14 +22,14 @@ function resolveColumns(columns: ColumnConfig) {
 /**
  * Phase 1: Notion DB 조회 + 페이지 상세 읽기
  */
-export function generateInitialPrompt({ notionDbUrl, columns }: { notionDbUrl: string; columns: ColumnConfig }): string {
+export function generateInitialPrompt({ databaseUrl, columns }: { databaseUrl: string; columns: ColumnConfig }): string {
   const col = resolveColumns(columns);
 
   return `# Phase 1: Notion 작업 조회
 
 ## 1단계: Notion 데이터베이스 조회
 Notion MCP 도구를 사용하여 데이터 조회:
-- 데이터베이스 URL: ${notionDbUrl}
+- 데이터베이스 URL: ${databaseUrl}
 - "${col.status}"가 ${col.statusWait}이면서, "${col.baseBranch}"가 설정된 항목 조회
 - 만약 "선행 작업"이 존재하는데, 선행 작업이 완료되지 않았다면 해당 항목은 무시
 - ${col.columnPriority}가 가장 높거나 가장 오래된 항목 1개 선택
@@ -148,12 +148,12 @@ export function generateFinishPrompt({
   taskInfo, 
   workResult, 
   columns, 
-  notionDbUrl 
+  databaseUrl 
 }: { 
   taskInfo: TaskInfo; 
   workResult: WorkResult; 
   columns: ColumnConfig; 
-  notionDbUrl: string;
+  databaseUrl: string;
 }): string {
   const col = resolveColumns(columns);
   const isSuccess = workResult.success !== false && !workResult.error;
@@ -173,7 +173,7 @@ ${JSON.stringify(workResult, null, 2)}
 ## Notion 업데이트
 위 JSON 작업 정보를 읽고 작업된 내용을 Notion 페이지에 업데이트 합니다.
 - **MCP 도구 \`notion-update-page\` 사용**
-- 데이터베이스 URL: ${notionDbUrl}
+- 데이터베이스 URL: ${databaseUrl}
 
 ${isSuccess ? `**성공 케이스 - 속성 업데이트:**
 - ${col.status}: "${col.statusWait}" → "${col.statusComplete}"

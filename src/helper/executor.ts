@@ -5,8 +5,9 @@ import path from 'path';
 import fs from 'fs-extra';
 import { execSync } from 'child_process';
 import { WorkResult } from '../types/core';
-import { runAgent } from '../core/cli-runner';
+import { runClaude, runCursor } from '../core/cli-runner';
 import { updateNotionPage } from '../notion-api';
+import { Job } from '../types/jobs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,12 +61,13 @@ interface UpdateNotionOnErrorParams {
   taskInfo: unknown,
   workDir: string,
   workResult: WorkResult,
+  job: Job,
   config: DailyAgentConfig,
   settingsFile: string | undefined,
   logger: Logger
 }
 export async function updateNotionOnError(
-  { taskInfo, workDir, workResult, config, settingsFile, logger }: UpdateNotionOnErrorParams
+  { taskInfo, workDir, workResult, job, config, settingsFile, logger }: UpdateNotionOnErrorParams
 ): Promise<void> {
   try {
     // Notion API 사용 여부에 따라 분기
@@ -138,13 +140,14 @@ ${(workResult.error || 'Unknown error').toString()}
 { "success": true, "message": "Notion 에러 상태 업데이트 완료" }
 \`\`\``;
 
+      const runAgent = job.agent === 'claude-code' ? runClaude : runCursor;
       const result = await runAgent({
         prompt: errorPrompt,
         workDir,
-        settingsFile,
+        settingsFile: config.notion.use_api ? undefined : settingsFile,
         timeout: '5m',
         logger,
-        model: 'sonnet',
+        model: job.model,
       });
 
       await logger.info(`Notion 에러 업데이트 완료: ${JSON.stringify(result)}`);

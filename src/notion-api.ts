@@ -4,6 +4,7 @@
  */
 
 import { ColumnConfig } from './types/config';
+import { TaskInfo } from './types/core';
 
 export interface NotionPage {
   id: string;
@@ -15,61 +16,24 @@ export interface NotionQueryResult {
   results: NotionPage[];
 }
 
-export interface TaskInfo {
-  task_id: string;
-  task_title: string;
-  base_branch: string;
-  requirements: string;
-  page_url: string;
-}
-
-/**
- * Notion 데이터베이스 ID 추출
- */
-function extractDatabaseId(databaseUrl: string): string {
-  // URL 형식: https://www.notion.so/{workspace}/{database_id}?v={view_id}
-  const match = databaseUrl.match(/([a-f0-9]{32})/);
-  if (!match || !match[1]) {
-    throw new Error(`Invalid Notion database URL: ${databaseUrl}`);
-  }
-  // UUID 형식으로 변환 (8-4-4-4-12)
-  const id = match[1];
-  return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
-}
-
-/**
- * Notion 페이지 ID 추출
- */
-function extractPageId(pageUrl: string): string {
-  // URL 형식: https://www.notion.so/{workspace}/{page_id}
-  const match = pageUrl.match(/([a-f0-9]{32})/);
-  if (!match || !match[1]) {
-    throw new Error(`Invalid Notion page URL: ${pageUrl}`);
-  }
-  const id = match[1];
-  return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
-}
-
 /**
  * Notion API를 사용하여 작업 대기 항목 조회
  */
 export async function fetchPendingTask(
   apiToken: string,
-  databaseUrl: string,
+  datasourceId: string,
   columns: ColumnConfig
-): Promise<TaskInfo | null> {
-  const databaseId = extractDatabaseId(databaseUrl);
-  
+): Promise<TaskInfo | null> {  
   const statusColumn = columns.column_status || '상태';
   const statusWait = columns.column_status_wait || '작업 대기';
   const baseBranchColumn = columns.column_base_branch || '기준 브랜치';
 
   // 데이터베이스 쿼리
-  const queryResponse = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
+  const queryResponse = await fetch(`https://api.notion.com/v1/data_sources/${datasourceId}/query`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiToken}`,
-      'Notion-Version': '2022-06-28',
+      'Notion-Version': '2025-09-03',
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -77,7 +41,7 @@ export async function fetchPendingTask(
         and: [
           {
             property: statusColumn,
-            select: {
+            status: {
               equals: statusWait,
             },
           },
