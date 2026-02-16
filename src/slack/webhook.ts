@@ -59,7 +59,7 @@ export async function sendSlackNotification(
                 fields: [
                   {
                     type: 'mrkdwn',
-                    text: `*브랜치*\n\`${workResult.branch_name || ''}\``,
+                    text: `*브랜치*\n\`${workResult.branch_name || 'N/A'}\``,
                   },
                   {
                     type: 'mrkdwn',

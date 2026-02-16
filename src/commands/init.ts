@@ -134,7 +134,7 @@ export async function initCommand(): Promise<void> {
       default: '',
       when: (answers: Record<string, unknown>) => answers.enable_slack === true,
       validate: (val: string) => {
-        return val.includes('hooks.slack.com') ? true : 'Slack Webhook URL을 입력해주세요.';
+        return val.startsWith('https://hooks.slack.com/services') ? true : 'Slack Webhook URL을 입력해주세요.';
       },
     },
   ]);
