@@ -87,6 +87,25 @@ const AGENT_CONFIGS: Record<Agent, CliAgentConfig> = {
   },
 };
 
+async function getAgentArgs(args: string[], options: RunnerOptions) {
+  const { model, logger, settingsFile } = options;
+
+  // Common
+  if (model) {
+    args.push('--model', model);
+  }
+
+  // Claude Code
+  if (model === 'claude-code') {
+    if (settingsFile && await fs.pathExists(settingsFile)) {
+      args.push('--settings', settingsFile);
+      if (logger) await logger.info(`설정 파일 사용: ${settingsFile}`);
+    }
+  }
+
+  return args;
+}
+
 /**
  * Unified CLI runner for all agents
  */
@@ -106,15 +125,8 @@ export async function runCli<T>(
 
   const args = [...config.args];
 
-  if (model) {
-    args.push('--model', model);
-  }
-
-  if (settingsFile && await fs.pathExists(settingsFile)) {
-    args.push('--settings', settingsFile);
-    if (logger) await logger.info(`설정 파일 사용: ${settingsFile}`);
-  }
-
+  args.push(...(await getAgentArgs(args, options)));
+  
   return new Promise((resolve, reject) => {
     if (logger) logger.info(`${config.displayName} 실행 시작`);
 
