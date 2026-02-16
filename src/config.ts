@@ -24,6 +24,10 @@ export const DEFAULT_CONFIG = {
     column_prerequisite: '선행 작업',
     column_created_time: '날짜',
   },
+  slack: {
+    enabled: false,
+    webhook_url: '',
+  },
 } as const;
 
 export function resolveColumns(columns: ColumnConfig) {

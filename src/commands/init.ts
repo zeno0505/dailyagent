@@ -121,6 +121,22 @@ export async function initCommand(): Promise<void> {
       message: '작업 일자 컬럼명:',
       default: DEFAULT_CONFIG.notion.column_created_time,
     },
+    {
+      type: 'confirm',
+      name: 'enable_slack',
+      message: '(선택사항) Slack 알림을 활성화하시겠습니까?',
+      default: false,
+    },
+    {
+      type: 'input',
+      name: 'slack_webhook_url',
+      message: 'Slack Webhook URL:',
+      default: '',
+      when: (answers: Record<string, unknown>) => answers.enable_slack === true,
+      validate: (val: string) => {
+        return val.startsWith('https://hooks.slack.com/services') ? true : 'Slack Webhook URL을 입력해주세요.';
+      },
+    },
   ]);
 
   const config = {
@@ -139,6 +155,10 @@ export async function initCommand(): Promise<void> {
       column_work_branch: answers.column_work_branch,
       column_prerequisite: answers.column_prerequisite,
       column_created_time: answers.column_created_time,
+    },
+    slack: {
+      enabled: answers.enable_slack as boolean,
+      webhook_url: answers.slack_webhook_url as string,
     },
   };
 

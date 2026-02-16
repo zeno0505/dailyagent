@@ -7,6 +7,7 @@ import { TaskInfo, WorkResult } from '../types/core';
 import { fetchPendingTask, updateNotionPage } from '../notion-api';
 import { runClaude, runCursor } from './cli-runner';
 import { resolveSettingsFile, updateNotionOnError, validateEnvironment } from '../helper/executor';
+import { sendSlackNotification } from '../slack/webhook';
 
 /**
  * 작업 실행 오케스트레이터
@@ -296,6 +297,19 @@ export async function executeJob (jobName: string): Promise<unknown> {
       last_run: new Date().toISOString(),
       last_status: workResult.success === false ? 'error' : 'success',
     });
+
+    // ========================================
+    // Phase 4: Slack 알림 발송 (선택사항)
+    // ========================================
+    if (config.slack?.enabled && config.slack?.webhook_url) {
+      await logger.info('--- Phase 4: Slack 알림 발송 ---');
+      await sendSlackNotification({
+        taskInfo,
+        workResult,
+        webhookUrl: config.slack.webhook_url,
+        logger,
+      });
+    }
 
     await logger.info('작업 완료');
     await logger.info('==========================================');
