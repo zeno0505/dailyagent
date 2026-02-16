@@ -33,12 +33,26 @@ export async function initCommand(): Promise<void> {
     }
   }
 
-  const answers = await inquirer.prompt([
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const answers: any = await (inquirer.prompt as any)([
     {
       type: 'input',
       name: 'database_url',
       message: 'Notion 데이터베이스 URL:',
       validate: (val: string) => (val.includes('notion.so') ? true : 'Notion URL을 입력해주세요.'),
+    },
+    {
+      type: 'confirm',
+      name: 'use_api',
+      message: 'Notion API를 직접 사용하시겠습니까? (MCP 대신 API 사용 시 토큰 소비 감소)',
+      default: false,
+    },
+    {
+      type: 'password',
+      name: 'api_token',
+      message: 'Notion API 토큰 (Internal Integration Token):',
+      when: (answers: { use_api: boolean }) => answers.use_api,
+      validate: (val: string) => (val.length > 0 ? true : 'API 토큰을 입력해주세요.'),
     },
     {
       type: 'input',
@@ -87,14 +101,16 @@ export async function initCommand(): Promise<void> {
   const config = {
     version: DEFAULT_CONFIG.version,
     notion: {
-      database_url: answers.database_url as string,
-      column_priority: answers.column_priority as string,
-      column_status: answers.column_status as string,
-      column_status_wait: answers.column_status_wait as string,
-      column_status_complete: answers.column_status_complete as string,
-      column_status_error: answers.column_status_error as string,
-      column_base_branch: answers.column_base_branch as string,
-      column_work_branch: answers.column_work_branch as string,
+      database_url: answers.database_url,
+      use_api: answers.use_api,
+      api_token: answers.api_token || undefined,
+      column_priority: answers.column_priority,
+      column_status: answers.column_status,
+      column_status_wait: answers.column_status_wait,
+      column_status_complete: answers.column_status_complete,
+      column_status_error: answers.column_status_error,
+      column_base_branch: answers.column_base_branch,
+      column_work_branch: answers.column_work_branch,
     },
   };
 
