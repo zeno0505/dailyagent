@@ -3,6 +3,7 @@ import { getJob, updateJob, acquireLock, releaseLock } from '../jobs';
 import { Logger } from '../logger';
 import { generateInitialPrompt, generateWorkPrompt, generateFinishPrompt } from './prompt-generator';
 import { runClaude } from './claude-runner';
+import { runCursor } from './cursor-runner';
 import chalk from 'chalk';
 import { TaskInfo, WorkResult } from '../types/core';
 import { resolveSettingsFile, updateNotionOnError, validateEnvironment } from '../helper/exec-helper';
@@ -61,13 +62,13 @@ export async function executeJob (jobName: string): Promise<unknown> {
     console.log(chalk.gray(initPrompt));
     console.log(chalk.gray('--------------------------------'));
 
-    const initResult = await runClaude<TaskInfo>({
+    const initResult = await (job.agent === 'cursor' ? runCursor : runClaude)<TaskInfo>({
       prompt: initPrompt,
       workDir,
       settingsFile,
       timeout: '5m',
       logger,
-      model: 'sonnet',
+      model: job.model || 'sonnet',
     });
     await logger.info(`Phase 1 완료: ${JSON.stringify(initResult)}`);
 
@@ -103,12 +104,13 @@ export async function executeJob (jobName: string): Promise<unknown> {
 
     let workResult: WorkResult;
     try {
-      const workRunnerResult = await runClaude<WorkResult>({
+      const workRunnerResult = await (job.agent === 'cursor' ? runCursor : runClaude)<WorkResult>({
         prompt: workPrompt,
         workDir,
         settingsFile,
         timeout: String(job.timeout || '30m'),
         logger,
+        model: job.model,
       });
       await logger.info(`Phase 2 완료: ${JSON.stringify(workRunnerResult)}`);
 
@@ -145,13 +147,13 @@ export async function executeJob (jobName: string): Promise<unknown> {
     console.log(chalk.gray(finishPrompt));
     console.log(chalk.gray('--------------------------------'));
 
-    const result = await runClaude({
+    const result = await (job.agent === 'cursor' ? runCursor : runClaude)({
       prompt: finishPrompt,
       workDir,
       settingsFile,
       timeout: '5m',
       logger,
-      model: 'sonnet',
+      model: job.model || 'sonnet',
     });
     await logger.info(`Phase 3 완료: ${JSON.stringify(result)}`);
 
