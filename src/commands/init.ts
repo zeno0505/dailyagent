@@ -82,6 +82,23 @@ export async function initCommand(): Promise<void> {
       message: '작업 브랜치 컬럼명:',
       default: DEFAULT_CONFIG.notion.column_work_branch,
     },
+    {
+      type: 'confirm',
+      name: 'enable_slack',
+      message: 'Slack 알림을 활성화하시겠습니까?',
+      default: false,
+    },
+    {
+      type: 'input',
+      name: 'slack_webhook_url',
+      message: 'Slack Webhook URL (선택사항):',
+      default: '',
+      when: (answers: Record<string, unknown>) => answers.enable_slack === true,
+      validate: (val: string) => {
+        if (!val) return true; // 빈 값 허용
+        return val.includes('hooks.slack.com') ? true : 'Slack Webhook URL을 입력해주세요.';
+      },
+    },
   ]);
 
   const config = {
@@ -95,6 +112,10 @@ export async function initCommand(): Promise<void> {
       column_status_error: answers.column_status_error as string,
       column_base_branch: answers.column_base_branch as string,
       column_work_branch: answers.column_work_branch as string,
+    },
+    slack: {
+      enabled: answers.enable_slack as boolean,
+      webhook_url: answers.slack_webhook_url as string,
     },
   };
 

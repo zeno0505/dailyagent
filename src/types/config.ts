@@ -12,7 +12,13 @@ export interface NotionConfig extends ColumnConfig {
   database_url: string;
 }
 
+export interface SlackConfig {
+  enabled?: boolean;
+  webhook_url?: string;
+}
+
 export interface DailyAgentConfig {
   version: string;
   notion: NotionConfig;
+  slack?: SlackConfig;
 }
