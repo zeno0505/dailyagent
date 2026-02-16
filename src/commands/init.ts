@@ -35,10 +35,31 @@ export async function initCommand(): Promise<void> {
 
   const answers = await inquirer.prompt([
     {
+      type: 'confirm',
+      name: 'use_api',
+      message: 'Notion API를 직접 사용하시겠습니까? (MCP 대신 API 사용 시 토큰 소비 감소)',
+      default: false,
+    },
+    {
       type: 'input',
       name: 'database_url',
       message: 'Notion 데이터베이스 URL:',
+      when: (answers) => !answers.use_api,
       validate: (val: string) => (val.includes('notion.so') ? true : 'Notion URL을 입력해주세요.'),
+    },
+    {
+      type: 'password',
+      name: 'api_token',
+      message: 'Notion API 토큰 (Internal Integration Token):',
+      when: (answers) => answers.use_api,
+      validate: (val: string) => (val.length > 0 ? true : 'API 토큰을 입력해주세요.'),
+    },
+    {
+      type: 'input',
+      name: 'datasource_id',
+      message: 'Notion 데이터소스 ID (API 사용 시 필요):',
+      when: (answers) => answers.use_api,
+      validate: (val: string) => (val.length > 0 ? true : '데이터소스 ID를 입력해주세요.'),
     },
     {
       type: 'input',
@@ -55,20 +76,26 @@ export async function initCommand(): Promise<void> {
     {
       type: 'input',
       name: 'column_status_wait',
-      message: '대기 상태값:',
+      message: '자동화 준비 완료 상태 값:',
       default: DEFAULT_CONFIG.notion.column_status_wait,
     },
     {
       type: 'input',
-      name: 'column_status_complete',
-      message: '완료 상태값:',
-      default: DEFAULT_CONFIG.notion.column_status_complete,
+      name: 'column_status_review',
+      message: '자동화 완료 상태 값:',
+      default: DEFAULT_CONFIG.notion.column_status_review,
     },
     {
       type: 'input',
       name: 'column_status_error',
-      message: '에러 상태값:',
+      message: '자동화 오류 상태값:',
       default: DEFAULT_CONFIG.notion.column_status_error,
+    },
+    {
+      type: 'input',
+      name: 'column_status_complete',
+      message: '작업 완료 상태 값:',
+      default: DEFAULT_CONFIG.notion.column_status_complete,
     },
     {
       type: 'input',
@@ -82,19 +109,36 @@ export async function initCommand(): Promise<void> {
       message: '작업 브랜치 컬럼명:',
       default: DEFAULT_CONFIG.notion.column_work_branch,
     },
+    {
+      type: 'input',
+      name: 'column_prerequisite',
+      message: '선행 작업 컬럼명:',
+      default: DEFAULT_CONFIG.notion.column_prerequisite,
+    },
+    {
+      type: 'input',
+      name: 'column_created_time',
+      message: '작업 일자 컬럼명:',
+      default: DEFAULT_CONFIG.notion.column_created_time,
+    },
   ]);
 
   const config = {
     version: DEFAULT_CONFIG.version,
     notion: {
-      database_url: answers.database_url as string,
-      column_priority: answers.column_priority as string,
-      column_status: answers.column_status as string,
-      column_status_wait: answers.column_status_wait as string,
-      column_status_complete: answers.column_status_complete as string,
-      column_status_error: answers.column_status_error as string,
-      column_base_branch: answers.column_base_branch as string,
-      column_work_branch: answers.column_work_branch as string,
+      database_url: answers.database_url,
+      use_api: answers.use_api,
+      api_token: answers.api_token || undefined,
+      datasource_id: answers.datasource_id,
+      column_priority: answers.column_priority,
+      column_status: answers.column_status,
+      column_status_wait: answers.column_status_wait,
+      column_status_review: answers.column_status_review,
+      column_status_error: answers.column_status_error,
+      column_base_branch: answers.column_base_branch,
+      column_work_branch: answers.column_work_branch,
+      column_prerequisite: answers.column_prerequisite,
+      column_created_time: answers.column_created_time,
     },
   };
 
