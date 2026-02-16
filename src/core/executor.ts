@@ -2,11 +2,11 @@ import { loadConfig } from '../config';
 import { getJob, updateJob, acquireLock, releaseLock } from '../jobs';
 import { Logger } from '../logger';
 import { generateInitialPrompt, generateWorkPrompt, generateFinishPrompt } from './prompt-generator';
-import { runClaude } from './claude-runner';
 import chalk from 'chalk';
 import { TaskInfo, WorkResult } from '../types/core';
-import { resolveSettingsFile, updateNotionOnError, validateEnvironment } from '../helper/exec-helper';
 import { fetchPendingTask, updateNotionPage } from '../notion-api';
+import { runClaude, runCursor } from './cli-runner';
+import { resolveSettingsFile, updateNotionOnError, validateEnvironment } from '../helper/executor';
 
 /**
  * 작업 실행 오케스트레이터
@@ -47,6 +47,9 @@ export async function executeJob (jobName: string): Promise<unknown> {
 
   // Resolve settings file
   const settingsFile = resolveSettingsFile();
+
+  // Select agent runner once (instead of repeating 3 times)
+  const runAgent = job.agent === 'cursor' ? runCursor : runClaude;
 
   try {
     // ========================================
@@ -97,7 +100,7 @@ export async function executeJob (jobName: string): Promise<unknown> {
       console.log(chalk.gray(initPrompt));
       console.log(chalk.gray('--------------------------------'));
 
-      const initResult = await runClaude<TaskInfo>({
+      const initResult = await runAgent<TaskInfo>({
         prompt: initPrompt,
         workDir,
         settingsFile,
@@ -145,18 +148,22 @@ export async function executeJob (jobName: string): Promise<unknown> {
 
     let workResult: WorkResult;
     try {
-      const workRunnerResult = await runClaude<WorkResult>({
+      const workRunnerResult = await runAgent<WorkResult>({
         prompt: workPrompt,
         workDir,
         settingsFile,
         timeout: String(job.timeout || '30m'),
         logger,
+        model: job.model,
       });
-      await logger.info(`Phase 2 완료: ${JSON.stringify(workRunnerResult)}`);
+
+      // SECURITY: Remove rawOutput from logging
+      const { rawOutput: __, ...logSafeWork } = workRunnerResult;
+      await logger.info(`Phase 2 완료: ${JSON.stringify(logSafeWork)}`);
 
       // Phase 2 JSON 파싱 실패 체크
       if (!workRunnerResult.result) {
-        workResult = { success: false, error: `Phase 2 결과 파싱 실패: ${workRunnerResult.rawOutput}` };
+        workResult = { success: false, error: `Phase 2 결과 파싱 실패` };
       } else {
         workResult = workRunnerResult.result;
       }
@@ -258,7 +265,7 @@ export async function executeJob (jobName: string): Promise<unknown> {
       console.log(chalk.gray(finishPrompt));
       console.log(chalk.gray('--------------------------------'));
 
-      result = await runClaude({
+      result = await runAgent({
         prompt: finishPrompt,
         workDir,
         settingsFile,

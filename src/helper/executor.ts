@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs-extra';
 import { execSync } from 'child_process';
 import { WorkResult } from '../types/core';
-import { runClaude } from '../core/claude-runner';
+import { runAgent } from '../core/cli-runner';
 import { updateNotionPage } from '../notion-api';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -138,7 +138,7 @@ ${(workResult.error || 'Unknown error').toString()}
 { "success": true, "message": "Notion 에러 상태 업데이트 완료" }
 \`\`\``;
 
-      const result = await runClaude({
+      const result = await runAgent({
         prompt: errorPrompt,
         workDir,
         settingsFile,

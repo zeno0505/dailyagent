@@ -24,7 +24,7 @@ export async function runCommand(name: string): Promise<void> {
   console.log('');
 
   const spinner = ora({
-    text: 'Claude Code 실행 중...',
+    text: `${job.agent} 실행 중...`,
     color: 'cyan',
   }).start();
 

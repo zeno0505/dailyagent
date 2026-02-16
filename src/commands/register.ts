@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs-extra';
 import { isInitialized } from '../config';
 import { addJob } from '../jobs';
+import type { Agent } from '../types/jobs';
 
 export async function registerCommand(): Promise<void> {
   if (!isInitialized()) {
@@ -28,8 +29,17 @@ export async function registerCommand(): Promise<void> {
       type: 'list',
       name: 'agent',
       message: 'AI 에이전트:',
-      choices: ['claude-code'],
+      choices: [
+        { name: 'Claude Code CLI', value: 'claude-code' },
+        { name: 'Cursor CLI', value: 'cursor' },
+      ],
       default: 'claude-code',
+    },
+    {
+      type: 'input',
+      name: 'model',
+      message: '모델 (선택사항, 비용 최적화용 - 비워두면 기본값 사용):',
+      default: '',
     },
     {
       type: 'input',
@@ -60,7 +70,8 @@ export async function registerCommand(): Promise<void> {
   try {
     await addJob({
       name: answers.name as string,
-      agent: answers.agent as string,
+      agent: answers.agent as Agent,
+      model: answers.model ? answers.model : undefined,
       working_dir: answers.working_dir as string,
       schedule: answers.schedule as string,
       timeout: answers.timeout as string,

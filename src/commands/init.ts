@@ -33,8 +33,7 @@ export async function initCommand(): Promise<void> {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const answers: any = await (inquirer.prompt as any)([
+  const answers = await inquirer.prompt([
     {
       type: 'input',
       name: 'database_url',
@@ -51,7 +50,7 @@ export async function initCommand(): Promise<void> {
       type: 'password',
       name: 'api_token',
       message: 'Notion API 토큰 (Internal Integration Token):',
-      when: (answers: { use_api: boolean }) => answers.use_api,
+      when: (answers) => answers.use_api,
       validate: (val: string) => (val.length > 0 ? true : 'API 토큰을 입력해주세요.'),
     },
     {
