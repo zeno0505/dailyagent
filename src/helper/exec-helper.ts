@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs-extra';
 import { execSync } from 'child_process';
 import { WorkResult } from '../types/core';
-import { runClaude } from '../core/claude-runner';
+import { runClaude } from '../core/cli-runner';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -113,7 +113,9 @@ ${(workResult.error || 'Unknown error').toString()}
       model: 'sonnet',
     });
 
-    await logger.info(`Notion 에러 업데이트 완료: ${JSON.stringify(result)}`);
+    // SECURITY: Remove rawOutput from logging
+    const { rawOutput, ...logSafeResult } = result;
+    await logger.info(`Notion 에러 업데이트 완료: ${JSON.stringify(logSafeResult)}`);
   } catch (err) {
     const errMessage = err instanceof Error ? err.message : String(err);
     await logger.error(`Notion 에러 업데이트 실패: ${errMessage}`);
