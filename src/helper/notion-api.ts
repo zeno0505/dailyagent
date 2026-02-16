@@ -13,6 +13,20 @@ export function parseSelectProperty(property: unknown): string | null {
 }
 
 /**
+ * Notion Status 타입을 파싱합니다.
+ * @param property Notion 속성
+ * @returns 설정된 Status 타입의 이름 또는 null
+ */
+export function parseStatusProperty(property: unknown): string | null {
+  if (!property) return null;
+  if (typeof property !== 'object' || !('status' in property)) return null;
+  if (typeof property.status !== 'object' || !property.status) return null;
+  if (!('name' in property.status)) return null;
+  if (typeof property.status.name !== 'string') return null;
+  return property.status.name;
+}
+
+/**
  * Notion Date 타입을 파싷ㅇ합니다.
  * @param property Notion 속성
  * @returns 설정된 Date 타입의 날짜 또는 null

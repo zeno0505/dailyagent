@@ -4,9 +4,10 @@
  */
 
 import { resolveColumns } from './config';
-import { parseDateProperty, parseRelationProperty, parseSelectProperty } from './helper/notion-api';
+import { parseDateProperty, parseRelationProperty, parseSelectProperty, parseStatusProperty } from './helper/notion-api';
 import { ColumnConfig } from './types/config';
 import { TaskInfo } from './types/core';
+import { NOTION_BLOCK_HANDLER, NotionBlock } from './types/notion-api';
 
 export interface NotionPage {
   id: string;
@@ -28,7 +29,7 @@ interface TaskCandidate {
 /**
  * 선행 작업이 완료되었는지 확인
  */
-async function checkPrerequisiteCompleted(
+async function checkPrerequisiteCompleted (
   apiToken: string,
   prerequisitePageId: string,
   columns: ColumnConfig
@@ -40,7 +41,6 @@ async function checkPrerequisiteCompleted(
       'Notion-Version': '2025-09-03',
     },
   });
-
   if (!pageResponse.ok) {
     // 선행 작업 페이지를 찾을 수 없으면 완료된 것으로 간주
     return true;
@@ -48,8 +48,7 @@ async function checkPrerequisiteCompleted(
 
   const pageData = (await pageResponse.json()) as NotionPage;
   const statusProp = pageData.properties[columnStatus];
-  const statusValue = parseSelectProperty(statusProp);
-
+  const statusValue = parseStatusProperty(statusProp);
   if (statusValue) {
     return statusValue === statusComplete;
   }
@@ -60,7 +59,7 @@ async function checkPrerequisiteCompleted(
 /**
  * 우선도 계산: 우선순위가 높을수록, 작업 일자가 오래될수록 높은 점수
  */
-function calculatePriority({ createdTime, priority }: TaskCandidate): number {
+function calculatePriority ({ createdTime, priority }: TaskCandidate): number {
   const daysSinceCreation = (Date.now() - createdTime.getTime()) / (1000 * 60 * 60 * 24);
   // 우선순위는 가중치 100, 경과 일수는 가중치 1
   return priority * 100 + daysSinceCreation;
@@ -71,11 +70,11 @@ function calculatePriority({ createdTime, priority }: TaskCandidate): number {
  * - 여러 항목을 가져와서 클라이언트에서 우선도 계산
  * - 선행 작업이 완료된 항목만 선택
  */
-export async function fetchPendingTask(
+export async function fetchPendingTask (
   apiToken: string,
   datasourceId: string,
   columns: ColumnConfig
-): Promise<TaskInfo | null> {  
+): Promise<TaskInfo | null> {
   const { columnStatus, statusWait, columnBaseBranch, columnPriority, columnPrerequisite, columnCreatedTime } = resolveColumns(columns);
 
   // 데이터베이스 쿼리 (여러 항목 가져오기)
@@ -214,32 +213,13 @@ export async function fetchPendingTask(
     throw new Error(`Notion API blocks fetch failed: ${blocksResponse.status} ${errorText}`);
   }
 
-  const blocksData = (await blocksResponse.json()) as { results: Array<{ type: string; [key: string]: unknown }> };
+  const blocksData = (await blocksResponse.json()) as { results: Array<NotionBlock> };
 
   // 블록 내용을 텍스트로 변환
   let requirements = '';
+
   for (const block of blocksData.results) {
-    if (block.type === 'paragraph' && block.paragraph) {
-      const paragraph = block.paragraph as { rich_text: Array<{ plain_text: string }> };
-      requirements += paragraph.rich_text.map((t) => t.plain_text).join('') + '\n';
-    } else if (block.type === 'heading_1' && block.heading_1) {
-      const heading = block.heading_1 as { rich_text: Array<{ plain_text: string }> };
-      requirements += '# ' + heading.rich_text.map((t) => t.plain_text).join('') + '\n';
-    } else if (block.type === 'heading_2' && block.heading_2) {
-      const heading = block.heading_2 as { rich_text: Array<{ plain_text: string }> };
-      requirements += '## ' + heading.rich_text.map((t) => t.plain_text).join('') + '\n';
-    } else if (block.type === 'heading_3' && block.heading_3) {
-      const heading = block.heading_3 as { rich_text: Array<{ plain_text: string }> };
-      requirements += '### ' + heading.rich_text.map((t) => t.plain_text).join('') + '\n';
-    } else if (block.type === 'bulleted_list_item' && block.bulleted_list_item) {
-      const item = block.bulleted_list_item as { rich_text: Array<{ plain_text: string }> };
-      requirements += '- ' + item.rich_text.map((t) => t.plain_text).join('') + '\n';
-    } else if (block.type === 'code' && block.code) {
-      const code = block.code as { rich_text: Array<{ plain_text: string }>; language: string };
-      requirements += '```' + code.language + '\n';
-      requirements += code.rich_text.map((t) => t.plain_text).join('') + '\n';
-      requirements += '```\n';
-    }
+    requirements += NOTION_BLOCK_HANDLER[block.type](block);
   }
 
   // 속성 추출
@@ -275,7 +255,7 @@ export async function fetchPendingTask(
 /**
  * Notion API를 사용하여 페이지 업데이트
  */
-export async function updateNotionPage(
+export async function updateNotionPage (
   apiToken: string,
   pageId: string,
   properties: Record<string, unknown>,
