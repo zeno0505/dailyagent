@@ -87,15 +87,15 @@ export async function initCommand(): Promise<void> {
     },
     {
       type: 'input',
-      name: 'column_status_complete',
-      message: '작업 완료 상태 값:',
-      default: DEFAULT_CONFIG.notion.column_status_complete,
+      name: 'column_status_error',
+      message: '자동화 오류 상태값:',
+      default: DEFAULT_CONFIG.notion.column_status_error,
     },
     {
       type: 'input',
-      name: 'column_status_error',
-      message: '에러 상태값:',
-      default: DEFAULT_CONFIG.notion.column_status_error,
+      name: 'column_status_complete',
+      message: '작업 완료 상태 값:',
+      default: DEFAULT_CONFIG.notion.column_status_complete,
     },
     {
       type: 'input',
