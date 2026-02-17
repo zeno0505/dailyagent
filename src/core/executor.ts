@@ -6,7 +6,7 @@ import chalk from 'chalk';
 import { TaskInfo, WorkResult } from '../types/core';
 import { fetchPendingTask, updateNotionPage } from '../notion-api';
 import { runClaude, runCursor } from './cli-runner';
-import { resolveSettingsFile, updateNotionOnError, validateEnvironment } from '../helper/executor';
+import { resolveSettingsFile, updateNotionOnError, validateEnvironment } from '../utils/executor';
 import { sendSlackNotification } from '../slack/webhook';
 
 /**

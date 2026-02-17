@@ -91,3 +91,11 @@ program
     const { logsCommand } = await import('./commands/logs');
     await logsCommand(name, options);
   });
+
+program
+  .command('schedule <action> [name]')
+  .description('OS 스케줄러(crontab) 연동 관리 (on|off|status)')
+  .action(async (action: string, name?: string) => {
+    const { scheduleCommand } = await import('./commands/schedule');
+    await scheduleCommand(action, name);
+  });
