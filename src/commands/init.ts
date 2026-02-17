@@ -31,8 +31,8 @@ export async function initCommand(): Promise<void> {
   }
 
   const use_api = await confirm({
-    message: 'Notion API를 직접 사용하시겠습니까? (MCP 대신 API 사용 시 토큰 소비 감소)',
-    default: false,
+    message: '(권장) Notion API를 직접 사용하시겠습니까? (MCP 대신 API 사용 시 토큰 소비 감소)',
+    default: true,
   });
 
   let database_url: string | undefined;
@@ -122,6 +122,7 @@ export async function initCommand(): Promise<void> {
       column_status,
       column_status_wait,
       column_status_review,
+      column_status_complete,
       column_status_error,
       column_base_branch,
       column_work_branch,
