@@ -1,18 +1,36 @@
-import { execSync } from 'child_process';
+import { spawnSync, type SpawnSyncReturns } from 'child_process';
+import { isCommandAvailable, resolveDailyagentCommand } from '../utils/process';
 
 const CRONTAB_MARKER = '# dailyagent:';
+
+function runCrontab(args: string[], input?: string): SpawnSyncReturns<string> {
+  return spawnSync('crontab', args, {
+    encoding: 'utf8',
+    input,
+    stdio: input !== undefined ? ['pipe', 'pipe', 'pipe'] : ['ignore', 'pipe', 'pipe']
+  });
+}
 
 /**
  * 현재 사용자의 crontab 항목을 읽어옵니다.
  */
 function readCrontab(): string[] {
-  try {
-    const output = execSync('crontab -l 2>/dev/null', { encoding: 'utf8' });
-    return output.split('\n');
-  } catch {
-    // crontab이 비어있으면 에러 발생
+  const result = runCrontab(['-l']);
+  if (result.error || result.status !== 0) {
+    // crontab이 비어있거나 아직 생성되지 않으면 실패할 수 있음
     return [];
   }
+
+  return result.stdout.split('\n');
+}
+
+function buildCrontabError(action: string, result: SpawnSyncReturns<string>): Error {
+  if (result.error) {
+    return new Error(`crontab ${action} 실행 실패: ${result.error.message}`);
+  }
+
+  const detail = result.stderr.trim() || result.stdout.trim() || `exit ${result.status ?? 'unknown'}`;
+  return new Error(`crontab ${action} 실패: ${detail}`);
 }
 
 /**
@@ -20,29 +38,10 @@ function readCrontab(): string[] {
  */
 function writeCrontab(lines: string[]): void {
   const content = lines.filter((l) => l !== '').join('\n') + '\n';
-  execSync('crontab -', { input: content, encoding: 'utf8' });  
-}
-
-/**
- * dailyagent 실행 명령을 찾습니다. (npx 또는 글로벌 설치)
- */
-function resolveDailyagentCommand(): string {
-  try {
-    const which = execSync('which dailyagent 2>/dev/null', { encoding: 'utf8' }).trim();
-    if (which) return which;
-  } catch {
-    // ignore
+  const result = runCrontab(['-'], content);
+  if (result.error || result.status !== 0) {
+    throw buildCrontabError('업데이트', result);
   }
-
-  // npx 사용 fallback
-  try {
-    const npxPath = execSync('which npx 2>/dev/null', { encoding: 'utf8' }).trim();
-    if (npxPath) return `${npxPath} dailyagent`;
-  } catch {
-    // ignore
-  }
-
-  return 'dailyagent';
 }
 
 /**
@@ -119,10 +118,5 @@ export function listCronJobs(): Array<{ jobName: string; schedule: string; line:
  * crontab 사용 가능 여부를 확인합니다.
  */
 export function isCrontabAvailable(): boolean {
-  try {
-    execSync('which crontab 2>/dev/null', { encoding: 'utf8' });
-    return true;
-  } catch {
-    return false;
-  }
+  return isCommandAvailable('crontab');
 }

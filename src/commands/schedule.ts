@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import os from 'os';
 import { isInitialized } from '../config';
 import { getJob, listJobs } from '../jobs';
 import {
@@ -8,6 +9,41 @@ import {
   listCronJobs,
   isCrontabAvailable,
 } from '../scheduler/crontab';
+import {
+  installLaunchdJob,
+  uninstallLaunchdJob,
+  isLaunchdJobInstalled,
+  listLaunchdJobs,
+  isLaunchdAvailable,
+} from '../scheduler/launchd';
+
+type SchedulerType = 'launchd' | 'cron';
+
+/**
+ * 현재 OS 환경에 따라 사용할 스케줄러를 결정합니다.
+ * macOS: launchd 우선, fallback으로 cron
+ * Linux/기타: cron
+ */
+function detectScheduler(): SchedulerType | null {
+  const platform = os.platform();
+
+  if (platform === 'darwin') {
+    if (isLaunchdAvailable()) return 'launchd';
+    if (isCrontabAvailable()) return 'cron';
+    return null;
+  }
+
+  // Linux 및 기타 OS
+  if (isCrontabAvailable()) return 'cron';
+  return null;
+}
+
+/**
+ * 스케줄러 이름을 반환합니다.
+ */
+function schedulerName(type: SchedulerType): string {
+  return type === 'launchd' ? 'launchd' : 'crontab';
+}
 
 export async function scheduleCommand(action: string, name?: string): Promise<void> {
   if (!isInitialized()) {
@@ -15,21 +51,26 @@ export async function scheduleCommand(action: string, name?: string): Promise<vo
     process.exit(1);
   }
 
-  if (!isCrontabAvailable()) {
-    console.log(chalk.red('\n  crontab을 사용할 수 없습니다.'));
-    console.log(chalk.gray('  cron 서비스가 설치되어 있는지 확인하세요.\n'));
+  const scheduler = detectScheduler();
+
+  if (!scheduler) {
+    console.log(chalk.red('\n  사용 가능한 스케줄러가 없습니다.'));
+    console.log(chalk.gray('  macOS: launchd (기본 제공)'));
+    console.log(chalk.gray('  Linux: cron 서비스가 설치되어 있는지 확인하세요.\n'));
     process.exit(1);
   }
 
+  console.log(chalk.gray(`  스케줄러: ${schedulerName(scheduler)} (${os.platform()})`));
+
   switch (action) {
     case 'on':
-      await scheduleOn(name);
+      await scheduleOn(name, scheduler);
       break;
     case 'off':
-      await scheduleOff(name);
+      await scheduleOff(name, scheduler);
       break;
     case 'status':
-      await scheduleStatus();
+      await scheduleStatus(scheduler);
       break;
     default:
       console.log(chalk.red(`\n  알 수 없는 동작: ${action}`));
@@ -38,7 +79,29 @@ export async function scheduleCommand(action: string, name?: string): Promise<vo
   }
 }
 
-async function scheduleOn(name?: string): Promise<void> {
+function isJobInstalled(jobName: string, scheduler: SchedulerType): boolean {
+  return scheduler === 'launchd'
+    ? isLaunchdJobInstalled(jobName)
+    : isCronJobInstalled(jobName);
+}
+
+function installJob(jobName: string, schedule: string, scheduler: SchedulerType): void {
+  if (scheduler === 'launchd') {
+    installLaunchdJob(jobName, schedule);
+  } else {
+    installCronJob(jobName, schedule);
+  }
+}
+
+function uninstallJob(jobName: string, scheduler: SchedulerType): void {
+  if (scheduler === 'launchd') {
+    uninstallLaunchdJob(jobName);
+  } else {
+    uninstallCronJob(jobName);
+  }
+}
+
+async function scheduleOn(name: string | undefined, scheduler: SchedulerType): Promise<void> {
   if (!name) {
     console.log(chalk.red('\n  작업 이름을 지정해주세요.'));
     console.log(chalk.gray('  사용법: dailyagent schedule on <job-name>\n'));
@@ -52,15 +115,15 @@ async function scheduleOn(name?: string): Promise<void> {
     process.exit(1);
   }
 
-  if (isCronJobInstalled(name)) {
+  if (isJobInstalled(name, scheduler)) {
     console.log(chalk.yellow(`\n  작업 "${name}"은(는) 이미 스케줄이 등록되어 있습니다.`));
     console.log(chalk.gray(`  해제 후 재등록하려면: dailyagent schedule off ${name}\n`));
     return;
   }
 
   try {
-    installCronJob(name, job.schedule);
-    console.log(chalk.green(`\n  작업 "${name}" 스케줄이 등록되었습니다.`));
+    installJob(name, job.schedule, scheduler);
+    console.log(chalk.green(`\n  작업 "${name}" 스케줄이 등록되었습니다. (${schedulerName(scheduler)})`));
     console.log(chalk.gray(`  스케줄: ${job.schedule}`));
     console.log(chalk.gray(`  확인: dailyagent schedule status\n`));
   } catch (err) {
@@ -70,7 +133,7 @@ async function scheduleOn(name?: string): Promise<void> {
   }
 }
 
-async function scheduleOff(name?: string): Promise<void> {
+async function scheduleOff(name: string | undefined, scheduler: SchedulerType): Promise<void> {
   if (!name) {
     console.log(chalk.red('\n  작업 이름을 지정해주세요.'));
     console.log(chalk.gray('  사용법: dailyagent schedule off <job-name>\n'));
@@ -84,16 +147,15 @@ async function scheduleOff(name?: string): Promise<void> {
   }
 
   try {
-    uninstallCronJob(name);
-    console.log(chalk.green(`\n  작업 "${name}" 스케줄이 해제되었습니다.\n`));
+    uninstallJob(name, scheduler);
+    console.log(chalk.green(`\n  작업 "${name}" 스케줄이 해제되었습니다. (${schedulerName(scheduler)})\n`));
   } catch (err) {
     const error = err as Error;
     console.log(chalk.yellow(`\n  ${error.message}\n`));
   }
 }
 
-async function scheduleStatus(): Promise<void> {
-  const cronJobs = listCronJobs();
+async function scheduleStatus(scheduler: SchedulerType): Promise<void> {
   const jobs = await listJobs();
 
   console.log(chalk.bold('\n  스케줄러 상태\n'));
@@ -103,17 +165,17 @@ async function scheduleStatus(): Promise<void> {
     return;
   }
 
-  console.log(chalk.cyan('  작업명'.padEnd(22) + '스케줄'.padEnd(20) + 'crontab'));
+  const headerScheduler = schedulerName(scheduler);
+  console.log(chalk.cyan('  작업명'.padEnd(22) + '스케줄'.padEnd(20) + headerScheduler));
   console.log(chalk.gray('  ' + '-'.repeat(55)));
 
+  
+  const schedules = scheduler === 'launchd' ? listLaunchdJobs() : listCronJobs();
   for (const job of jobs) {
-    const cronEntry = cronJobs.find((c) => c.jobName === job.name);
-    const cronStatus = cronEntry ? chalk.green('등록됨') : chalk.gray('미등록');
-    const schedule = cronEntry ? cronEntry.schedule : job.schedule;
-
-    console.log(
-      `  ${job.name.padEnd(20)} ${schedule.padEnd(24)} ${cronStatus}`
-    );
+    const entry = schedules.find((s) => s.jobName === job.name);
+    const status = entry ? chalk.green('등록됨') : chalk.gray('미등록');
+    const schedule = entry ? entry.schedule : job.schedule;
+    console.log(`  ${job.name.padEnd(20)} ${schedule.padEnd(24)} ${status}`);
   }
 
   console.log('');
