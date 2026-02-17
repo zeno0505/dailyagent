@@ -4,10 +4,10 @@ import { loadConfig, PROMPTS_DIR } from '../config';
 import { getJob, updateJob, acquireLock, releaseLock } from '../jobs';
 import { getWorkspace } from '../workspace';
 import { Logger } from '../logger';
-import { generateInitialPrompt, generateWorkPrompt, generateFinishPrompt, generatePlanPrompt, generateImplementPrompt, generateReviewPrompt } from './prompt-generator';
+import { generateInitialPrompt, generateWorkPrompt, generateFinishPrompt, generatePlanPrompt, generateImplementPrompt, generateReviewPrompt, generateTaskPlanPrompt } from './prompt-generator';
 import chalk from 'chalk';
-import { TaskInfo, WorkResult, PlanResult, ImplResult } from '../types/core';
-import { fetchPendingTask, updateNotionPage } from '../notion-api';
+import { TaskInfo, WorkResult, PlanResult, ImplResult, TaskPlanResult } from '../types/core';
+import { fetchPendingTask, updateNotionPage, createNotionSubtasks } from '../notion-api';
 import { runClaude, runCursor } from './cli-runner';
 import { resolveSettingsFile, validateEnvironment } from '../utils/executor';
 import { sendSlackNotification } from '../slack/webhook';
@@ -153,6 +153,17 @@ export async function executeJob (jobName: string): Promise<unknown> {
     // taskInfo null 체크
     if (!taskInfo) {
       throw new Error('작업 정보를 가져올 수 없습니다.');
+    }
+
+    // ========================================
+    // Task Mode 분기: "계획" vs "실행"
+    // ========================================
+    const taskMode = taskInfo.task_mode || '실행';
+    await logger.info(`Task Mode: ${taskMode}`);
+
+    if (taskMode === '계획') {
+      // 계획 모드: 작업 계획 수립 및 후속 작업 생성
+      return await executePlanMode(runAgent, { workDir, taskInfo, settingsFile, job, jobName, logger, workspace, config });
     }
 
     // ========================================
@@ -482,5 +493,113 @@ async function executePhase2Single(
   }
 }
 
+
+/**
+ * 계획 모드 실행
+ */
+async function executePlanMode(
+  runAgent: typeof runClaude,
+  { workDir, taskInfo, settingsFile, job, jobName, logger, workspace, config }: {
+    workDir: string;
+    taskInfo: TaskInfo;
+    settingsFile: string | undefined;
+    job: { timeout?: string; model?: string };
+    jobName: string;
+    logger: Logger;
+    workspace: any;
+    config: any;
+  }
+): Promise<unknown> {
+  await logger.info('--- 계획 모드 실행 시작 ---');
+
+  try {
+    // 작업 계획 수립
+    await logger.info('작업 계획 수립 중...');
+    const planPrompt = generateTaskPlanPrompt({ workDir, taskInfo });
+    console.log(chalk.gray('--------------------------------'));
+    console.log(chalk.gray('[Plan Mode] 프롬프트:'));
+    console.log(chalk.gray(planPrompt));
+    console.log(chalk.gray('--------------------------------'));
+
+    const planResult = await runAgent<TaskPlanResult>({
+      prompt: planPrompt,
+      workDir,
+      settingsFile,
+      timeout: '10m',
+      logger,
+      model: job.model,
+    });
+
+    const { rawOutput: _, ...logSafePlan } = planResult;
+    await logger.info(`계획 수립 완료: ${JSON.stringify(logSafePlan)}`);
+
+    if (!planResult.result) {
+      const errorMsg = `계획 수립 파싱 실패 (exitCode: ${planResult.exitCode})\n${planResult.rawOutput?.substring(0, 500) || '출력 없음'}`;
+      throw new Error(errorMsg);
+    }
+
+    const taskPlanResult = planResult.result;
+
+    // Notion API를 사용하여 후속 작업 생성
+    if (workspace.notion.use_api && workspace.notion.api_token) {
+      await logger.info('후속 작업 Notion 문서 생성 중...');
+      const apiToken = workspace.notion.api_token;
+      const datasourceId = workspace.notion.datasource_id;
+
+      if (!apiToken || !datasourceId) {
+        throw new Error('Notion API 설정이 불완전합니다.');
+      }
+
+      const createdPageIds = await createNotionSubtasks(
+        apiToken,
+        datasourceId,
+        taskInfo.task_id!,
+        taskPlanResult.subtasks,
+        workspace.notion
+      );
+
+      await logger.info(`${createdPageIds.length}개의 후속 작업 문서 생성 완료`);
+
+      // 원본 문서 상태를 "완료"로 업데이트
+      const statusColumn = workspace.notion.column_status || '상태';
+      const statusComplete = workspace.notion.column_status_complete || '완료';
+
+      await updateNotionPage(
+        apiToken,
+        taskInfo.task_id!,
+        {
+          [statusColumn]: {
+            status: {
+              name: statusComplete,
+            },
+          },
+        },
+        `\n---\n\n## 계획 수립 완료\n\n완료 시간: ${new Date().toISOString()}\n\n계획 요약:\n${taskPlanResult.plan_summary}\n\n생성된 후속 작업: ${createdPageIds.length}개`
+      );
+
+      await logger.info('원본 문서 상태 업데이트 완료');
+
+      return {
+        success: true,
+        task_id: taskInfo.task_id,
+        task_title: taskInfo.task_title,
+        plan_summary: taskPlanResult.plan_summary,
+        subtasks_created: createdPageIds.length,
+        created_page_ids: createdPageIds,
+      };
+    } else {
+      // MCP 사용 시는 계획 모드 미지원
+      await logger.warn('MCP 모드에서는 계획 모드가 지원되지 않습니다.');
+      return {
+        success: false,
+        error: 'MCP 모드에서는 계획 모드가 지원되지 않습니다. Notion API를 사용해주세요.',
+      };
+    }
+  } catch (err) {
+    const error = err as Error;
+    await logger.error(`계획 모드 실패: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
 
 class NoSessionIdError extends Error {}

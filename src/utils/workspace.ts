@@ -59,6 +59,7 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
   let column_work_branch: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_work_branch;
   let column_prerequisite: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_prerequisite;
   let column_created_time: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_created_time;
+  let column_task_mode: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_task_mode;
 
   if (!use_notion_template) {
     column_priority = await input({
@@ -101,6 +102,10 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
       message: '작업 일자 컬럼명:',
       default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_created_time,
     });
+    column_task_mode = await input({
+      message: '작업 모드 컬럼명:',
+      default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_task_mode,
+    });
   }
   return {
     use_api,
@@ -114,6 +119,7 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
     column_work_branch,
     column_prerequisite,
     column_created_time,
+    column_task_mode,
     ...(database_url != null && { database_url }),
     ...(api_token != null && { api_token }),
     ...(datasource_id != null && { datasource_id }),

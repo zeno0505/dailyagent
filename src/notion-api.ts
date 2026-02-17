@@ -75,7 +75,7 @@ export async function fetchPendingTask (
   datasourceId: string,
   columns: ColumnConfig
 ): Promise<TaskInfo | null> {
-  const { columnStatus, statusWait, columnBaseBranch, columnPriority, columnPrerequisite, columnCreatedTime } = resolveColumns(columns);
+  const { columnStatus, statusWait, columnBaseBranch, columnPriority, columnPrerequisite, columnCreatedTime, columnTaskMode } = resolveColumns(columns);
 
   // 데이터베이스 쿼리 (여러 항목 가져오기)
   const queryResponse = await fetch(`https://api.notion.com/v1/data_sources/${datasourceId}/query`, {
@@ -231,6 +231,7 @@ export async function fetchPendingTask (
   const properties = pageData.properties;
   const titleProp = properties['제목'] || properties['Name'] || properties['Title'];
   const baseBranchProp = properties[columnBaseBranch];
+  const taskModeProp = properties[columnTaskMode];
 
   let taskTitle = '';
   if (titleProp && typeof titleProp === 'object' && 'title' in titleProp) {
@@ -244,17 +245,133 @@ export async function fetchPendingTask (
     baseBranch = richText.map((t) => t.plain_text).join('');
   }
 
+  let taskMode = '';
+  if (taskModeProp && typeof taskModeProp === 'object' && 'select' in taskModeProp) {
+    if (taskModeProp.select && typeof taskModeProp.select === 'object' && 'name' in taskModeProp.select) {
+      taskMode = (taskModeProp.select.name as string) || '';
+    }
+  }
+
   if (!page) {
     return null;
   }
 
-  return {
+  const result: TaskInfo = {
     task_id: page.id,
     task_title: taskTitle,
     base_branch: baseBranch,
     requirements: requirements.trim(),
     page_url: pageData.url,
   };
+
+  if (taskMode) {
+    result.task_mode = taskMode;
+  }
+
+  return result;
+}
+
+/**
+ * Notion API를 사용하여 후속 하위 작업 문서 생성
+ */
+export async function createNotionSubtasks (
+  apiToken: string,
+  datasourceId: string,
+  parentPageId: string,
+  subtasks: Array<{ title: string; requirements: string; base_branch?: string }>,
+  columns: ColumnConfig
+): Promise<string[]> {
+  const createdPageIds: string[] = [];
+  const { columnBaseBranch, columnStatus, statusWait } = resolveColumns(columns);
+
+  for (const subtask of subtasks) {
+    const properties: Record<string, unknown> = {
+      // 제목
+      '제목': {
+        title: [
+          {
+            type: 'text',
+            text: {
+              content: subtask.title,
+            },
+          },
+        ],
+      },
+      // 상태: 작업 대기
+      [columnStatus]: {
+        status: {
+          name: statusWait,
+        },
+      },
+    };
+
+    if (subtask.base_branch) {
+      properties[columnBaseBranch] = {
+        rich_text: [
+          {
+            type: 'text',
+            text: {
+              content: subtask.base_branch,
+            },
+          },
+        ],
+      };
+    }
+
+    const createResponse = await fetch(`https://api.notion.com/v1/data_sources/${datasourceId}/pages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Notion-Version': '2025-09-03',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        properties,
+      }),
+    });
+
+    if (!createResponse.ok) {
+      const errorText = await createResponse.text();
+      throw new Error(`Notion API subtask creation failed: ${createResponse.status} ${errorText}`);
+    }
+
+    const pageData = (await createResponse.json()) as NotionPage;
+    createdPageIds.push(pageData.id);
+
+    // 생성된 페이지에 요구사항을 본문으로 추가
+    if (subtask.requirements) {
+      const blocks = [
+        {
+          object: 'block',
+          type: 'paragraph',
+          paragraph: {
+            rich_text: [
+              {
+                type: 'text',
+                text: {
+                  content: subtask.requirements,
+                },
+              },
+            ],
+          },
+        },
+      ];
+
+      await fetch(`https://api.notion.com/v1/blocks/${pageData.id}/children`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${apiToken}`,
+          'Notion-Version': '2025-09-03',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          children: blocks,
+        }),
+      });
+    }
+  }
+
+  return createdPageIds;
 }
 
 /**

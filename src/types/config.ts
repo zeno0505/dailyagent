@@ -9,6 +9,7 @@ export interface ColumnConfig {
   column_work_branch?: string;
   column_prerequisite?: string;
   column_created_time?: string;
+  column_task_mode?: string;
 }
 
 export interface NotionConfig extends ColumnConfig {

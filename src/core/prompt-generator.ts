@@ -5,7 +5,7 @@
 
 import { resolveColumns } from "../config";
 import { ColumnConfig } from "../types/config";
-import { TaskInfo, WorkResult, PlanResult } from "../types/core";
+import { TaskInfo, WorkResult, PlanResult, TaskPlanResult } from "../types/core";
 
 /**
  * Phase 1: Notion DB 조회 + 페이지 상세 읽기
@@ -36,7 +36,8 @@ Notion MCP 도구를 사용하여 선택된 페이지의 상세 내용 읽기:
   "task_title": "작업 제목",
   "base_branch": "기준 브랜치명",
   "requirements": "작업 요구사항 전체 내용",
-  "page_url": "페이지 URL"
+  "page_url": "페이지 URL",
+  "task_mode": "작업 모드 (실행 또는 계획)"
 }
 \`\`\`
 `;
@@ -293,6 +294,61 @@ export function generateReviewPrompt({ taskInfo }: { taskInfo: TaskInfo }): stri
   "pr_skipped_reason": "PR 생성을 건너뛴 이유 또는 null"
 }
 \`\`\`
+`;
+}
+
+/**
+ * 계획 모드: 작업 계획 수립 프롬프트
+ * 작업 요구사항을 분석하여 하위 작업들을 계획
+ */
+export function generateTaskPlanPrompt({ workDir, taskInfo }: { workDir: string; taskInfo: TaskInfo }): string {
+  return `# 작업 계획 수립 (Plan Mode)
+
+현재 작업 디렉토리: ${workDir}
+
+## 작업 정보
+\`\`\`json
+${JSON.stringify(taskInfo, null, 2)}
+\`\`\`
+
+## 목표
+위 작업 요구사항을 분석하여 구체적인 하위 작업들을 계획합니다.
+
+## 수행 단계
+
+### 1단계: 프로젝트 구조 파악
+- ${workDir} 디렉토리의 프로젝트 구조를 확인
+- 기존 코드와 구조를 분석
+
+### 2단계: 요구사항 분석
+- 작업 요구사항을 세부 항목으로 분해
+- 각 항목의 복잡도와 범위 파악
+
+### 3단계: 하위 작업 계획 수립
+- 요구사항을 3-5개의 구체적인 하위 작업으로 분해
+- 각 하위 작업은 독립적으로 실행 가능해야 함
+- 작업 간의 의존성과 순서 고려
+
+## 결과 출력
+**반드시 아래 JSON 형식으로만 결과를 반환하세요. 다른 텍스트 없이 JSON만 출력**:
+\`\`\`json
+{
+  "plan_summary": "전체 작업 계획 요약",
+  "subtasks": [
+    {
+      "title": "하위 작업 제목",
+      "requirements": "하위 작업의 상세 요구사항",
+      "base_branch": "기준 브랜치 (선택사항, 기본값: ${taskInfo.base_branch || 'main'})"
+    }
+  ]
+}
+\`\`\`
+
+## 중요 주의사항
+1. 각 subtask는 하나의 Notion 문서로 생성됩니다
+2. requirements는 상세하고 구체적이어야 합니다
+3. 하위 작업들은 순서대로 실행됩니다
+4. base_branch가 없으면 원본 작업의 base_branch를 사용합니다
 `;
 }
 

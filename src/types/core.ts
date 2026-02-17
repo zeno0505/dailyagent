@@ -49,6 +49,10 @@ export interface TaskInfo {
    * 페이지 URL
    */
   page_url?: string;
+  /**
+   * 작업 모드: "실행" | "계획"
+   */
+  task_mode?: string;
 }
 
 
@@ -154,4 +158,16 @@ export interface ImplResult {
   commits: { hash: string; message: string }[];
   files_changed: string[];
   issues_found: string[];
+}
+
+/**
+ * 계획 모드 결과 타입: 하위 작업 계획
+ */
+export interface TaskPlanResult {
+  plan_summary: string;
+  subtasks: Array<{
+    title: string;
+    requirements: string;
+    base_branch?: string;
+  }>;
 }
