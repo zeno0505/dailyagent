@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'url';
-import { DailyAgentConfig } from '../types/config';
+import { DailyAgentConfig, Workspace } from '../types/config';
 import { Logger } from "../logger";
 import path from 'path';
 import fs from 'fs-extra';
@@ -63,24 +63,25 @@ interface UpdateNotionOnErrorParams {
   workResult: WorkResult,
   job: Job,
   config: DailyAgentConfig,
+  workspace: Workspace,
   settingsFile: string | undefined,
   logger: Logger
 }
 export async function updateNotionOnError(
-  { taskInfo, workDir, workResult, job, config, settingsFile, logger }: UpdateNotionOnErrorParams
+  { taskInfo, workDir, workResult, job, config, workspace, settingsFile, logger }: UpdateNotionOnErrorParams
 ): Promise<void> {
   try {
     // Notion API 사용 여부에 따라 분기
-    if (config.notion.use_api && config.notion.api_token) {
+    if (workspace.notion.use_api && workspace.notion.api_token) {
       // Notion API 직접 호출
       await logger.info('Notion API를 사용하여 에러 상태 업데이트');
-      
-      if (!config.notion.api_token) {
+
+      if (!workspace.notion.api_token) {
         throw new Error('Notion API 토큰이 설정되지 않았습니다.');
       }
 
-      const statusColumn = config.notion.column_status || '상태';
-      const statusError = config.notion.column_status_error || '작업 실패';
+      const statusColumn = workspace.notion.column_status || '상태';
+      const statusError = workspace.notion.column_status_error || '작업 실패';
       const taskInfoTyped = taskInfo as { task_id: string };
 
       const properties: Record<string, unknown> = {
@@ -94,7 +95,7 @@ export async function updateNotionOnError(
       const content = `\n---\n\n## 자동화 작업 실패\n\n실패 시간: ${new Date().toISOString()}\n\n에러 내용:\n${(workResult.error || 'Unknown error').toString()}\n`;
 
       await updateNotionPage(
-        config.notion.api_token,
+        workspace.notion.api_token,
         taskInfoTyped.task_id,
         properties,
         content
@@ -119,7 +120,7 @@ MCP 도구 \`notion-update-page\`를 사용하여 아래 작업을 수행하세�
 
 1. 페이지 ID: 위 JSON의 "task_id" 사용
 2. 속성 업데이트:
-   - "${config.notion.column_status || '상태'}": "${config.notion.column_status_error || '작업 실패'}"
+   - "${workspace.notion.column_status || '상태'}": "${workspace.notion.column_status_error || '작업 실패'}"
 
 3. 페이지 본문에 아래 내용을 추가하세요:
 \`\`\`markdown
@@ -144,7 +145,7 @@ ${(workResult.error || 'Unknown error').toString()}
       const result = await runAgent({
         prompt: errorPrompt,
         workDir,
-        settingsFile: config.notion.use_api ? undefined : settingsFile,
+        settingsFile: workspace.notion.use_api ? undefined : settingsFile,
         timeout: '5m',
         logger,
         model: job.model,
