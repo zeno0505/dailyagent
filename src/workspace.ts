@@ -1,4 +1,5 @@
 import { loadConfig, saveConfig } from './config';
+import { loadJobs } from './jobs';
 import type { Workspace, NotionConfig } from './types/config';
 
 export async function listWorkspaces(): Promise<Workspace[]> {
@@ -53,6 +54,7 @@ export async function addWorkspace(workspace: Workspace): Promise<void> {
 
 export async function renameWorkspace(oldName: string, newName: string): Promise<void> {
   const config = await loadConfig();
+  const jobConfig = await loadJobs();
   if (!config || !config.workspaces) {
     throw new Error('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.');
   }
@@ -65,6 +67,12 @@ export async function renameWorkspace(oldName: string, newName: string): Promise
   if (config.active_workspace === oldName) {
     config.active_workspace = newName;
   }
+
+  jobConfig.jobs.forEach(job => {
+    if (job.workspace === oldName) {
+      job.workspace = newName;
+    }
+  });
 
   workspace.name = newName;
   await saveConfig(config);
