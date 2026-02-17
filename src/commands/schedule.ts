@@ -112,7 +112,7 @@ async function scheduleStatus(): Promise<void> {
     const schedule = cronEntry ? cronEntry.schedule : job.schedule;
 
     console.log(
-      `  ${job.name.padEnd(20)} ${schedule.padEnd(18)} ${cronStatus}`
+      `  ${job.name.padEnd(20)} ${schedule.padEnd(24)} ${cronStatus}`
     );
   }
 

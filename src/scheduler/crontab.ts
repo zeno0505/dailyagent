@@ -20,7 +20,7 @@ function readCrontab(): string[] {
  */
 function writeCrontab(lines: string[]): void {
   const content = lines.filter((l) => l !== '').join('\n') + '\n';
-  execSync(`echo ${JSON.stringify(content)} | crontab -`, { encoding: 'utf8' });
+  execSync('crontab -', { input: content, encoding: 'utf8' });  
 }
 
 /**
