@@ -29,11 +29,7 @@ export async function addWorkspace(workspace: Workspace): Promise<void> {
   let config = await loadConfig();
 
   if (!config) {
-    config = {
-      version: '2.0.0',
-      workspaces: [],
-      active_workspace: 'default',
-    };
+    throw new Error('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.');  
   }
 
   if (!config.workspaces) {
@@ -86,8 +82,8 @@ export async function removeWorkspace(name: string): Promise<void> {
   config.workspaces.splice(idx, 1);
 
   // If removed workspace was active, switch to first remaining workspace
-  if (config.active_workspace === name && config.workspaces.length > 0) {
-    config.active_workspace = config.workspaces[0]!.name;
+  if (config.active_workspace === name) {
+    config.active_workspace = config.workspaces.length > 0 ? config.workspaces[0]!.name : 'default';
   }
 
   await saveConfig(config);
