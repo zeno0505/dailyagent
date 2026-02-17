@@ -1,9 +1,12 @@
 import { confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
 import path from 'path';
+import os from 'os';
 import fs from 'fs-extra';
 import { isInitialized, LOGS_DIR, LOCKS_DIR, PROMPTS_DIR } from '../config';
 import { getJob, removeJob } from '../jobs';
+import { isCrontabAvailable, isCronJobInstalled, uninstallCronJob } from '../scheduler/crontab';
+import { isLaunchdAvailable, isLaunchdJobInstalled, uninstallLaunchdJob } from '../scheduler/launchd';
 
 export async function unregisterCommand(name: string): Promise<void> {
   if (!isInitialized()) {
@@ -72,8 +75,57 @@ export async function unregisterCommand(name: string): Promise<void> {
     }
   }
 
+  // 스케줄링 등록 해제
+  const scheduleInstalled = isScheduleInstalled(name);
+  if (scheduleInstalled) {
+    const deleteSchedule = await confirm({
+      message: '등록된 스케줄링도 해제하시겠습니까?',
+      default: true,
+    });
+
+    if (deleteSchedule) {
+      try {
+        uninstallSchedule(name, scheduleInstalled);
+        console.log(chalk.gray(`  스케줄링 해제됨 (${scheduleInstalled})`));
+      } catch (err) {
+        const error = err as Error;
+        console.log(chalk.yellow(`  스케줄링 해제 실패: ${error.message}`));
+      }
+    }
+  }
+
   // jobs.json에서 작업 제거
   await removeJob(name);
 
   console.log(chalk.green(`\n  작업 "${name}"이(가) 삭제되었습니다.\n`));
+}
+
+type SchedulerType = 'launchd' | 'cron';
+
+/**
+ * 스케줄링 등록 여부를 확인합니다.
+ */
+function isScheduleInstalled(jobName: string): SchedulerType | null {
+  const platform = os.platform();
+
+  if (platform === 'darwin' && isLaunchdAvailable() && isLaunchdJobInstalled(jobName)) {
+    return 'launchd';
+  }
+
+  if (isCrontabAvailable() && isCronJobInstalled(jobName)) {
+    return 'cron';
+  }
+
+  return null;
+}
+
+/**
+ * 스케줄링을 해제합니다.
+ */
+function uninstallSchedule(jobName: string, scheduler: SchedulerType): void {
+  if (scheduler === 'launchd') {
+    uninstallLaunchdJob(jobName);
+  } else {
+    uninstallCronJob(jobName);
+  }
 }
