@@ -8,6 +8,7 @@ export const CONFIG_FILE = path.join(CONFIG_DIR, 'dailyagent.config.json');
 export const JOBS_FILE = path.join(CONFIG_DIR, 'jobs.json');
 export const LOGS_DIR = path.join(CONFIG_DIR, 'logs');
 export const LOCKS_DIR = path.join(CONFIG_DIR, 'locks');
+export const PROMPTS_DIR = path.join(CONFIG_DIR, 'prompts');
 
 export const DEFAULT_CONFIG = {
   version: '1.0.0',
@@ -49,6 +50,7 @@ export async function ensureConfigDir(): Promise<void> {
   await fs.ensureDir(CONFIG_DIR);
   await fs.ensureDir(LOGS_DIR);
   await fs.ensureDir(LOCKS_DIR);
+  await fs.ensureDir(PROMPTS_DIR);
 }
 
 export async function loadConfig(): Promise<DailyAgentConfig | null> {
