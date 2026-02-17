@@ -3,9 +3,9 @@ import fs from 'fs-extra';
 import { loadConfig, PROMPTS_DIR } from '../config';
 import { getJob, updateJob, acquireLock, releaseLock } from '../jobs';
 import { Logger } from '../logger';
-import { generateInitialPrompt, generateWorkPrompt, generateFinishPrompt } from './prompt-generator';
+import { generateInitialPrompt, generateWorkPrompt, generateFinishPrompt, generatePlanPrompt, generateImplementPrompt, generateReviewPrompt } from './prompt-generator';
 import chalk from 'chalk';
-import { TaskInfo, WorkResult } from '../types/core';
+import { TaskInfo, WorkResult, PlanResult, ImplResult } from '../types/core';
 import { fetchPendingTask, updateNotionPage } from '../notion-api';
 import { runClaude, runCursor } from './cli-runner';
 import { resolveSettingsFile, updateNotionOnError, validateEnvironment } from '../utils/executor';
@@ -148,57 +148,122 @@ export async function executeJob (jobName: string): Promise<unknown> {
     }
 
     // ========================================
-    // Phase 2: 코드 작업 + Git Push (model: 기본값, timeout: job.timeout)
+    // Phase 2: 코드 작업 + Git Push
     // ========================================
-    await logger.info('--- Phase 2: 코드 작업 시작 ---');
-
-    let workPrompt: string;
-    if (job.prompt_mode === 'custom') {
-      const promptFile = path.join(PROMPTS_DIR, `${jobName}.md`);
-      if (!(await fs.pathExists(promptFile))) {
-        throw new Error(`커스텀 프롬프트 파일이 존재하지 않습니다: ${promptFile}`);
-      }
-      const template = await fs.readFile(promptFile, 'utf8');
-      workPrompt = template
-        .replace(/\{\{workDir\}\}/g, workDir)
-        .replace(/\{\{taskInfo\}\}/g, JSON.stringify(taskInfo, null, 2));
-      await logger.info(`커스텀 프롬프트 사용: ${promptFile}`);
-    } else {
-      workPrompt = generateWorkPrompt({
-        workDir,
-        taskInfo,
-      });
-    }
-    console.log(chalk.gray('--------------------------------'));
-    console.log(chalk.gray('[Phase 2] 프롬프트:'));
-    console.log(chalk.gray(workPrompt));
-    console.log(chalk.gray('--------------------------------'));
+    const phase2Mode = config.execution?.phase2_mode || 'single';
+    await logger.info(`--- Phase 2: 코드 작업 시작 (mode: ${phase2Mode}) ---`);
 
     let workResult: WorkResult;
-    try {
-      const workRunnerResult = await runAgent<WorkResult>({
-        prompt: workPrompt,
-        workDir,
-        settingsFile,
-        timeout: String(job.timeout || '30m'),
-        logger,
-        model: job.model,
-      });
 
-      // SECURITY: Remove rawOutput from logging
-      const { rawOutput: __, ...logSafeWork } = workRunnerResult;
-      await logger.info(`Phase 2 완료: ${JSON.stringify(logSafeWork)}`);
+    if (phase2Mode === 'session' && job.prompt_mode !== 'custom') {
+      // ========================================
+      // Session Mode: Phase 2-1 → 2-2 → 2-3
+      // ========================================
+      try {
+        const planModel = config.execution?.phase2_plan_model || 'sonnet';
+        const implModel = config.execution?.phase2_impl_model || 'haiku';
+        const reviewModel = config.execution?.phase2_review_model || 'sonnet';
+        const planTimeout = config.execution?.phase2_plan_timeout || '10m';
+        const reviewTimeout = config.execution?.phase2_review_timeout || '10m';
 
-      // Phase 2 JSON 파싱 실패 체크
-      if (!workRunnerResult.result) {
-        workResult = { success: false, error: `Phase 2 결과 파싱 실패` };
-      } else {
-        workResult = workRunnerResult.result;
+        // Phase 2-1: 개발 계획 작성
+        await logger.info('--- Phase 2-1: 개발 계획 작성 ---');
+        const planPrompt = generatePlanPrompt({ workDir, taskInfo });
+        console.log(chalk.gray('--------------------------------'));
+        console.log(chalk.gray('[Phase 2-1] 프롬프트:'));
+        console.log(chalk.gray(planPrompt));
+        console.log(chalk.gray('--------------------------------'));
+
+        const planRunnerResult = await runAgent<PlanResult>({
+          prompt: planPrompt,
+          workDir,
+          settingsFile,
+          timeout: planTimeout,
+          logger,
+          model: planModel,
+        });
+
+        const { rawOutput: _p, ...logSafePlan } = planRunnerResult;
+        await logger.info(`Phase 2-1 완료: ${JSON.stringify(logSafePlan)}`);
+
+        if (!planRunnerResult.result) {
+          throw new Error(`Phase 2-1 결과 파싱 실패`);
+        }
+
+        const sessionId = planRunnerResult.sessionId;
+        if (!sessionId) {
+          await logger.warn('세션 ID를 가져올 수 없습니다. 단일 모드로 폴백합니다.');
+          throw new Error('세션 ID 미반환 — 폴백');
+        }
+        await logger.info(`세션 ID 획득: ${sessionId}`);
+
+        // Phase 2-2: 실제 구현
+        await logger.info('--- Phase 2-2: 실제 구현 ---');
+        const implPrompt = generateImplementPrompt({ planResult: planRunnerResult.result });
+        console.log(chalk.gray('--------------------------------'));
+        console.log(chalk.gray('[Phase 2-2] 프롬프트:'));
+        console.log(chalk.gray(implPrompt));
+        console.log(chalk.gray('--------------------------------'));
+
+        const implRunnerResult = await runAgent<ImplResult>({
+          prompt: implPrompt,
+          workDir,
+          settingsFile,
+          timeout: String(job.timeout || '30m'),
+          logger,
+          model: implModel,
+          sessionId,
+        });
+
+        const { rawOutput: _i, ...logSafeImpl } = implRunnerResult;
+        await logger.info(`Phase 2-2 완료: ${JSON.stringify(logSafeImpl)}`);
+
+        if (!implRunnerResult.result) {
+          throw new Error(`Phase 2-2 결과 파싱 실패`);
+        }
+
+        // Phase 2-3: 구현 결과 검토
+        await logger.info('--- Phase 2-3: 구현 결과 검토 ---');
+        const reviewPrompt = generateReviewPrompt({ taskInfo });
+        console.log(chalk.gray('--------------------------------'));
+        console.log(chalk.gray('[Phase 2-3] 프롬프트:'));
+        console.log(chalk.gray(reviewPrompt));
+        console.log(chalk.gray('--------------------------------'));
+
+        const reviewRunnerResult = await runAgent<WorkResult>({
+          prompt: reviewPrompt,
+          workDir,
+          settingsFile,
+          timeout: reviewTimeout,
+          logger,
+          model: reviewModel,
+          sessionId,
+        });
+
+        const { rawOutput: _r, ...logSafeReview } = reviewRunnerResult;
+        await logger.info(`Phase 2-3 완료: ${JSON.stringify(logSafeReview)}`);
+
+        if (!reviewRunnerResult.result) {
+          workResult = { success: false, error: `Phase 2-3 결과 파싱 실패` };
+        } else {
+          workResult = reviewRunnerResult.result;
+        }
+      } catch (err) {
+        const error = err as Error;
+        if (error.message === '세션 ID 미반환 — 폴백') {
+          // Fallback to single mode
+          await logger.info('단일 모드로 폴백하여 Phase 2 재실행');
+          workResult = await executePhase2Single(runAgent, { workDir, taskInfo, settingsFile, job, jobName, logger });
+        } else {
+          await logger.error(`Phase 2 (session) 실패: ${error.message}`);
+          workResult = { success: false, error: error.message };
+        }
       }
-    } catch (err) {
-      const error = err as Error;
-      await logger.error(`Phase 2 실패: ${error.message}`);
-      workResult = { success: false, error: error.message };
+    } else {
+      // ========================================
+      // Single Mode: 기존 방식 (Phase 2 단일 실행)
+      // ========================================
+      workResult = await executePhase2Single(runAgent, { workDir, taskInfo, settingsFile, job, jobName, logger });
     }
 
     // ========================================
@@ -339,5 +404,63 @@ export async function executeJob (jobName: string): Promise<unknown> {
     // 8. Release lock
     await releaseLock(jobName);
     await logger.info('PID 잠금 해제');
+  }
+}
+
+/**
+ * Phase 2 단일 실행 (기존 방식)
+ */
+async function executePhase2Single(
+  runAgent: typeof runClaude,
+  { workDir, taskInfo, settingsFile, job, jobName, logger }: {
+    workDir: string;
+    taskInfo: TaskInfo;
+    settingsFile: string | undefined;
+    job: { timeout?: string; model?: string; prompt_mode?: string };
+    jobName: string;
+    logger: Logger;
+  }
+): Promise<WorkResult> {
+  let workPrompt: string;
+  if (job.prompt_mode === 'custom') {
+    const promptFile = path.join(PROMPTS_DIR, `${jobName}.md`);
+    if (!(await fs.pathExists(promptFile))) {
+      throw new Error(`커스텀 프롬프트 파일이 존재하지 않습니다: ${promptFile}`);
+    }
+    const template = await fs.readFile(promptFile, 'utf8');
+    workPrompt = template
+      .replace(/\{\{workDir\}\}/g, workDir)
+      .replace(/\{\{taskInfo\}\}/g, JSON.stringify(taskInfo, null, 2));
+    await logger.info(`커스텀 프롬프트 사용: ${promptFile}`);
+  } else {
+    workPrompt = generateWorkPrompt({ workDir, taskInfo });
+  }
+
+  console.log(chalk.gray('--------------------------------'));
+  console.log(chalk.gray('[Phase 2] 프롬프트:'));
+  console.log(chalk.gray(workPrompt));
+  console.log(chalk.gray('--------------------------------'));
+
+  try {
+    const workRunnerResult = await runAgent<WorkResult>({
+      prompt: workPrompt,
+      workDir,
+      settingsFile,
+      timeout: String(job.timeout || '30m'),
+      logger,
+      model: job.model,
+    });
+
+    const { rawOutput: __, ...logSafeWork } = workRunnerResult;
+    await logger.info(`Phase 2 완료: ${JSON.stringify(logSafeWork)}`);
+
+    if (!workRunnerResult.result) {
+      return { success: false, error: `Phase 2 결과 파싱 실패` };
+    }
+    return workRunnerResult.result;
+  } catch (err) {
+    const error = err as Error;
+    await logger.error(`Phase 2 실패: ${error.message}`);
+    return { success: false, error: error.message };
   }
 }

@@ -94,12 +94,22 @@ const AGENT_CONFIGS: Record<Agent, CliAgentConfig> = {
 };
 
 async function getAgentArgs(config: CliAgentConfig, options: RunnerOptions) {
-  const { model, logger, settingsFile } = options;
+  const { model, logger, settingsFile, sessionId } = options;
   const args: string[] = [];
 
   // Common: Add model parameter if specified
   if (model) {
     args.push('--model', model);
+  }
+
+  // Session continuation support
+  if (sessionId) {
+    if (config.command === 'claude') {
+      args.push('--session', sessionId);
+    } else if (config.command === 'agent') {
+      args.push('--resume', sessionId);
+    }
+    if (logger) await logger.info(`세션 이어서 실행: ${sessionId}`);
   }
 
   // Claude Code specific: Add settings file if exists
@@ -131,6 +141,12 @@ export async function runCli<T>(
   }
 
   const args = [...config.args];
+
+  // Session mode: remove --no-session-persistence when sessionId is provided
+  if (options.sessionId && config.command === 'claude') {
+    const idx = args.indexOf('--no-session-persistence');
+    if (idx !== -1) args.splice(idx, 1);
+  }
 
   // Add agent-specific arguments
   const additionalArgs = await getAgentArgs(config, options);
@@ -184,6 +200,7 @@ export async function runCli<T>(
           rawOutput: sanitized,
           exitCode: code,
           result: JSON.parse(extractJsonFromCodeBlock (response.result)) as T,
+          sessionId: response.session_id,
         });
       } catch {
         const sanitized = sanitizeOutput(stdout); // SECURITY: Mask sensitive data

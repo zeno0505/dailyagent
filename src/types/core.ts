@@ -7,12 +7,14 @@ export interface RunnerOptions {
   timeout?: string | undefined;
   logger?: Logger | undefined;
   model?: string | undefined;
+  sessionId?: string | undefined;
 }
 
 export interface RunnerResult<T> {
   rawOutput?: string;
   exitCode?: number;
   result?: T;
+  sessionId?: string;
 }
 
 export interface CliAgentConfig {
@@ -132,3 +134,23 @@ export interface FinishResult {
    */
   notion_updated: boolean;
   }
+
+/**
+ * Phase 2-1 결과 타입: 개발 계획
+ */
+export interface PlanResult {
+  plan_summary: string;
+  branch_name: string;
+  files_to_modify: string[];
+  files_to_create: string[];
+  implementation_steps: string[];
+}
+
+/**
+ * Phase 2-2 결과 타입: 구현 결과
+ */
+export interface ImplResult {
+  commits: { hash: string; message: string }[];
+  files_changed: string[];
+  issues_found: string[];
+}
