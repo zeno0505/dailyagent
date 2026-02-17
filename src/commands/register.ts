@@ -73,6 +73,11 @@ export async function registerCommand(): Promise<void> {
         { name: '기본 프롬프트 사용 (내장 템플릿)', value: 'default' },
         { name: '커스텀 프롬프트 사용 (직접 작성)', value: 'custom' },
       ],
+      validate: (val: string) => {
+        if (!val) return '프롬프트 모드를 선택해주세요.';
+        if (val !== 'default' && val !== 'custom') return '유효하지 않은 프롬프트 모드입니다. "default" 또는 "custom" 중 하나를 선택해주세요.';
+        return true;
+      },
       default: 'default',
     },
   ]);
