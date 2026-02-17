@@ -8,6 +8,7 @@ export interface RunnerOptions {
   logger?: Logger | undefined;
   model?: string | undefined;
   sessionId?: string | undefined;
+  enableSessionPersistence?: boolean | undefined;
 }
 
 export interface RunnerResult<T> {

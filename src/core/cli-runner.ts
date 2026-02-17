@@ -105,11 +105,7 @@ async function getAgentArgs(config: CliAgentConfig, options: RunnerOptions) {
 
   // Session continuation support
   if (sessionId) {
-    if (config.command === 'claude') {
-      args.push('--session-id', sessionId);
-    } else if (config.command === 'agent') {
-      args.push('--resume', sessionId);
-    }
+    args.push('--resume', sessionId);
     if (logger) await logger.info(`세션 이어서 실행: ${sessionId}`);
   }
 
@@ -143,8 +139,8 @@ export async function runCli<T>(
 
   const args = [...config.args];
 
-  // Session mode: remove --no-session-persistence when sessionId is provided
-  if (options.sessionId && config.command === 'claude') {
+  // Session mode: --no-session-persistence 설정 비활성화
+  if (config.command === 'claude' && (options.sessionId || options.enableSessionPersistence)) {
     const idx = args.indexOf('--no-session-persistence');
     if (idx !== -1) args.splice(idx, 1);
   }

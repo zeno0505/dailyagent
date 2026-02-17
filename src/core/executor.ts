@@ -181,6 +181,7 @@ export async function executeJob (jobName: string): Promise<unknown> {
           timeout: planTimeout,
           logger,
           model: planModel,
+          enableSessionPersistence: true,
         });
 
         const { rawOutput: _p, ...logSafePlan } = planRunnerResult;
@@ -190,12 +191,12 @@ export async function executeJob (jobName: string): Promise<unknown> {
           throw new Error(`Phase 2-1 결과 파싱 실패`);
         }
 
-        const phase2_1_sessionId = planRunnerResult.sessionId;
-        if (!phase2_1_sessionId) {
+        const sessionId = planRunnerResult.sessionId;
+        if (!sessionId) {
           await logger.warn('세션 ID를 가져올 수 없습니다. 단일 모드로 폴백합니다.');
           throw new NoSessionIdError();
         }
-        await logger.info(`Phase 2-1 세션 ID 획득: ${phase2_1_sessionId}`);
+        await logger.info(`Phase 2-1 세션 ID 획득: ${sessionId}`);
 
         // Phase 2-2: 실제 구현
         await logger.info('--- Phase 2-2: 실제 구현 ---');
@@ -212,7 +213,8 @@ export async function executeJob (jobName: string): Promise<unknown> {
           timeout: String(job.timeout || '30m'),
           logger,
           model: implModel,
-          sessionId: phase2_1_sessionId,
+          sessionId: sessionId,
+          enableSessionPersistence: true,
         });
 
         const { rawOutput: _i, ...logSafeImpl } = implRunnerResult;
@@ -222,12 +224,7 @@ export async function executeJob (jobName: string): Promise<unknown> {
           throw new Error(`Phase 2-2 결과 파싱 실패`);
         }
 
-        const phase2_2_sessionId = implRunnerResult.sessionId;
-        if (!phase2_2_sessionId) {
-          await logger.warn('세션 ID를 가져올 수 없습니다. 단일 모드로 폴백합니다.');
-          throw new NoSessionIdError();
-        }
-        await logger.info(`Phase 2-2 세션 ID 획득: ${phase2_2_sessionId}`);
+        await logger.info(`Phase 2-2 세션 ID 유지: ${sessionId}`);
 
         // Phase 2-3: 구현 결과 검토
         await logger.info('--- Phase 2-3: 구현 결과 검토 ---');
@@ -244,7 +241,8 @@ export async function executeJob (jobName: string): Promise<unknown> {
           timeout: reviewTimeout,
           logger,
           model: reviewModel,
-          sessionId: phase2_2_sessionId,
+          sessionId: sessionId,
+          enableSessionPersistence: true,
         });
 
         const { rawOutput: _r, ...logSafeReview } = reviewRunnerResult;
