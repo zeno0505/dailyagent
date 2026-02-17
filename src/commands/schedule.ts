@@ -169,22 +169,13 @@ async function scheduleStatus(scheduler: SchedulerType): Promise<void> {
   console.log(chalk.cyan('  작업명'.padEnd(22) + '스케줄'.padEnd(20) + headerScheduler));
   console.log(chalk.gray('  ' + '-'.repeat(55)));
 
-  if (scheduler === 'launchd') {
-    const launchdJobs = listLaunchdJobs();
-    for (const job of jobs) {
-      const entry = launchdJobs.find((l) => l.jobName === job.name);
-      const status = entry ? chalk.green('등록됨') : chalk.gray('미등록');
-      const schedule = entry ? entry.schedule : job.schedule;
-      console.log(`  ${job.name.padEnd(20)} ${schedule.padEnd(24)} ${status}`);
-    }
-  } else {
-    const cronJobs = listCronJobs();
-    for (const job of jobs) {
-      const cronEntry = cronJobs.find((c) => c.jobName === job.name);
-      const status = cronEntry ? chalk.green('등록됨') : chalk.gray('미등록');
-      const schedule = cronEntry ? cronEntry.schedule : job.schedule;
-      console.log(`  ${job.name.padEnd(20)} ${schedule.padEnd(24)} ${status}`);
-    }
+  
+  const schedules = scheduler === 'launchd' ? listLaunchdJobs() : listCronJobs();
+  for (const job of jobs) {
+    const entry = schedules.find((s) => s.jobName === job.name);
+    const status = entry ? chalk.green('등록됨') : chalk.gray('미등록');
+    const schedule = entry ? entry.schedule : job.schedule;
+    console.log(`  ${job.name.padEnd(20)} ${schedule.padEnd(24)} ${status}`);
   }
 
   console.log('');
