@@ -23,7 +23,8 @@ export async function listCommand(): Promise<void> {
     head: ['이름', '에이전트', '작업 디렉토리', '스케줄', '상태', '마지막 실행'],
     style: { head: ['gray'] },
   });
-
+  
+  const dirW = 30;
   for (const job of jobs) {
     const statusColor = job.status === 'paused'
       ? chalk.yellow
@@ -37,7 +38,6 @@ export async function listCommand(): Promise<void> {
       ? new Date(job.last_run).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
       : '-';
 
-    const dirW = 30;
     const dir = job.working_dir.length > dirW
       ? '...' + job.working_dir.slice(-(dirW - 3))
       : job.working_dir;
