@@ -2,9 +2,9 @@ import { input, select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs-extra';
-import { isInitialized } from '../config';
+import { isInitialized, PROMPTS_DIR } from '../config';
 import { addJob } from '../jobs';
-import type { Agent } from '../types/jobs';
+import type { Agent, PromptMode } from '../types/jobs';
 
 export async function registerCommand(): Promise<void> {
   if (!isInitialized()) {
@@ -58,11 +58,72 @@ export async function registerCommand(): Promise<void> {
     default: '30m',
   });
 
+  const prompt_mode = await select<PromptMode>({
+    message: '프롬프트 모드:',
+    choices: [
+      { name: '기본 프롬프트 사용 (내장 템플릿)', value: 'default' },
+      { name: '커스텀 프롬프트 사용 (직접 작성)', value: 'custom' },
+    ],
+    default: 'default',
+  });
+
   try {
+    const promptMode = prompt_mode as PromptMode;
+
+    // 커스텀 프롬프트 파일 생성
+    if (promptMode === 'custom') {
+      await fs.ensureDir(PROMPTS_DIR);
+      const promptFile = path.join(PROMPTS_DIR, `${name}.md`);
+
+      if (await fs.pathExists(promptFile)) {
+        console.log(chalk.yellow(`\n  기존 프롬프트 파일이 존재합니다: ${promptFile}`));
+      } else {
+        const defaultPromptContent = `# ${name} 커스텀 프롬프트
+
+## 작업 정보
+아래 변수들은 실행 시 자동으로 치환됩니다:
+- \`{{workDir}}\` — 작업 디렉토리
+- \`{{taskInfo}}\` — Notion에서 가져온 작업 정보 (JSON)
+
+## 프롬프트 내용
+여기에 AI 에이전트에게 전달할 프롬프트를 작성하세요.
+
+현재 작업 디렉토리: {{workDir}}
+
+### 작업 정보
+\`\`\`json
+{{taskInfo}}
+\`\`\`
+
+### 수행할 작업
+(여기에 구체적인 작업 내용을 작성하세요)
+
+## 결과 출력
+반드시 아래 JSON 형식으로만 결과를 반환하세요. 다른 텍스트 없이 JSON만 출력:
+\`\`\`json
+{
+  "branch_name": "작업한 브랜치명",
+  "commits": [
+    { "hash": "커밋해시", "message": "커밋메시지" }
+  ],
+  "files_changed": ["파일1", "파일2"],
+  "summary": "작업 요약",
+  "pr_url": "PR URL 또는 null",
+  "pr_skipped_reason": "PR 생성을 건너뛴 이유 또는 null"
+}
+\`\`\`
+`;
+        await fs.writeFile(promptFile, defaultPromptContent, 'utf8');
+        console.log(chalk.cyan(`\n  프롬프트 파일이 생성되었습니다: ${promptFile}`));
+        console.log(chalk.gray(`  파일을 수정하여 커스텀 프롬프트를 작성하세요.`));
+      }
+    }
+
     await addJob({
       name,
       agent,
       ...(model && { model }),
+      prompt_mode,
       working_dir,
       schedule,
       timeout,
@@ -72,6 +133,10 @@ export async function registerCommand(): Promise<void> {
     console.log(chalk.green(`  작업 "${name}"이(가) 등록되었습니다!`));
     console.log('');
     console.log(`  실행: ${chalk.cyan(`dailyagent run ${name}`)}`);
+    if (promptMode === 'custom') {
+      const promptFile = path.join(PROMPTS_DIR, `${name}.md`);
+      console.log(`  프롬프트: ${chalk.cyan(promptFile)}`);
+    }
     console.log('');
   } catch (err) {
     const error = err as Error;

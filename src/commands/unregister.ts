@@ -2,7 +2,7 @@ import { confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs-extra';
-import { isInitialized, LOGS_DIR, LOCKS_DIR } from '../config';
+import { isInitialized, LOGS_DIR, LOCKS_DIR, PROMPTS_DIR } from '../config';
 import { getJob, removeJob } from '../jobs';
 
 export async function unregisterCommand(name: string): Promise<void> {
@@ -55,6 +55,25 @@ export async function unregisterCommand(name: string): Promise<void> {
   const lockFile = path.join(LOCKS_DIR, `${name}.lock`);
   if (await fs.pathExists(lockFile)) {
     await fs.remove(lockFile);
+  }
+
+  // 커스텀 프롬프트 파일 삭제
+  await fs.ensureDir(PROMPTS_DIR);
+  const promptFile = path.join(PROMPTS_DIR, `${name}.md`);
+  const promptExists = await fs.pathExists(promptFile);
+  if (promptExists) {
+    const { deletePrompt } = await inquirer.prompt<{ deletePrompt: boolean }>([
+      {
+        type: 'confirm',
+        name: 'deletePrompt',
+        message: '관련 프롬프트 파일도 삭제하시겠습니까?',
+        default: false,
+      },
+    ]);
+    if (deletePrompt) {
+      await fs.remove(promptFile);
+      console.log(chalk.gray(`  프롬프트 파일 삭제됨: ${promptFile}`));
+    }
   }
 
   // jobs.json에서 작업 제거

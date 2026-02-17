@@ -1,11 +1,13 @@
 export type JobStatus = 'active' | 'paused' | 'stopped';
 export type LastStatus = 'success' | 'error' | null;
 export type Agent = 'claude-code' | 'cursor';
+export type PromptMode = 'default' | 'custom';
 
 export interface Job {
   name: string;
   agent: Agent;
   model?: string;
+  prompt_mode?: PromptMode;
   working_dir: string;
   schedule: string;
   timeout?: string;

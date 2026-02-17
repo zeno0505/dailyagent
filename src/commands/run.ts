@@ -20,6 +20,7 @@ export async function runCommand(name: string): Promise<void> {
   console.log(chalk.bold(`\n  작업 실행: ${name}\n`));
   console.log(chalk.gray(`  작업 디렉토리: ${job.working_dir}`));
   console.log(chalk.gray(`  에이전트: ${job.agent}`));
+  console.log(chalk.gray(`  프롬프트: ${job.prompt_mode === 'custom' ? '커스텀' : '기본'}`));
   console.log(chalk.gray(`  타임아웃: ${job.timeout}`));
   console.log('');
 
