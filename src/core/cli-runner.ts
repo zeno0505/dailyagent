@@ -106,7 +106,7 @@ async function getAgentArgs(config: CliAgentConfig, options: RunnerOptions) {
   // Session continuation support
   if (sessionId) {
     if (config.command === 'claude') {
-      args.push('--session', sessionId);
+      args.push('--session-id', sessionId);
     } else if (config.command === 'agent') {
       args.push('--resume', sessionId);
     }
