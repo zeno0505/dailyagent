@@ -62,6 +62,10 @@ export async function renameWorkspace(oldName: string, newName: string): Promise
     throw new Error(`Workspace "${oldName}"을(를) 찾을 수 없습니다.`);
   }
 
+  if (config.active_workspace === oldName) {
+    config.active_workspace = newName;
+  }
+
   workspace.name = newName;
   await saveConfig(config);
 }
