@@ -1,6 +1,22 @@
+import fs from 'fs-extra';
 import { confirm, input, password } from "@inquirer/prompts";
 import { NotionConfig } from "../types/config";
 import { DEFAULT_WORKSPACE_NOTION_CONFIG } from "../config";
+import path from 'path';
+
+export async function promptWorkDirecotry() {
+  const working_dir = await input({
+    message: '작업 디렉토리 (절대경로 또는 ~/ 사용):',
+    validate: (val) => {
+      if (!val) return '작업 디렉토리를 입력해주세요.';
+      const resolved = val.replace(/^~/, process.env.HOME || '~');
+      if (!fs.pathExistsSync(resolved)) return `디렉토리가 존재하지 않습니다: ${resolved}`;
+      if (!fs.pathExistsSync(path.join(resolved, '.git'))) return `Git 저장소가 아닙니다: ${resolved}`;
+      return true;
+    },
+  });
+  return working_dir;
+}
 
 export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
   const use_api = await confirm({

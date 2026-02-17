@@ -47,7 +47,7 @@ export async function executeJob (jobName: string): Promise<unknown> {
     throw new Error(`Workspace "${workspaceName}"을(를) 찾을 수 없습니다.`);
   }
 
-  const workDir = job.working_dir.replace(/^~/, process.env.HOME || '~');
+  const workDir = workspace.working_dir.replace(/^~/, process.env.HOME || '~');
 
   // 2. Validate environment
   await validateEnvironment(workDir, logger);

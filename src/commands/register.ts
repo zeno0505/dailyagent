@@ -55,18 +55,7 @@ export async function registerCommand (): Promise<void> {
     message: '모델 (선택사항, 비용 최적화용 - 비워두면 기본값 사용):',
     default: '',
     validate: (model) => validateAgentModel(agent, model),
-  });
-
-  const working_dir = await input({
-    message: '작업 디렉토리 (절대경로 또는 ~/ 사용):',
-    validate: (val) => {
-      if (!val) return '작업 디렉토리를 입력해주세요.';
-      const resolved = val.replace(/^~/, process.env.HOME || '~');
-      if (!fs.pathExistsSync(resolved)) return `디렉토리가 존재하지 않습니다: ${resolved}`;
-      if (!fs.pathExistsSync(path.join(resolved, '.git'))) return `Git 저장소가 아닙니다: ${resolved}`;
-      return true;
-    },
-  });
+  });  
 
   const schedule = await input({
     message: 'Cron 스케줄 (후속 작업용, 예: 0 */5 * * *):',
@@ -187,7 +176,6 @@ export async function registerCommand (): Promise<void> {
       name,
       agent,
       prompt_mode,
-      working_dir,
       schedule,
       timeout,
       workspace,

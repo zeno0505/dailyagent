@@ -2,12 +2,14 @@ import { confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs-extra';
-import { isInitialized, LOGS_DIR, LOCKS_DIR, PROMPTS_DIR } from '../config';
+import { isInitialized, LOGS_DIR, LOCKS_DIR, PROMPTS_DIR, loadConfig } from '../config';
 import { getJob, removeJob } from '../jobs';
 import { isJobInstalled, uninstallJob } from '../utils/schedule';
+import { getWorkspace } from '../workspace';
 
 export async function unregisterCommand(name: string): Promise<void> {
-  if (!isInitialized()) {
+  const config = await loadConfig();
+  if (!config || !isInitialized()) {
     console.log(chalk.red('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.'));
     process.exit(1);
   }
@@ -18,10 +20,16 @@ export async function unregisterCommand(name: string): Promise<void> {
     process.exit(1);
   }
 
+  const workspace = await getWorkspace(job.workspace || config.active_workspace || 'default');
+  if (!workspace) {
+    console.log(chalk.red(`\n  Workspace "${job.workspace || config.active_workspace || 'default'}"을(를) 찾을 수 없습니다.`));
+    process.exit(1);
+  }
+
   console.log('');
   console.log(chalk.bold(`  작업 정보`));
   console.log(`  이름: ${chalk.cyan(job.name)}`);
-  console.log(`  작업 디렉토리: ${job.working_dir}`);
+  console.log(`  작업 디렉토리: ${workspace.working_dir}`);
   console.log(`  스케줄: ${job.schedule}`);
   console.log(`  상태: ${job.status}`);
   console.log('');

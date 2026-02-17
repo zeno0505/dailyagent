@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { isInitialized } from '../../config';
 import { addWorkspace } from '../../workspace';
 import type { Workspace } from '../../types/config';
-import { promptWorkspaceNotionConfig } from '../../utils/workspace';
+import { promptWorkDirecotry, promptWorkspaceNotionConfig } from '../../utils/workspace';
 
 export async function workspaceAddCommand(): Promise<void> {
   if (!isInitialized()) {
@@ -22,9 +22,11 @@ export async function workspaceAddCommand(): Promise<void> {
     },
   });
 
+  const working_dir = await promptWorkDirecotry();
   const notionConfig = await promptWorkspaceNotionConfig();
   const workspace: Workspace = {
     name,
+    working_dir,
     notion: notionConfig,
   };
 

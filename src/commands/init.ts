@@ -12,7 +12,7 @@ import {
   isInitialized,
 } from '../config';
 import type { DailyAgentConfig, Workspace } from '../types/config';
-import { promptWorkspaceNotionConfig } from '../utils/workspace';
+import { promptWorkDirecotry, promptWorkspaceNotionConfig } from '../utils/workspace';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,6 +31,7 @@ export async function initCommand(): Promise<void> {
     }
   }
 
+  const working_dir = await promptWorkDirecotry();
   const notionConfig = await promptWorkspaceNotionConfig();
   const enable_slack = await confirm({
     message: '(선택사항) Slack 알림을 활성화하시겠습니까?',
@@ -49,6 +50,7 @@ export async function initCommand(): Promise<void> {
 
   const defaultWorkspace: Workspace = {
     name: 'default',
+    working_dir,
     notion: notionConfig,
   };
 

@@ -1,8 +1,8 @@
 import chalk from 'chalk';
-import path from 'path';
 import fs from 'fs-extra';
-import { isInitialized, LOGS_DIR } from '../config';
+import { isInitialized, LOGS_DIR, loadConfig } from '../config';
 import { getJob } from '../jobs';
+import { getWorkspace } from '../workspace';
 
 const DEFAULT_HISTORY_COUNT = 10;
 
@@ -11,7 +11,8 @@ interface StatusOptions {
 }
 
 export async function statusCommand(name: string, options: StatusOptions = {}): Promise<void> {
-  if (!isInitialized()) {
+  const config = await loadConfig();
+  if (!config || !isInitialized()) {
     console.log(chalk.red('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.'));
     process.exit(1);
   }
@@ -22,11 +23,17 @@ export async function statusCommand(name: string, options: StatusOptions = {}): 
     process.exit(1);
   }
 
+  const workspace = await getWorkspace(job.workspace || config.active_workspace || 'default');
+  if (!workspace) {
+    console.log(chalk.red(`\n  Workspace "${job.workspace || config.active_workspace || 'default'}"을(를) 찾을 수 없습니다.`));
+    process.exit(1);
+  }
+
   // 작업 설정 정보
   console.log(chalk.bold(`\n  작업 상태: ${name}\n`));
 
   console.log(chalk.cyan('  [설정 정보]'));
-  console.log(`    작업 디렉토리  : ${job.working_dir}`);
+  console.log(`    작업 디렉토리  : ${workspace.working_dir}`);
   console.log(`    에이전트       : ${job.agent || '-'}`);
   console.log(`    스케줄         : ${job.schedule}`);
   console.log(`    타임아웃       : ${job.timeout || '30m'}`);

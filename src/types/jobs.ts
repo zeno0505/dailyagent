@@ -28,7 +28,6 @@ export interface Job {
   agent: Agent;
   model?: string;
   prompt_mode?: PromptMode;
-  working_dir: string;
   schedule: string;
   timeout?: string;
   status: JobStatus;
