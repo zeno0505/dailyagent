@@ -4,7 +4,7 @@
  */
 
 import { resolveColumns } from './config';
-import { parseDateProperty, parseRelationProperty, parseSelectProperty, parseStatusProperty } from './helper/notion-api';
+import { parseDateProperty, parseRelationProperty, parseSelectProperty, parseStatusProperty } from './utils/notion-api';
 import { ColumnConfig } from './types/config';
 import { TaskInfo } from './types/core';
 import { NOTION_BLOCK_HANDLER, NotionBlock } from './types/notion-api';

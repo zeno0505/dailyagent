@@ -2,7 +2,7 @@ import chalk from 'chalk';
 
 import { isInitialized } from '../config';
 import { getJob } from '../jobs';
-import { formatFileSize, getJobLogFiles, tailLogFile } from '../helper/logs';
+import { formatFileSize, getJobLogFiles, tailLogFile } from '../utils/logs';
 
 export async function logsCommand(name: string, options: {
   follow?: boolean;
