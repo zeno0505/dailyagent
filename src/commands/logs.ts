@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import Table from 'cli-table3';
 
 import { isInitialized } from '../config';
 import { getJob } from '../jobs';
@@ -36,32 +37,23 @@ export async function logsCommand(name: string, options: {
     // List mode: show all available logs
     console.log(chalk.bold(`\n  작업 "${name}"의 로그 파일 목록\n`));
 
-    const fileW = 50;
-    const sizeW = 10;
-    const dateW = 20;
-
-    const header = [
-      '파일명'.padEnd(fileW),
-      '크기'.padEnd(sizeW),
-      '날짜'.padEnd(dateW),
-    ].join('  ');
-
-    console.log(chalk.gray('  ' + header));
-    console.log(chalk.gray('  ' + '-'.repeat(header.length)));
+    const table = new Table({
+      head: ['파일명', '크기', '날짜'],
+      style: { head: ['gray'] },
+    });
 
     for (const log of logs) {
       const sizeStr = formatFileSize(log.size);
       const dateStr = new Date(log.date).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
-      const row = [
-        chalk.cyan(log.file.padEnd(fileW)),
-        sizeStr.padEnd(sizeW),
-        chalk.gray(dateStr.padEnd(dateW)),
-      ].join('  ');
-
-      console.log('  ' + row);
+      table.push([
+        chalk.cyan(log.file),
+        sizeStr,
+        chalk.gray(dateStr),
+      ]);
     }
 
+    console.log(table.toString());
     console.log('');
     console.log(chalk.gray(`  팁: ${chalk.cyan(`dailyagent logs ${name} --lines 50`)} 으로 최신 로그 상위 50줄 표시`));
     console.log(chalk.gray(`  팁: ${chalk.cyan(`dailyagent logs ${name} --follow`)} 으로 실시간 로그 모니터링`));

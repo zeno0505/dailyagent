@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import Table from 'cli-table3';
 import os from 'os';
 import { isInitialized } from '../config';
 import { getJob, listJobs } from '../jobs';
@@ -166,17 +167,20 @@ async function scheduleStatus(scheduler: SchedulerType): Promise<void> {
   }
 
   const headerScheduler = schedulerName(scheduler);
-  console.log(chalk.cyan('  작업명'.padEnd(22) + '스케줄'.padEnd(20) + headerScheduler));
-  console.log(chalk.gray('  ' + '-'.repeat(55)));
 
-  
+  const table = new Table({
+    head: ['작업명', '스케줄', headerScheduler],
+    style: { head: ['cyan'] },
+  });
+
   const schedules = scheduler === 'launchd' ? listLaunchdJobs() : listCronJobs();
   for (const job of jobs) {
     const entry = schedules.find((s) => s.jobName === job.name);
     const status = entry ? chalk.green('등록됨') : chalk.gray('미등록');
     const schedule = entry ? entry.schedule : job.schedule;
-    console.log(`  ${job.name.padEnd(20)} ${schedule.padEnd(24)} ${status}`);
+    table.push([job.name, schedule, status]);
   }
 
+  console.log(table.toString());
   console.log('');
 }

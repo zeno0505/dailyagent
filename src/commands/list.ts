@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import Table from 'cli-table3';
 import { isInitialized } from '../config';
 import { listJobs } from '../jobs';
 
@@ -18,25 +19,10 @@ export async function listCommand(): Promise<void> {
 
   console.log(chalk.bold('\n  등록된 작업 목록\n'));
 
-  // Table header
-  const nameW = 20;
-  const agentW = 12;
-  const dirW = 30;
-  const schedW = 16;
-  const statusW = 10;
-  const lastRunW = 20;
-
-  const header = [
-    '이름'.padEnd(nameW),
-    '에이전트'.padEnd(agentW),
-    '작업 디렉토리'.padEnd(dirW),
-    '스케줄'.padEnd(schedW),
-    '상태'.padEnd(statusW),
-    '마지막 실행'.padEnd(lastRunW),
-  ].join('  ');
-
-  console.log(chalk.gray('  ' + header));
-  console.log(chalk.gray('  ' + '-'.repeat(header.length)));
+  const table = new Table({
+    head: ['이름', '에이전트', '작업 디렉토리', '스케줄', '상태', '마지막 실행'],
+    style: { head: ['gray'] },
+  });
 
   for (const job of jobs) {
     const statusColor = job.status === 'paused'
@@ -51,17 +37,21 @@ export async function listCommand(): Promise<void> {
       ? new Date(job.last_run).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
       : '-';
 
-    const row = [
-      chalk.bold(job.name.padEnd(nameW)),
-      job.agent.padEnd(agentW),
-      (job.working_dir.length > dirW ? '...' + job.working_dir.slice(-(dirW - 3)) : job.working_dir).padEnd(dirW),
-      job.schedule.padEnd(schedW),
-      statusColor((job.status === 'paused' ? 'paused' : (job.last_status || '-')).padEnd(statusW)),
-      lastRun.padEnd(lastRunW),
-    ].join('  ');
+    const dirW = 30;
+    const dir = job.working_dir.length > dirW
+      ? '...' + job.working_dir.slice(-(dirW - 3))
+      : job.working_dir;
 
-    console.log('  ' + row);
+    table.push([
+      chalk.bold(job.name),
+      job.agent,
+      dir,
+      job.schedule,
+      statusColor(job.status === 'paused' ? 'paused' : (job.last_status || '-')),
+      lastRun,
+    ]);
   }
 
+  console.log(table.toString());
   console.log('');
 }
