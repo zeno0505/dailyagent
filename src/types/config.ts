@@ -40,9 +40,11 @@ export interface SlackConfig {
   webhook_url?: string;
 }
 
+export type Phase2Mode = 'single' | 'session';
+
 export interface ExecutionConfig {
   /** Phase 2 실행 모드: 'single' (기존 단일) | 'session' (분할 실행) */
-  phase2_mode?: 'single' | 'session';
+  phase2_mode?: Phase2Mode;
   /** Phase 2-1 (계획) 실행 모델 */
   phase2_plan_model?: string;
   /** Phase 2-2 (구현) 실행 모델 */
