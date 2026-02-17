@@ -219,7 +219,12 @@ export async function fetchPendingTask (
   let requirements = '';
 
   for (const block of blocksData.results) {
-    requirements += NOTION_BLOCK_HANDLER[block.type](block);
+    if (block.type in NOTION_BLOCK_HANDLER) {
+      requirements += NOTION_BLOCK_HANDLER[block.type](block);
+    } else {
+      console.warn(`   Unknown block type: ${block.type}`);
+      console.dir(block, { depth: null });
+    }
   }
 
   // 속성 추출

@@ -6,6 +6,9 @@ export const NOTION_BLOCK_HANDLER = {
   'bulleted_list_item': (block: NotionBlock) => block.bulleted_list_item?.rich_text.map((t) => `- ${t.plain_text}`).join('\n') || '',
   'numbered_list_item': (block: NotionBlock) => block.numbered_list_item?.rich_text.map((t, index) => `${index + 1}. ${t.plain_text}`).join('\n') || '',
   'code': (block: NotionBlock) => `\`\`\`${block.code?.language || 'text'}\n${block.code?.rich_text.map((t) => t.plain_text).join('') || ''}\n\`\`\``,
+  'divider': () => '---',
+  'to_do': (block: NotionBlock) => block.to_do?.rich_text.map((t) => t.plain_text).join('') || '',
+  'quote': (block: NotionBlock) => block.quote?.rich_text.map((t) => `> ${t.plain_text}`).join('\n') || '',
 }
 
 export type NotionBlockType = keyof typeof NOTION_BLOCK_HANDLER;
@@ -30,6 +33,12 @@ export type NotionBlock = {
   numbered_list_item?: {
     rich_text: Array<{ plain_text: string }>;
   };
+  to_do?: {
+    rich_text: Array<{ plain_text: string }>;
+  };
+  quote?: {
+    rich_text: Array<{ plain_text: string }>;
+  },
   code?: {
     language: string;
     rich_text: Array<{ plain_text: string }>;
