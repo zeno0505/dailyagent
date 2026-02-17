@@ -6,8 +6,8 @@ export const NOTION_BLOCK_HANDLER = {
   'bulleted_list_item': (block: NotionBlock) => block.bulleted_list_item?.rich_text.map((t) => `- ${t.plain_text}`).join('\n') || '',
   'numbered_list_item': (block: NotionBlock) => block.numbered_list_item?.rich_text.map((t, index) => `${index + 1}. ${t.plain_text}`).join('\n') || '',
   'code': (block: NotionBlock) => `\`\`\`${block.code?.language || 'text'}\n${block.code?.rich_text.map((t) => t.plain_text).join('') || ''}\n\`\`\``,
-  'divider': () => '---',
-  'to_do': (block: NotionBlock) => block.to_do?.rich_text.map((t) => t.plain_text).join('') || '',
+  'divider': () => '\n---\n',
+  'to_do': (block: NotionBlock) => block.to_do?.rich_text.map((t) => t.plain_text).join('\n') || '',
   'quote': (block: NotionBlock) => block.quote?.rich_text.map((t) => `> ${t.plain_text}`).join('\n') || '',
 }
 
