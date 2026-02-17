@@ -174,7 +174,7 @@ ${workDir} 디렉토리에서:
    - \`git checkout -b <브랜치명>\`
 
 ## 결과 출력
-반드시 아래 JSON 형식으로만 결과를 반환하세요. 다른 텍스트 없이 JSON만 출력:
+**반드시 아래 JSON 형식으로만 결과를 반환하세요. 다른 텍스트 없이 JSON만 출력**:
 \`\`\`json
 {
   "plan_summary": "개발 계획 요약",
@@ -222,7 +222,7 @@ ${JSON.stringify(planResult, null, 2)}
 - \`git add <files>\` → \`git commit -m "<message>"\`
 
 ## 결과 출력
-반드시 아래 JSON 형식으로만 결과를 반환하세요. 다른 텍스트 없이 JSON만 출력:
+**반드시 아래 JSON 형식으로만 결과를 반환하세요. 다른 텍스트 없이 JSON만 출력**:
 \`\`\`json
 {
   "commits": [
@@ -280,7 +280,7 @@ export function generateReviewPrompt({ taskInfo }: { taskInfo: TaskInfo }): stri
    - PR 생성에 실패해도 오류를 발생시키지 않고 \`pr_skipped_reason\`에 실패 이유를 설정
 
 ## 결과 출력
-반드시 아래 JSON 형식으로만 결과를 반환하세요. 다른 텍스트 없이 JSON만 출력:
+**반드시 아래 JSON 형식으로만 결과를 반환하세요. 다른 텍스트 없이 JSON만 출력**:
 \`\`\`json
 {
   "branch_name": "작업한 브랜치명",
@@ -369,6 +369,7 @@ ${isSuccess ? `**성공 케이스 - 속성 업데이트:**
 
 ## 결과 보고
 위 JSON 작업 정보를 읽고 작업된 내용을 결과로 반환합니다.
+**반드시 아래 JSON 형식으로만 결과를 반환하세요. 다른 텍스트 없이 JSON만 출력**:
 \`\`\`json
 {
   "success": ${isSuccess},
