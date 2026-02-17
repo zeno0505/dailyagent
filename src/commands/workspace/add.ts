@@ -35,7 +35,7 @@ export async function workspaceAddCommand(): Promise<void> {
 
     console.log('');
     console.log(chalk.green(`  Workspace "${name}"이(가) 추가되었습니다!`));
-    console.log(`  ${chalk.cyan(`dailyagent workspace switch ${name}`)} 명령으로 활성화하세요.`);
+    console.log(`  ${chalk.cyan(`dailyagent workspace switch ${name}`)} 명령으로 기본 Workspace로 설정할 수 있습니다.`);
     console.log('');
   } catch (err) {
     const error = err as Error;

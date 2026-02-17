@@ -130,7 +130,7 @@ workspaceCommand
 
 workspaceCommand
   .command('switch [name]')
-  .description('활성화할 Workspace 선택')
+  .description('기본으로 사용할 Workspace 선택')
   .action(async (name?: string) => {
     const { workspaceSwitchCommand } = await import('./commands/workspace/switch');
     await workspaceSwitchCommand(name);
