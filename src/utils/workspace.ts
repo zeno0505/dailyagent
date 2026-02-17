@@ -1,0 +1,105 @@
+import { confirm, input, password } from "@inquirer/prompts";
+import { NotionConfig } from "../types/config";
+import { DEFAULT_WORKSPACE_NOTION_CONFIG } from "../config";
+
+export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
+  const use_api = await confirm({
+    message: '(권장) Notion API를 직접 사용하시겠습니까? (MCP 대신 API 사용 시 토큰 소비 감소)',
+    default: true,
+  });
+
+  let database_url: string | undefined;
+  let api_token: string | undefined;
+  let datasource_id: string | undefined;
+
+  if (!use_api) {
+    database_url = await input({
+      message: 'Notion 데이터베이스 URL:',
+      validate: (val) => (val.includes('notion.so') ? true : 'Notion URL을 입력해주세요.'),
+    });
+  } else {
+    api_token = await password({
+      message: 'Notion API 토큰 (Internal Integration Token):',
+      validate: (val) => (val.length > 0 ? true : 'API 토큰을 입력해주세요.'),
+    });
+    datasource_id = await input({
+      message: 'Notion 데이터소스 ID (API 사용 시 필요):',
+      validate: (val) => (val.length > 0 ? true : '데이터소스 ID를 입력해주세요.'),
+    });
+  }
+   
+  const use_notion_template = await confirm({
+    message: 'Notion 템플릿을 그대로 사용하시겠습니까? (미사용 시 컬럼명을 직접 입력합니다.)',
+    default: true,
+  });
+
+  let column_priority: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_priority;
+  let column_status: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_status;
+  let column_status_wait: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_status_wait;
+  let column_status_review: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_status_review;
+  let column_status_error: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_status_error;
+  let column_status_complete: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_status_complete;
+  let column_base_branch: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_base_branch;
+  let column_work_branch: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_work_branch;
+  let column_prerequisite: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_prerequisite;
+  let column_created_time: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_created_time;
+
+  if (!use_notion_template) {
+    column_priority = await input({
+      message: '우선순위 컬럼명:',
+      default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_priority,
+    });
+    column_status = await input({
+      message: '상태 컬럼명:',
+      default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_status,
+    });
+    column_status_wait = await input({
+      message: '자동화 준비 완료 상태 값:',
+      default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_status_wait,
+    });
+    column_status_review = await input({
+      message: '자동화 완료 상태 값:',
+      default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_status_review,
+    });
+    column_status_error = await input({
+      message: '자동화 오류 상태값:',
+      default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_status_error,
+    });
+    column_status_complete = await input({
+      message: '작업 완료 상태 값:',
+      default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_status_complete,
+    });
+    column_base_branch = await input({
+      message: '기준 브랜치 컬럼명:',
+      default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_base_branch,
+    });
+    column_work_branch = await input({
+      message: '작업 브랜치 컬럼명:',
+      default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_work_branch,
+    });
+    column_prerequisite = await input({
+      message: '선행 작업 컬럼명:',
+      default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_prerequisite,
+    });
+    column_created_time = await input({
+      message: '작업 일자 컬럼명:',
+      default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_created_time,
+    });
+  }
+  return {
+    use_api,
+    column_priority,
+    column_status,
+    column_status_wait,
+    column_status_review,
+    column_status_complete,
+    column_status_error,
+    column_base_branch,
+    column_work_branch,
+    column_prerequisite,
+    column_created_time,
+    ...(database_url != null && { database_url }),
+    ...(api_token != null && { api_token }),
+    ...(datasource_id != null && { datasource_id }),
+  };
+}
