@@ -51,7 +51,7 @@ export async function logsCommand(name: string, options: {
       const dateStr = new Date(log.date).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
       table.push([
-        chalk.cyan(log.file),
+        chalk.cyan(log.fullPath),
         sizeStr,
         chalk.gray(dateStr),
       ]);
