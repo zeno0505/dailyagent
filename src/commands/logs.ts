@@ -33,6 +33,10 @@ export async function logsCommand(name: string, options: {
     const latestLog = logs[0]!;
     const linesToShow = options.lines ?? 10;
     await tailLogFile(latestLog.fullPath, linesToShow, true);
+  } else if (options.lines) {
+    const latestLog = logs[0]!;
+    const linesToShow = options.lines ?? 10;
+    await tailLogFile(latestLog.fullPath, linesToShow, false);
   } else {
     // List mode: show all available logs
     console.log(chalk.bold(`\n  작업 "${name}"의 로그 파일 목록\n`));
