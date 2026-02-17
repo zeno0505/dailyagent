@@ -8,7 +8,7 @@ import chalk from 'chalk';
 import { TaskInfo, WorkResult, PlanResult, ImplResult } from '../types/core';
 import { fetchPendingTask, updateNotionPage } from '../notion-api';
 import { runClaude, runCursor } from './cli-runner';
-import { resolveSettingsFile, updateNotionOnError, validateEnvironment } from '../utils/executor';
+import { resolveSettingsFile, validateEnvironment } from '../utils/executor';
 import { sendSlackNotification } from '../slack/webhook';
 
 /**
@@ -150,7 +150,7 @@ export async function executeJob (jobName: string): Promise<unknown> {
     // ========================================
     // Phase 2: 코드 작업 + Git Push
     // ========================================
-    const phase2Mode = config.execution?.phase2_mode || 'single';
+    const phase2Mode = job.execution?.phase2_mode || 'single';
     await logger.info(`--- Phase 2: 코드 작업 시작 (mode: ${phase2Mode}) ---`);
 
     let workResult: WorkResult;
@@ -160,11 +160,11 @@ export async function executeJob (jobName: string): Promise<unknown> {
       // Session Mode: Phase 2-1 → 2-2 → 2-3
       // ========================================
       try {
-        const planModel = config.execution?.phase2_plan_model || 'sonnet';
-        const implModel = config.execution?.phase2_impl_model || 'haiku';
-        const reviewModel = config.execution?.phase2_review_model || 'sonnet';
-        const planTimeout = config.execution?.phase2_plan_timeout || '10m';
-        const reviewTimeout = config.execution?.phase2_review_timeout || '10m';
+        const planModel = job.execution?.phase2_plan_model;
+        const implModel = job.execution?.phase2_impl_model;
+        const reviewModel = job.execution?.phase2_review_model;
+        const planTimeout = job.execution?.phase2_plan_timeout;
+        const reviewTimeout = job.execution?.phase2_review_timeout;
 
         // Phase 2-1: 개발 계획 작성
         await logger.info('--- Phase 2-1: 개발 계획 작성 ---');

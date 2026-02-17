@@ -1,4 +1,4 @@
-import { input, confirm, password, select } from '@inquirer/prompts';
+import { input, confirm, password } from '@inquirer/prompts';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs-extra';
@@ -11,7 +11,7 @@ import {
   saveConfig,
   isInitialized,
 } from '../config';
-import type { DailyAgentConfig, ExecutionConfig, Phase2Mode } from '../types/config';
+import type { DailyAgentConfig } from '../types/config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -114,48 +114,6 @@ export async function initCommand(): Promise<void> {
     });
   }
 
-  const phase2_mode = await select<Phase2Mode>({
-    message: 'Phase 2 실행 모드:',
-    choices: [
-      { name: '단일 실행', value: 'single' as const },
-      { name: '분할 실행', value: 'session' as const },
-    ],
-    default: 'single',
-  });
-
-  let execution_config: ExecutionConfig | undefined;
-
-  if (phase2_mode === 'session') {
-    const phase2_plan_model = await input({
-      message: 'Phase 2-1 실행 모델:',
-      default: DEFAULT_CONFIG.execution?.phase2_plan_model,
-    });
-    const phase2_impl_model = await input({
-      message: 'Phase 2-2 실행 모델:',
-      default: DEFAULT_CONFIG.execution?.phase2_impl_model,
-    });
-    const phase2_review_model = await input({
-      message: 'Phase 2-3 실행 모델:',
-      default: DEFAULT_CONFIG.execution?.phase2_review_model,
-    });
-    const phase2_plan_timeout = await input({
-      message: 'Phase 2-1 타임아웃(예: 30m, 1h):',
-      default: DEFAULT_CONFIG.execution?.phase2_plan_timeout,
-    });
-    const phase2_review_timeout = await input({
-      message: 'Phase 2-3 타임아웃(예: 30m, 1h):',
-      default: DEFAULT_CONFIG.execution?.phase2_review_timeout,
-    });
-    execution_config = {
-      phase2_mode,
-      phase2_plan_model,
-      phase2_impl_model,
-      phase2_review_model,
-      phase2_plan_timeout,
-      phase2_review_timeout,
-    };
-  }
-
   const enable_slack = await confirm({
     message: '(선택사항) Slack 알림을 활성화하시겠습니까?',
     default: false,
@@ -193,7 +151,6 @@ export async function initCommand(): Promise<void> {
       enabled: enable_slack,
       webhook_url: slack_webhook_url,
     },
-    ...(execution_config ? { execution: execution_config } : {}),
   };
 
   await ensureConfigDir();

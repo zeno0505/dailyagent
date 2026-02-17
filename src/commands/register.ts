@@ -2,13 +2,13 @@ import { input, select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs-extra';
-import { execSync } from 'child_process';
 import { isInitialized, PROMPTS_DIR } from '../config';
 import { addJob } from '../jobs';
-import type { PromptMode } from '../types/jobs';
+import type { ExecutionConfig, Phase2Mode, PromptMode } from '../types/jobs';
 import { Agent } from '../utils/cli-runner';
+import { validateAgentModel } from '../utils/register';
 
-export async function registerCommand(): Promise<void> {
+export async function registerCommand (): Promise<void> {
   if (!isInitialized()) {
     console.log(chalk.red('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.'));
     process.exit(1);
@@ -37,36 +37,7 @@ export async function registerCommand(): Promise<void> {
   const model = await input({
     message: '모델 (선택사항, 비용 최적화용 - 비워두면 기본값 사용):',
     default: '',
-    validate: async (val) => {
-      if (!val) return true;
-
-      if (agent === 'cursor') {
-        try {
-          const output = execSync('agent models', { 
-            encoding: 'utf8',
-            stdio: ['pipe', 'pipe', 'ignore']
-          });
-
-          const models = output
-            .split('\n')
-            .filter(line => line.trim())
-            .map(line => line.trim().split(/\s+/)[0])
-            .filter(Boolean);
-
-          if (!models.includes(val)) {
-            return `사용할 수 없는 모델입니다. agent models 명령어로 사용 가능한 모델을 확인하세요.`;
-          }
-        } catch (error) {
-          console.log(chalk.yellow('\n  경고: agent models 명령어 실행 실패. 모델 검증을 건너뜁니다.'));
-        }
-      } else if (agent === 'claude-code') {
-        if (!['sonnet', 'haiku', 'opus'].includes(val)) {
-          return `사용할 수 없는 모델입니다. sonnet, haiku, opus 중 하나를 선택하세요.`;
-        }
-      }
-
-      return true;
-    },
+    validate: (model) => validateAgentModel(agent, model),
   });
 
   const working_dir = await input({
@@ -99,11 +70,55 @@ export async function registerCommand(): Promise<void> {
     default: 'default',
   });
 
-  try {
-    const promptMode = prompt_mode as PromptMode;
+  let execution_config: ExecutionConfig | undefined;
+  if (prompt_mode === "default") {
+    const phase2_mode = await select<Phase2Mode>({
+      message: '실행 모드:',
+      choices: [
+        { name: '단일 실행 (한 세션에서 모든 작업이 수행됩니다.)', value: 'single' as const },
+        { name: '분할 실행 (각 작업을 별도의 세션에서 수행됩니다.)', value: 'session' as const },
+      ],
+      default: 'single',
+    });
 
+    if (phase2_mode === 'session') {
+      const phase2_plan_model = await input({
+        message: '계획 단계 모델(Phase-2-1):',
+        default: agent === 'claude-code' ? 'opus' : 'opus-4.5-thinking',
+        validate: (model) => validateAgentModel(agent, model),
+      });
+      const phase2_impl_model = await input({
+        message: '구현 단계 모델(Phase-2-2):',
+        default: agent === 'claude-code' ? 'haiku' : 'auto',
+        validate: (model) => validateAgentModel(agent, model),
+      });
+      const phase2_review_model = await input({
+        message: '검토 단계 모델(Phase-2-3):',
+        default: agent === 'claude-code' ? 'sonnet' : 'sonnet-4.5-thinking',
+        validate: (model) => validateAgentModel(agent, model),
+      });
+      const phase2_plan_timeout = await input({
+        message: '계획 단계 타임아웃(예: 30m, 1h):',
+        default: '10m',
+      });
+      const phase2_review_timeout = await input({
+        message: '검토 단계 타임아웃(예: 30m, 1h):',
+        default: '10m',
+      });
+      execution_config = {
+        phase2_mode,
+        phase2_plan_model,
+        phase2_impl_model,
+        phase2_review_model,
+        phase2_plan_timeout,
+        phase2_review_timeout,
+      };
+    }
+  }
+
+  try {
     // 커스텀 프롬프트 파일 생성
-    if (promptMode === 'custom') {
+    if (prompt_mode === 'custom') {
       await fs.ensureDir(PROMPTS_DIR);
       const promptFile = path.join(PROMPTS_DIR, `${name}.md`);
 
@@ -154,18 +169,19 @@ export async function registerCommand(): Promise<void> {
     await addJob({
       name,
       agent,
-      ...(model && { model }),
       prompt_mode,
       working_dir,
       schedule,
       timeout,
+      ...(model && { model }),
+      ...(execution_config && { execution: execution_config }),
     });
 
     console.log('');
     console.log(chalk.green(`  작업 "${name}"이(가) 등록되었습니다!`));
     console.log('');
     console.log(`  실행: ${chalk.cyan(`dailyagent run ${name}`)}`);
-    if (promptMode === 'custom') {
+    if (prompt_mode === 'custom') {
       const promptFile = path.join(PROMPTS_DIR, `${name}.md`);
       console.log(`  프롬프트: ${chalk.cyan(promptFile)}`);
     }
