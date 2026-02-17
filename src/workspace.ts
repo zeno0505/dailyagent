@@ -51,6 +51,21 @@ export async function addWorkspace(workspace: Workspace): Promise<void> {
   await saveConfig(config);
 }
 
+export async function renameWorkspace(oldName: string, newName: string): Promise<void> {
+  const config = await loadConfig();
+  if (!config || !config.workspaces) {
+    throw new Error('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.');
+  }
+
+  const workspace = config.workspaces.find(w => w.name === oldName);
+  if (!workspace) {
+    throw new Error(`Workspace "${oldName}"을(를) 찾을 수 없습니다.`);
+  }
+
+  workspace.name = newName;
+  await saveConfig(config);
+}
+
 export async function switchWorkspace(name: string): Promise<void> {
   const config = await loadConfig();
 

@@ -135,3 +135,11 @@ workspaceCommand
     const { workspaceSwitchCommand } = await import('./commands/workspace/switch');
     await workspaceSwitchCommand(name);
   });
+
+workspaceCommand
+  .command('rename <oldName> <newName>')
+  .description('Workspace 이름 변경')
+  .action(async (oldName: string, newName: string) => {
+    const { workspaceRenameCommand } = await import('./commands/workspace/rename');
+    await workspaceRenameCommand(oldName, newName);
+  });
