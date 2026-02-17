@@ -9,11 +9,11 @@ import chalk from 'chalk';
 /**
  * Unified CLI runner for all agents
  */
-export async function runCli<T>(
+export async function runCli<T> (
   config: CliAgentConfig,
   options: RunnerOptions
 ): Promise<RunnerResult<T>> {
-  const { prompt, workDir,  timeout = '30m', logger, } = options;
+  const { prompt, workDir, timeout = '30m', logger, } = options;
   const timeoutMs = parseTimeout(timeout);
 
   // Verify CLI exists
@@ -34,7 +34,7 @@ export async function runCli<T>(
   // Add agent-specific arguments
   const additionalArgs = await getAgentArgs(config, options);
   args.push(...additionalArgs);
-  
+
   return new Promise((resolve, reject) => {
     if (logger) logger.info(`${config.displayName} 실행 시작`);
 
@@ -91,7 +91,7 @@ export async function runCli<T>(
 
         // Handle empty result (common in session mode when model ends with tool use)
         if (!response.result || response.result.trim() === '') {
-          if (logger) await logger.warn(`${config.displayName} 결과가 비어있습니다 (stop_reason: ${response.stop_reason})`);
+          if (logger) await logger.warn(`${config.displayName} 결과가 비어있습니다 (stop_reason: ${response.stop_reason ?? "N/A"})`);
           resolve({
             rawOutput: sanitized,
             exitCode: code,
@@ -125,13 +125,13 @@ export async function runCli<T>(
 /**
  * Run Claude Code
  */
-export async function runClaude<T>(options: RunnerOptions): Promise<RunnerResult<T>> {
+export async function runClaude<T> (options: RunnerOptions): Promise<RunnerResult<T>> {
   return runCli<T>(AGENT_CONFIGS['claude-code'], options);
 }
 
 /**
  * Run Cursor Agent
  */
-export async function runCursor<T>(options: RunnerOptions): Promise<RunnerResult<T>> {
+export async function runCursor<T> (options: RunnerOptions): Promise<RunnerResult<T>> {
   return runCli<T>(AGENT_CONFIGS.cursor, options);
 }

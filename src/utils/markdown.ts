@@ -8,12 +8,12 @@ export function extractJsonFromCodeBlock(markdown: string): string {
     return '';
   }
 
-  const codeBlockRegex = /```(?:json)?\n([\s\S]*?)\n```/;
-  const match = markdown.match(codeBlockRegex);
-
-  if (match?.[1]) {
-    return match[1].trim();
+  const codeBlockRegex = /[\x60]{3}(?:json)?\n([\s\S]*?)\n[\x60]{3}/g;
+  const matches = Array.from(markdown.matchAll(codeBlockRegex));
+  if (matches.length > 0) {
+    return matches[matches.length - 1]?.[1]?.trim() || '';
   }
+
 
   // Fallback: return raw markdown if no code block found
   const trimmed = markdown.trim();
