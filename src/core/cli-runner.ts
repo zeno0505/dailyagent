@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import { RunnerOptions, RunnerResult, CliAgentConfig } from '../types/core';
 import { Agent } from '../types/jobs';
 import { ClaudeCliEnvelope, CursorCliEnvelope } from '../types/cli-runner';
-import { withoutCodeBlock } from '../utils/markdown';
+import { extractJsonFromCodeBlock } from '../utils/markdown';
 
 /**
  * Parse timeout string (e.g., "30m" → 1800000)
@@ -180,9 +180,11 @@ export async function runCli<T>(
       try {
         const response = JSON.parse(stdout) as ClaudeCliEnvelope | CursorCliEnvelope;
         const sanitized = sanitizeOutput(stdout); // SECURITY: Mask sensitive data
-        console.log(response.result);
-        console.log(JSON.parse(withoutCodeBlock(response.result)));
-        resolve({ rawOutput: sanitized, exitCode: code, result: JSON.parse(withoutCodeBlock(response.result)) as T });
+        resolve({
+          rawOutput: sanitized,
+          exitCode: code,
+          result: JSON.parse(extractJsonFromCodeBlock (response.result)) as T,
+        });
       } catch {
         const sanitized = sanitizeOutput(stdout); // SECURITY: Mask sensitive data
         const error = { rawOutput: sanitized, exitCode: code };
