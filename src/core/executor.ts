@@ -201,12 +201,6 @@ export async function executeJob (jobName: string): Promise<unknown> {
       workResult = { success: false, error: error.message };
     }
 
-    // Phase 2 실패 시 Notion 직접 업데이트
-    if (workResult.success === false || workResult.error) {
-      await logger.info('--- Phase 2 실패로 인한 Notion 직접 업데이트 ---');
-      await updateNotionOnError({ taskInfo, workDir, workResult, config, settingsFile, job, logger });
-    }
-
     // ========================================
     // Phase 3: Notion 업데이트 (model: sonnet, timeout: 5m)
     // ========================================
