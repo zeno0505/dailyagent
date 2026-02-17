@@ -9,11 +9,11 @@ import chalk from 'chalk';
 /**
  * Unified CLI runner for all agents
  */
-export async function runCli<T>(
+export async function runCli<T> (
   config: CliAgentConfig,
   options: RunnerOptions
 ): Promise<RunnerResult<T>> {
-  const { prompt, workDir,  timeout = '30m', logger, } = options;
+  const { prompt, workDir, timeout = '30m', logger, } = options;
   const timeoutMs = parseTimeout(timeout);
 
   // Verify CLI exists
@@ -34,7 +34,7 @@ export async function runCli<T>(
   // Add agent-specific arguments
   const additionalArgs = await getAgentArgs(config, options);
   args.push(...additionalArgs);
-  
+
   return new Promise((resolve, reject) => {
     if (logger) logger.info(`${config.displayName} 실행 시작`);
 
@@ -88,14 +88,28 @@ export async function runCli<T>(
       try {
         const response = JSON.parse(stdout) as ClaudeCliEnvelope | CursorCliEnvelope;
         const sanitized = sanitizeOutput(stdout); // SECURITY: Mask sensitive data
+
+        // Handle empty result (common in session mode when model ends with tool use)
+        if (!response.result || response.result.trim() === '') {
+          if (logger) await logger.warn(`${config.displayName} 결과가 비어있습니다 (stop_reason: ${response.stop_reason ?? "N/A"})`);
+          resolve({
+            rawOutput: sanitized,
+            exitCode: code,
+            sessionId: response.session_id,
+            // result is undefined - caller must handle this case
+          });
+          return;
+        }
+
         resolve({
           rawOutput: sanitized,
           exitCode: code,
-          result: JSON.parse(extractJsonFromCodeBlock (response.result)) as T,
+          result: JSON.parse(extractJsonFromCodeBlock(response.result)) as T,
           sessionId: response.session_id,
         });
-      } catch {
+      } catch (err) {
         const sanitized = sanitizeOutput(stdout); // SECURITY: Mask sensitive data
+        if (logger) await logger.error(`${config.displayName} 결과 파싱 실패: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
         const error = { rawOutput: sanitized, exitCode: code };
         resolve(error);
       }
@@ -111,13 +125,13 @@ export async function runCli<T>(
 /**
  * Run Claude Code
  */
-export async function runClaude<T>(options: RunnerOptions): Promise<RunnerResult<T>> {
+export async function runClaude<T> (options: RunnerOptions): Promise<RunnerResult<T>> {
   return runCli<T>(AGENT_CONFIGS['claude-code'], options);
 }
 
 /**
  * Run Cursor Agent
  */
-export async function runCursor<T>(options: RunnerOptions): Promise<RunnerResult<T>> {
+export async function runCursor<T> (options: RunnerOptions): Promise<RunnerResult<T>> {
   return runCli<T>(AGENT_CONFIGS.cursor, options);
 }

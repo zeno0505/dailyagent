@@ -188,7 +188,8 @@ export async function executeJob (jobName: string): Promise<unknown> {
         await logger.info(`Phase 2-1 완료: ${JSON.stringify(logSafePlan)}`);
 
         if (!planRunnerResult.result) {
-          throw new Error(`Phase 2-1 결과 파싱 실패`);
+          const errorMsg = `Phase 2-1 결과 파싱 실패 (exitCode: ${planRunnerResult.exitCode})\n${planRunnerResult.rawOutput?.substring(0, 500) || '출력 없음'}`;
+          throw new Error(errorMsg);
         }
 
         const sessionId = planRunnerResult.sessionId;
@@ -221,7 +222,8 @@ export async function executeJob (jobName: string): Promise<unknown> {
         await logger.info(`Phase 2-2 완료: ${JSON.stringify(logSafeImpl)}`);
 
         if (!implRunnerResult.result) {
-          throw new Error(`Phase 2-2 결과 파싱 실패`);
+          const errorMsg = `Phase 2-2 결과 파싱 실패 (exitCode: ${implRunnerResult.exitCode})\n${implRunnerResult.rawOutput?.substring(0, 500) || '출력 없음'}`;
+          throw new Error(errorMsg);
         }
 
         await logger.info(`Phase 2-2 세션 ID 유지: ${sessionId}`);
@@ -249,7 +251,8 @@ export async function executeJob (jobName: string): Promise<unknown> {
         await logger.info(`Phase 2-3 완료: ${JSON.stringify(logSafeReview)}`);
 
         if (!reviewRunnerResult.result) {
-          workResult = { success: false, error: `Phase 2-3 결과 파싱 실패` };
+          const errorMsg = `Phase 2-3 결과 파싱 실패 (exitCode: ${reviewRunnerResult.exitCode})\n${reviewRunnerResult.rawOutput?.substring(0, 500) || '출력 없음'}`;
+          workResult = { success: false, error: errorMsg };
         } else {
           workResult = reviewRunnerResult.result;
         }
@@ -460,7 +463,8 @@ async function executePhase2Single(
     await logger.info(`Phase 2 완료: ${JSON.stringify(logSafeWork)}`);
 
     if (!workRunnerResult.result) {
-      return { success: false, error: `Phase 2 결과 파싱 실패` };
+      const errorMsg = `Phase 2 결과 파싱 실패 (exitCode: ${workRunnerResult.exitCode})\n${workRunnerResult.rawOutput?.substring(0, 500) || '출력 없음'}`;
+      return { success: false, error: errorMsg };
     }
     return workRunnerResult.result;
   } catch (err) {
