@@ -175,7 +175,7 @@ export async function fetchPendingTask (
 
   // 우선도 계산 및 정렬
   validCandidates.sort((a, b) => {
-    return calculatePriority(b) - calculatePriority(a);  // 높은 우선도가 먼저
+    return calculatePriority(a) - calculatePriority(b);  // 높은 우선도가 먼저
   });
 
   // 최우선 항목 선택
