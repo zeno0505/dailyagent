@@ -29,6 +29,14 @@ export const DEFAULT_CONFIG = {
     enabled: false,
     webhook_url: '',
   },
+  execution: {
+    phase2_mode: 'single',
+    phase2_plan_model: 'sonnet',
+    phase2_impl_model: 'haiku',
+    phase2_review_model: 'sonnet',
+    phase2_plan_timeout: '10m',
+    phase2_review_timeout: '10m',
+  },
 } as const;
 
 export function resolveColumns(columns: ColumnConfig) {

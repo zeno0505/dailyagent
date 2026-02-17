@@ -2,9 +2,11 @@ import { input, select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs-extra';
+import { execSync } from 'child_process';
 import { isInitialized, PROMPTS_DIR } from '../config';
 import { addJob } from '../jobs';
-import type { Agent, PromptMode } from '../types/jobs';
+import type { PromptMode } from '../types/jobs';
+import { Agent } from '../utils/cli-runner';
 
 export async function registerCommand(): Promise<void> {
   if (!isInitialized()) {
@@ -35,6 +37,36 @@ export async function registerCommand(): Promise<void> {
   const model = await input({
     message: '모델 (선택사항, 비용 최적화용 - 비워두면 기본값 사용):',
     default: '',
+    validate: async (val) => {
+      if (!val) return true;
+
+      if (agent === 'cursor') {
+        try {
+          const output = execSync('agent models', { 
+            encoding: 'utf8',
+            stdio: ['pipe', 'pipe', 'ignore']
+          });
+
+          const models = output
+            .split('\n')
+            .filter(line => line.trim())
+            .map(line => line.trim().split(/\s+/)[0])
+            .filter(Boolean);
+
+          if (!models.includes(val)) {
+            return `사용할 수 없는 모델입니다. agent models 명령어로 사용 가능한 모델을 확인하세요.`;
+          }
+        } catch (error) {
+          console.log(chalk.yellow('\n  경고: agent models 명령어 실행 실패. 모델 검증을 건너뜁니다.'));
+        }
+      } else if (agent === 'claude-code') {
+        if (!['sonnet', 'haiku', 'opus'].includes(val)) {
+          return `사용할 수 없는 모델입니다. sonnet, haiku, opus 중 하나를 선택하세요.`;
+        }
+      }
+
+      return true;
+    },
   });
 
   const working_dir = await input({
