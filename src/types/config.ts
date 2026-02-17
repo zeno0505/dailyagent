@@ -49,6 +49,5 @@ export interface DailyAgentConfig {
   version: string;
   workspaces?: Workspace[];
   active_workspace?: string;
-  notion?: NotionConfig;
   slack?: SlackConfig;
 }
