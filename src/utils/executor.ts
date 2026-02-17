@@ -85,13 +85,13 @@ export async function updateNotionOnError(
 
       const properties: Record<string, unknown> = {
         [statusColumn]: {
-          select: {
+          status: {
             name: statusError,
           },
         },
       };
 
-      const content = `\n---\n\n## 자동화 작업 실패\n\n**실패 시간:** ${new Date().toISOString()}\n\n**에러 내용:**\n${(workResult.error || 'Unknown error').toString()}\n`;
+      const content = `\n---\n\n## 자동화 작업 실패\n\n실패 시간: ${new Date().toISOString()}\n\n에러 내용:\n${(workResult.error || 'Unknown error').toString()}\n`;
 
       await updateNotionPage(
         config.notion.api_token,

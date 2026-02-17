@@ -235,8 +235,8 @@ export async function executeJob (jobName: string): Promise<unknown> {
       }
 
       const content = isSuccess
-        ? `\n---\n\n## 자동화 작업 완료\n\n**완료 시간:** ${new Date().toISOString()}\n\n**커밋 해시:** \`${workResult.commits?.[0]?.hash || ''}\`\n\n**PR:** ${workResult.pr_url || workResult.pr_skipped_reason || 'PR 정보 없음'}\n\n**수행 작업 요약:**\n${workResult.summary || ''}\n`
-        : `\n---\n\n## 자동화 작업 실패\n\n**실패 시간:** ${new Date().toISOString()}\n\n**에러 내용:**\n${workResult.error || 'Unknown error'}\n`;
+        ? `\n---\n\n## 자동화 작업 완료\n\n완료 시간: ${new Date().toISOString()}\n\n커밋 해시: ${workResult.commits?.[0]?.hash || ''}\n\nPR: ${workResult.pr_url || workResult.pr_skipped_reason || 'PR 정보 없음'}\n\n수행 작업 요약:\n${workResult.summary || ''}\n`
+        : `\n---\n\n## 자동화 작업 실패\n\n실패 시간: ${new Date().toISOString()}\n\n에러 내용:\n${workResult.error || 'Unknown error'}\n`;
 
       if (!config.notion.api_token) {
         throw new Error('Notion API 토큰이 설정되지 않았습니다.');

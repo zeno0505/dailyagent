@@ -2,6 +2,8 @@ import { spawn, execSync } from 'child_process';
 import fs from 'fs-extra';
 import { RunnerOptions, RunnerResult, CliAgentConfig } from '../types/core';
 import { Agent } from '../types/jobs';
+import { ClaudeCliEnvelope, CursorCliEnvelope } from '../types/cli-runner';
+import { extractJsonFromCodeBlock } from '../utils/markdown';
 
 /**
  * Parse timeout string (e.g., "30m" → 1800000)
@@ -118,7 +120,7 @@ export async function runCli<T>(
   config: CliAgentConfig,
   options: RunnerOptions
 ): Promise<RunnerResult<T>> {
-  const { prompt, workDir, settingsFile, timeout = '30m', logger, model } = options;
+  const { prompt, workDir,  timeout = '30m', logger, } = options;
   const timeoutMs = parseTimeout(timeout);
 
   // Verify CLI exists
@@ -176,9 +178,13 @@ export async function runCli<T>(
 
       // Parse JSON result
       try {
-        const result = JSON.parse(stdout) as T;
+        const response = JSON.parse(stdout) as ClaudeCliEnvelope | CursorCliEnvelope;
         const sanitized = sanitizeOutput(stdout); // SECURITY: Mask sensitive data
-        resolve({ rawOutput: sanitized, exitCode: code, result });
+        resolve({
+          rawOutput: sanitized,
+          exitCode: code,
+          result: JSON.parse(extractJsonFromCodeBlock (response.result)) as T,
+        });
       } catch {
         const sanitized = sanitizeOutput(stdout); // SECURITY: Mask sensitive data
         const error = { rawOutput: sanitized, exitCode: code };

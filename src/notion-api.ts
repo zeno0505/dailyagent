@@ -281,7 +281,14 @@ export async function updateNotionPage (
 
   // 본문 내용 추가 (선택적)
   if (content) {
-    const blocks = content.split('\n').map((line) => {
+    const blocks = content.split('\n').filter(line => line !== '').map((line) => {
+      if (line.trim() === '---') {
+        return {
+          object: 'block',
+          type: 'divider',
+          divider: {},
+        };
+      }
       if (line.startsWith('# ')) {
         return {
           object: 'block',
