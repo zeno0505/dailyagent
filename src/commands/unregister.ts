@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs-extra';
 import { isInitialized, LOGS_DIR, LOCKS_DIR, PROMPTS_DIR } from '../config';
 import { getJob, removeJob } from '../jobs';
+import { isJobInstalled, uninstallJob } from '../utils/schedule';
 
 export async function unregisterCommand(name: string): Promise<void> {
   if (!isInitialized()) {
@@ -69,6 +70,25 @@ export async function unregisterCommand(name: string): Promise<void> {
     if (deletePrompt) {
       await fs.remove(promptFile);
       console.log(chalk.gray(`  프롬프트 파일 삭제됨: ${promptFile}`));
+    }
+  }
+
+  // 스케줄링 등록 해제
+  const scheduleInstalled = isJobInstalled(name);
+  if (scheduleInstalled) {
+    const deleteSchedule = await confirm({
+      message: '등록된 스케줄링도 해제하시겠습니까?',
+      default: true,
+    });
+
+    if (deleteSchedule) {
+      try {
+        uninstallJob(name);
+        console.log(chalk.gray(`  스케줄링 해제됨 (${scheduleInstalled})`));
+      } catch (err) {
+        const error = err instanceof Error ? err.message : String(err);
+        console.log(chalk.yellow(`  스케줄링 해제 실패: ${error}`));
+      }
     }
   }
 
