@@ -1,8 +1,8 @@
-import { execSync } from 'child_process';
-import { writeFileSync, unlinkSync, existsSync, readFileSync } from 'fs';
+import { spawnSync } from 'child_process';
+import { writeFileSync, unlinkSync, existsSync, readFileSync, readdirSync } from 'fs';
 import path from 'path';
 import os from 'os';
-import { readdirSync } from 'fs-extra';
+import { isCommandAvailable, resolveDailyagentCommand } from '../utils/process';
 
 const PLIST_PREFIX = 'com.dailyagent.job.';
 const LAUNCH_AGENTS_DIR = path.join(os.homedir(), 'Library', 'LaunchAgents');
@@ -60,25 +60,24 @@ function plistPath(jobName: string): string {
   return path.join(LAUNCH_AGENTS_DIR, `${plistLabel(jobName)}.plist`);
 }
 
-/**
- * dailyagent 실행 명령을 찾습니다.
- */
-function resolveDailyagentCommand(): string {
-  try {
-    const which = execSync('which dailyagent 2>/dev/null', { encoding: 'utf8' }).trim();
-    if (which) return which;
-  } catch {
-    // ignore
+function runLaunchctl(action: 'load' | 'unload', filePath: string, ignoreFailure = false): void {
+  const result = spawnSync('launchctl', [action, filePath], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+
+  if (ignoreFailure && result.status !== 0) {
+    return;
   }
 
-  try {
-    const npxPath = execSync('which npx 2>/dev/null', { encoding: 'utf8' }).trim();
-    if (npxPath) return `${npxPath} dailyagent`;
-  } catch {
-    // ignore
+  if (result.error) {
+    throw new Error(`launchctl ${action} 실행 실패: ${result.error.message}`);
   }
 
-  return 'dailyagent';
+  if (result.status !== 0) {
+    const detail = result.stderr.trim() || result.stdout.trim() || `exit ${result.status ?? 'unknown'}`;
+    throw new Error(`launchctl ${action} 실패: ${detail}`);
+  }
 }
 
 /**
@@ -152,11 +151,7 @@ export function installLaunchdJob(jobName: string, schedule: string): void {
 
   // 기존 항목이 있으면 먼저 제거
   if (existsSync(filePath)) {
-    try {
-      execSync(`launchctl unload "${filePath}" 2>/dev/null`, { encoding: 'utf8' });
-    } catch {
-      // 이미 unload 상태일 수 있음
-    }
+    runLaunchctl('unload', filePath, true);
   }
 
   // plist 파일 생성
@@ -165,7 +160,7 @@ export function installLaunchdJob(jobName: string, schedule: string): void {
 
   // launchctl에 등록
   try {
-    execSync(`launchctl load "${filePath}"`, { encoding: 'utf8' });
+    runLaunchctl('load', filePath);
   } catch (err) {
     // 파일은 생성했지만 load 실패 시 정리
     unlinkSync(filePath);
@@ -183,11 +178,7 @@ export function uninstallLaunchdJob(jobName: string): void {
     throw new Error(`작업 "${jobName}"의 launchd 항목을 찾을 수 없습니다.`);
   }
 
-  try {
-    execSync(`launchctl unload "${filePath}" 2>/dev/null`, { encoding: 'utf8' });
-  } catch {
-    // 이미 unload 상태일 수 있음
-  }
+  runLaunchctl('unload', filePath, true);
 
   unlinkSync(filePath);
 }
@@ -258,10 +249,5 @@ function extractPlistValue(content: string, key: string): string | null {
  * launchd 사용 가능 여부를 확인합니다. (macOS 전용)
  */
 export function isLaunchdAvailable(): boolean {
-  try {
-    execSync('which launchctl 2>/dev/null', { encoding: 'utf8' });
-    return true;
-  } catch {
-    return false;
-  }
+  return isCommandAvailable('launchctl');
 }
