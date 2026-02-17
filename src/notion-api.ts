@@ -277,30 +277,41 @@ export async function fetchPendingTask (
 export async function createNotionSubtasks (
   apiToken: string,
   datasourceId: string,
-  parentPageId: string,
   subtasks: Array<{ title: string; requirements: string; base_branch?: string }>,
   columns: ColumnConfig
 ): Promise<string[]> {
   const createdPageIds: string[] = [];
-  const { columnBaseBranch, columnStatus, statusWait } = resolveColumns(columns);
+  const { columnBaseBranch, columnStatus, statusWait, columnTaskMode } = resolveColumns(columns);
 
   for (const subtask of subtasks) {
     const properties: Record<string, unknown> = {
-      // 제목
       '제목': {
         title: [
           {
-            type: 'text',
             text: {
               content: subtask.title,
+            }
+          }
+        ],
+      },
+      [columnStatus]: {
+        status: {
+          name: statusWait,
+        },
+      },
+      [columnBaseBranch]: {
+        rich_text: [
+          {
+            type: 'text',
+            text: {
+              content: subtask.base_branch,
             },
           },
         ],
       },
-      // 상태: 작업 대기
-      [columnStatus]: {
-        status: {
-          name: statusWait,
+      [columnTaskMode]: {
+        select: {
+          name: '작업 모드',
         },
       },
     };
@@ -318,7 +329,7 @@ export async function createNotionSubtasks (
       };
     }
 
-    const createResponse = await fetch(`https://api.notion.com/v1/data_sources/${datasourceId}/pages`, {
+    const createResponse = await fetch(`https://api.notion.com/v1/pages`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiToken}`,
@@ -326,6 +337,10 @@ export async function createNotionSubtasks (
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        parent:{
+          type: 'database_id',
+          database_id: datasourceId,
+        },
         properties,
       }),
     });

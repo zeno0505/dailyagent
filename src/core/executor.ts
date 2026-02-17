@@ -1,6 +1,6 @@
 import path from 'path';
 import fs from 'fs-extra';
-import { loadConfig, PROMPTS_DIR } from '../config';
+import { loadConfig, PROMPTS_DIR, resolveColumns } from '../config';
 import { getJob, updateJob, acquireLock, releaseLock } from '../jobs';
 import { getWorkspace } from '../workspace';
 import { Logger } from '../logger';
@@ -11,6 +11,7 @@ import { fetchPendingTask, updateNotionPage, createNotionSubtasks } from '../not
 import { runClaude, runCursor } from './cli-runner';
 import { resolveSettingsFile, validateEnvironment } from '../utils/executor';
 import { sendSlackNotification } from '../slack/webhook';
+import {  Workspace } from '../types/config';
 
 /**
  * 작업 실행 오케스트레이터
@@ -163,7 +164,7 @@ export async function executeJob (jobName: string): Promise<unknown> {
 
     if (taskMode === '계획') {
       // 계획 모드: 작업 계획 수립 및 후속 작업 생성
-      return await executePlanMode(runAgent, { workDir, taskInfo, settingsFile, job, jobName, logger, workspace, config });
+      return await executePlanMode(runAgent, { workDir, taskInfo, settingsFile, job, logger, workspace });
     }
 
     // ========================================
@@ -499,15 +500,13 @@ async function executePhase2Single(
  */
 async function executePlanMode(
   runAgent: typeof runClaude,
-  { workDir, taskInfo, settingsFile, job, jobName, logger, workspace, config }: {
+  { workDir, taskInfo, settingsFile, job, logger, workspace }: {
     workDir: string;
     taskInfo: TaskInfo;
     settingsFile: string | undefined;
     job: { timeout?: string; model?: string };
-    jobName: string;
     logger: Logger;
-    workspace: any;
-    config: any;
+    workspace: Workspace;
   }
 ): Promise<unknown> {
   await logger.info('--- 계획 모드 실행 시작 ---');
@@ -553,7 +552,6 @@ async function executePlanMode(
       const createdPageIds = await createNotionSubtasks(
         apiToken,
         datasourceId,
-        taskInfo.task_id!,
         taskPlanResult.subtasks,
         workspace.notion
       );
@@ -561,14 +559,12 @@ async function executePlanMode(
       await logger.info(`${createdPageIds.length}개의 후속 작업 문서 생성 완료`);
 
       // 원본 문서 상태를 "완료"로 업데이트
-      const statusColumn = workspace.notion.column_status || '상태';
-      const statusComplete = workspace.notion.column_status_complete || '완료';
-
+      const { columnStatus, statusComplete } = resolveColumns(workspace.notion);
       await updateNotionPage(
         apiToken,
         taskInfo.task_id!,
         {
-          [statusColumn]: {
+          [columnStatus]: {
             status: {
               name: statusComplete,
             },

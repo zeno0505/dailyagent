@@ -5,7 +5,7 @@
 
 import { resolveColumns } from "../config";
 import { ColumnConfig } from "../types/config";
-import { TaskInfo, WorkResult, PlanResult, TaskPlanResult } from "../types/core";
+import { TaskInfo, WorkResult, PlanResult } from "../types/core";
 
 /**
  * Phase 1: Notion DB 조회 + 페이지 상세 읽기
