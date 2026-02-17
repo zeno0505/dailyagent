@@ -4,6 +4,7 @@ import { RunnerOptions, RunnerResult, CliAgentConfig } from '../types/core';
 import { Agent } from '../types/jobs';
 import { ClaudeCliEnvelope, CursorCliEnvelope } from '../types/cli-runner';
 import { extractJsonFromCodeBlock } from '../utils/markdown';
+import chalk from 'chalk';
 
 /**
  * Parse timeout string (e.g., "30m" → 1800000)
@@ -168,6 +169,15 @@ export async function runCli<T>(
 
     child.on('close', async (code) => {
       clearTimeout(timer);
+      console.log(chalk.gray('--------------------------------'));
+      console.log(chalk.gray(`${config.displayName} 실행 완료 (Exit Code: ${code})`));
+      console.log(chalk.gray('--------------------------------'));
+      console.log(chalk.gray('STDOUT:'));
+      console.log(chalk.gray(stdout));
+      console.log(chalk.gray('--------------------------------'));
+      console.log(chalk.gray('STDERR:'));
+      console.log(chalk.gray(stderr));
+      console.log(chalk.gray('--------------------------------'));
 
       if (logger) await logger.info(`${config.displayName} 실행 완료 (Exit Code: ${code})`);
 
