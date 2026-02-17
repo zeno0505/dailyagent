@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs-extra';
 import { isInitialized, PROMPTS_DIR } from '../config';
 import { addJob } from '../jobs';
+import { listWorkspaces } from '../workspace';
 import type { ExecutionConfig, Phase2Mode, PromptMode } from '../types/jobs';
 import { Agent } from '../utils/cli-runner';
 import { validateAgentModel } from '../utils/register';
@@ -15,6 +16,22 @@ export async function registerCommand (): Promise<void> {
   }
 
   console.log(chalk.bold('\n  새 작업 등록\n'));
+
+  // Workspace 선택
+  const workspaces = await listWorkspaces();
+  if (workspaces.length === 0) {
+    console.log(chalk.red('등록된 Workspace가 없습니다. "dailyagent init"을 먼저 실행하세요.'));
+    process.exit(1);
+  }
+
+  const workspace = await select({
+    message: 'Workspace 선택:',
+    choices: workspaces.map(ws => ({
+      name: ws.name,
+      value: ws.name,
+    })),
+    default: workspaces[0]?.name,
+  });
 
   const name = await input({
     message: '작업 이름 (영문, 하이픈 허용):',
@@ -173,6 +190,7 @@ export async function registerCommand (): Promise<void> {
       working_dir,
       schedule,
       timeout,
+      workspace,
       ...(model && { model }),
       ...(execution_config && { execution: execution_config }),
     });
