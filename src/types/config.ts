@@ -40,8 +40,15 @@ export interface SlackConfig {
   webhook_url?: string;
 }
 
+export interface Workspace {
+  name: string;
+  working_dir: string;
+  notion: NotionConfig;
+}
+
 export interface DailyAgentConfig {
   version: string;
-  notion: NotionConfig;
+  workspaces?: Workspace[];
+  active_workspace?: string;
   slack?: SlackConfig;
 }

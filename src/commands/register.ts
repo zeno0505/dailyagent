@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs-extra';
 import { isInitialized, PROMPTS_DIR } from '../config';
 import { addJob } from '../jobs';
+import { listWorkspaces } from '../workspace';
 import type { ExecutionConfig, Phase2Mode, PromptMode } from '../types/jobs';
 import { Agent } from '../utils/cli-runner';
 import { validateAgentModel } from '../utils/register';
@@ -15,6 +16,22 @@ export async function registerCommand (): Promise<void> {
   }
 
   console.log(chalk.bold('\n  새 작업 등록\n'));
+
+  // Workspace 선택
+  const workspaces = await listWorkspaces();
+  if (workspaces.length === 0) {
+    console.log(chalk.red('등록된 Workspace가 없습니다. "dailyagent init"을 먼저 실행하세요.'));
+    process.exit(1);
+  }
+
+  const workspace = await select({
+    message: 'Workspace 선택:',
+    choices: workspaces.map(ws => ({
+      name: ws.name,
+      value: ws.name,
+    })),
+    default: workspaces[0]?.name,
+  });
 
   const name = await input({
     message: '작업 이름 (영문, 하이픈 허용):',
@@ -38,18 +55,7 @@ export async function registerCommand (): Promise<void> {
     message: '모델 (선택사항, 비용 최적화용 - 비워두면 기본값 사용):',
     default: '',
     validate: (model) => validateAgentModel(agent, model),
-  });
-
-  const working_dir = await input({
-    message: '작업 디렉토리 (절대경로 또는 ~/ 사용):',
-    validate: (val) => {
-      if (!val) return '작업 디렉토리를 입력해주세요.';
-      const resolved = val.replace(/^~/, process.env.HOME || '~');
-      if (!fs.pathExistsSync(resolved)) return `디렉토리가 존재하지 않습니다: ${resolved}`;
-      if (!fs.pathExistsSync(path.join(resolved, '.git'))) return `Git 저장소가 아닙니다: ${resolved}`;
-      return true;
-    },
-  });
+  });  
 
   const schedule = await input({
     message: 'Cron 스케줄 (후속 작업용, 예: 0 */5 * * *):',
@@ -170,9 +176,9 @@ export async function registerCommand (): Promise<void> {
       name,
       agent,
       prompt_mode,
-      working_dir,
       schedule,
       timeout,
+      workspace,
       ...(model && { model }),
       ...(execution_config && { execution: execution_config }),
     });

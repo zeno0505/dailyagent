@@ -28,7 +28,6 @@ export interface Job {
   agent: Agent;
   model?: string;
   prompt_mode?: PromptMode;
-  working_dir: string;
   schedule: string;
   timeout?: string;
   status: JobStatus;
@@ -36,6 +35,7 @@ export interface Job {
   last_run: string | null;
   last_status: LastStatus;
   execution?: ExecutionConfig;
+  workspace?: string;
 }
 
 export interface JobsData {

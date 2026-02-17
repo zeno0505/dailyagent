@@ -99,3 +99,47 @@ program
     const { scheduleCommand } = await import('./commands/schedule');
     await scheduleCommand(action, name);
   });
+
+const workspaceCommand = program
+  .command('workspace')
+  .description('Workspace 관리 (추가, 목록, 제거, 전환)');
+
+workspaceCommand
+  .command('add')
+  .description('새 Workspace 추가')
+  .action(async () => {
+    const { workspaceAddCommand } = await import('./commands/workspace/add');
+    await workspaceAddCommand();
+  });
+
+workspaceCommand
+  .command('list')
+  .description('등록된 Workspace 목록 조회')
+  .action(async () => {
+    const { workspaceListCommand } = await import('./commands/workspace/list');
+    await workspaceListCommand();
+  });
+
+workspaceCommand
+  .command('remove <name>')
+  .description('Workspace 제거')
+  .action(async (name: string) => {
+    const { workspaceRemoveCommand } = await import('./commands/workspace/remove');
+    await workspaceRemoveCommand(name);
+  });
+
+workspaceCommand
+  .command('switch [name]')
+  .description('기본으로 사용할 Workspace 선택')
+  .action(async (name?: string) => {
+    const { workspaceSwitchCommand } = await import('./commands/workspace/switch');
+    await workspaceSwitchCommand(name);
+  });
+
+workspaceCommand
+  .command('rename <oldName> <newName>')
+  .description('Workspace 이름 변경')
+  .action(async (oldName: string, newName: string) => {
+    const { workspaceRenameCommand } = await import('./commands/workspace/rename');
+    await workspaceRenameCommand(oldName, newName);
+  });

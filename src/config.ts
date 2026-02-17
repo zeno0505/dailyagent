@@ -11,20 +11,7 @@ export const LOCKS_DIR = path.join(CONFIG_DIR, 'locks');
 export const PROMPTS_DIR = path.join(CONFIG_DIR, 'prompts');
 
 export const DEFAULT_CONFIG = {
-  version: '1.0.0',
-  notion: {
-    database_url: '',
-    column_priority: '우선순위',
-    column_status: '상태',
-    column_status_wait: '작업 대기',
-    column_status_review: '검토 전',
-    column_status_complete: '완료',
-    column_status_error: '작업 실패',
-    column_base_branch: '기준 브랜치',
-    column_work_branch: '작업 브랜치',
-    column_prerequisite: '선행 작업',
-    column_created_time: '날짜',
-  },
+  version: '2.0.0',
   slack: {
     enabled: false,
     webhook_url: '',
@@ -39,18 +26,32 @@ export const DEFAULT_CONFIG = {
   },
 } as const;
 
+export const DEFAULT_WORKSPACE_NOTION_CONFIG = {
+  use_api: true,
+  column_priority: '우선순위',
+  column_status: '상태',
+  column_status_wait: '작업 대기',
+  column_status_review: '검토 전',
+  column_status_complete: '완료',
+  column_status_error: '작업 실패',
+  column_base_branch: '기준 브랜치',
+  column_work_branch: '작업 브랜치',
+  column_prerequisite: '선행 작업',
+  column_created_time: '날짜',
+} as const;
+
 export function resolveColumns(columns: ColumnConfig) {
   return {
-    statusWait: columns.column_status_wait || DEFAULT_CONFIG.notion.column_status_wait,
-    statusReview: columns.column_status_review || DEFAULT_CONFIG.notion.column_status_review,
-    statusComplete: columns.column_status_complete || DEFAULT_CONFIG.notion.column_status_complete,
-    statusError: columns.column_status_error || DEFAULT_CONFIG.notion.column_status_error,
-    columnStatus: columns.column_status || DEFAULT_CONFIG.notion.column_status,
-    columnPriority: columns.column_priority || DEFAULT_CONFIG.notion.column_priority,
-    columnBaseBranch: columns.column_base_branch || DEFAULT_CONFIG.notion.column_base_branch,
-    columnWorkBranch: columns.column_work_branch || DEFAULT_CONFIG.notion.column_work_branch,
-    columnPrerequisite: columns.column_prerequisite || DEFAULT_CONFIG.notion.column_prerequisite,
-    columnCreatedTime: columns.column_created_time || DEFAULT_CONFIG.notion.column_created_time,
+    statusWait: columns.column_status_wait || DEFAULT_WORKSPACE_NOTION_CONFIG.column_status_wait,
+    statusReview: columns.column_status_review || DEFAULT_WORKSPACE_NOTION_CONFIG.column_status_review,
+    statusComplete: columns.column_status_complete || DEFAULT_WORKSPACE_NOTION_CONFIG.column_status_complete,
+    statusError: columns.column_status_error || DEFAULT_WORKSPACE_NOTION_CONFIG.column_status_error,
+    columnStatus: columns.column_status || DEFAULT_WORKSPACE_NOTION_CONFIG.column_status,
+    columnPriority: columns.column_priority || DEFAULT_WORKSPACE_NOTION_CONFIG.column_priority,
+    columnBaseBranch: columns.column_base_branch || DEFAULT_WORKSPACE_NOTION_CONFIG.column_base_branch,
+    columnWorkBranch: columns.column_work_branch || DEFAULT_WORKSPACE_NOTION_CONFIG.column_work_branch,
+    columnPrerequisite: columns.column_prerequisite || DEFAULT_WORKSPACE_NOTION_CONFIG.column_prerequisite,
+    columnCreatedTime: columns.column_created_time || DEFAULT_WORKSPACE_NOTION_CONFIG.column_created_time,
   }
 }
 
