@@ -62,14 +62,10 @@ export async function unregisterCommand(name: string): Promise<void> {
   const promptFile = path.join(PROMPTS_DIR, `${name}.md`);
   const promptExists = await fs.pathExists(promptFile);
   if (promptExists) {
-    const { deletePrompt } = await inquirer.prompt<{ deletePrompt: boolean }>([
-      {
-        type: 'confirm',
-        name: 'deletePrompt',
-        message: '관련 프롬프트 파일도 삭제하시겠습니까?',
-        default: false,
-      },
-    ]);
+    const deletePrompt = await confirm({
+      message: '관련 프롬프트 파일도 삭제하시겠습니까?',
+      default: false,
+    });
     if (deletePrompt) {
       await fs.remove(promptFile);
       console.log(chalk.gray(`  프롬프트 파일 삭제됨: ${promptFile}`));
