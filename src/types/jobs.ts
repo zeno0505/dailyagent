@@ -36,6 +36,7 @@ export interface Job {
   last_run: string | null;
   last_status: LastStatus;
   execution?: ExecutionConfig;
+  workspace?: string;
 }
 
 export interface JobsData {
