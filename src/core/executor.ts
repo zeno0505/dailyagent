@@ -1,4 +1,6 @@
-import { loadConfig } from '../config';
+import path from 'path';
+import fs from 'fs-extra';
+import { loadConfig, PROMPTS_DIR } from '../config';
 import { getJob, updateJob, acquireLock, releaseLock } from '../jobs';
 import { Logger } from '../logger';
 import { generateInitialPrompt, generateWorkPrompt, generateFinishPrompt } from './prompt-generator';
@@ -149,10 +151,24 @@ export async function executeJob (jobName: string): Promise<unknown> {
     // Phase 2: 코드 작업 + Git Push (model: 기본값, timeout: job.timeout)
     // ========================================
     await logger.info('--- Phase 2: 코드 작업 시작 ---');
-    const workPrompt = generateWorkPrompt({
-      workDir,
-      taskInfo,
-    });
+
+    let workPrompt: string;
+    if (job.prompt_mode === 'custom') {
+      const promptFile = path.join(PROMPTS_DIR, `${jobName}.md`);
+      if (!(await fs.pathExists(promptFile))) {
+        throw new Error(`커스텀 프롬프트 파일이 존재하지 않습니다: ${promptFile}`);
+      }
+      const template = await fs.readFile(promptFile, 'utf8');
+      workPrompt = template
+        .replace(/\{\{workDir\}\}/g, workDir)
+        .replace(/\{\{taskInfo\}\}/g, JSON.stringify(taskInfo, null, 2));
+      await logger.info(`커스텀 프롬프트 사용: ${promptFile}`);
+    } else {
+      workPrompt = generateWorkPrompt({
+        workDir,
+        taskInfo,
+      });
+    }
     console.log(chalk.gray('--------------------------------'));
     console.log(chalk.gray('[Phase 2] 프롬프트:'));
     console.log(chalk.gray(workPrompt));
