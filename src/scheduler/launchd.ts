@@ -2,6 +2,7 @@ import { execSync } from 'child_process';
 import { writeFileSync, unlinkSync, existsSync, readFileSync } from 'fs';
 import path from 'path';
 import os from 'os';
+import { readdirSync } from 'fs-extra';
 
 const PLIST_PREFIX = 'com.dailyagent.job.';
 const LAUNCH_AGENTS_DIR = path.join(os.homedir(), 'Library', 'LaunchAgents');
@@ -16,30 +17,30 @@ function cronToCalendarInterval(schedule: string): Record<string, number>[] {
     throw new Error(`잘못된 cron 스케줄 형식: "${schedule}" (5개 필드 필요)`);
   }
 
-  const [minute, hour, day, month, weekday] = parts;
+  const [minute, hour, day, month, weekday] = parts.map((part) => {
+    if (part === '*') return null;
+    if (/\D+/.test(part)) return null;
+    let parsed = parseInt(part, 10);
+    if (isNaN(parsed)) return null;
+    return parsed;
+  });
 
-  // 단일 interval 객체 생성
   const interval: Record<string, number> = {};
 
-  if (minute !== '*') {
-    const val = parseInt(minute, 10);
-    if (!isNaN(val)) interval.Minute = val;
+  if (minute) {
+    interval.Minute = minute;
   }
-  if (hour !== '*') {
-    const val = parseInt(hour, 10);
-    if (!isNaN(val)) interval.Hour = val;
+  if (hour) {
+    interval.Hour = hour;
   }
-  if (day !== '*') {
-    const val = parseInt(day, 10);
-    if (!isNaN(val)) interval.Day = val;
+  if (day) {
+    interval.Day = day;
   }
-  if (month !== '*') {
-    const val = parseInt(month, 10);
-    if (!isNaN(val)) interval.Month = val;
+  if (month) {
+    interval.Month = month;
   }
-  if (weekday !== '*') {
-    const val = parseInt(weekday, 10);
-    if (!isNaN(val)) interval.Weekday = val;
+  if (weekday) {
+    interval.Weekday = weekday;
   }
 
   return [interval];
@@ -148,7 +149,6 @@ function escapeXml(str: string): string {
  */
 export function installLaunchdJob(jobName: string, schedule: string): void {
   const filePath = plistPath(jobName);
-  const label = plistLabel(jobName);
 
   // 기존 항목이 있으면 먼저 제거
   if (existsSync(filePath)) {
@@ -208,10 +208,7 @@ export function listLaunchdJobs(): Array<{ jobName: string; schedule: string; pl
   if (!existsSync(LAUNCH_AGENTS_DIR)) return results;
 
   try {
-    const files = execSync(`ls "${LAUNCH_AGENTS_DIR}"`, { encoding: 'utf8' })
-      .trim()
-      .split('\n')
-      .filter((f) => f.startsWith(PLIST_PREFIX) && f.endsWith('.plist'));
+    const files = readdirSync(LAUNCH_AGENTS_DIR).filter((f) => f.startsWith(PLIST_PREFIX) && f.endsWith('.plist'));
 
     for (const file of files) {
       const label = file.replace('.plist', '');
@@ -254,7 +251,7 @@ function extractScheduleFromPlist(filePath: string): string {
 function extractPlistValue(content: string, key: string): string | null {
   const regex = new RegExp(`<key>${key}</key>\\s*<integer>(\\d+)</integer>`);
   const match = content.match(regex);
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 /**
