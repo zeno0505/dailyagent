@@ -1,4 +1,4 @@
-import inquirer from 'inquirer';
+import { confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs-extra';
@@ -25,16 +25,12 @@ export async function unregisterCommand(name: string): Promise<void> {
   console.log(`  상태: ${job.status}`);
   console.log('');
 
-  const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
-    {
-      type: 'confirm',
-      name: 'confirm',
-      message: `작업 "${name}"을(를) 삭제하시겠습니까?`,
-      default: false,
-    },
-  ]);
+  const shouldDelete = await confirm({
+    message: `작업 "${name}"을(를) 삭제하시겠습니까?`,
+    default: false,
+  });
 
-  if (!confirm) {
+  if (!shouldDelete) {
     console.log(chalk.yellow('\n  삭제가 취소되었습니다.\n'));
     return;
   }
@@ -44,14 +40,10 @@ export async function unregisterCommand(name: string): Promise<void> {
   const logExists = await fs.pathExists(logFile);
 
   if (logExists) {
-    const { deleteLogs } = await inquirer.prompt<{ deleteLogs: boolean }>([
-      {
-        type: 'confirm',
-        name: 'deleteLogs',
-        message: '관련 로그 파일도 삭제하시겠습니까?',
-        default: false,
-      },
-    ]);
+    const deleteLogs = await confirm({
+      message: '관련 로그 파일도 삭제하시겠습니까?',
+      default: false,
+    });
 
     if (deleteLogs) {
       await fs.remove(logFile);
@@ -70,14 +62,10 @@ export async function unregisterCommand(name: string): Promise<void> {
   const promptFile = path.join(PROMPTS_DIR, `${name}.md`);
   const promptExists = await fs.pathExists(promptFile);
   if (promptExists) {
-    const { deletePrompt } = await inquirer.prompt<{ deletePrompt: boolean }>([
-      {
-        type: 'confirm',
-        name: 'deletePrompt',
-        message: '관련 프롬프트 파일도 삭제하시겠습니까?',
-        default: false,
-      },
-    ]);
+    const deletePrompt = await confirm({
+      message: '관련 프롬프트 파일도 삭제하시겠습니까?',
+      default: false,
+    });
     if (deletePrompt) {
       await fs.remove(promptFile);
       console.log(chalk.gray(`  프롬프트 파일 삭제됨: ${promptFile}`));

@@ -1,4 +1,4 @@
-import inquirer from 'inquirer';
+import { input, select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs-extra';
@@ -14,86 +14,71 @@ export async function registerCommand(): Promise<void> {
 
   console.log(chalk.bold('\n  새 작업 등록\n'));
 
-  const answers = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'name',
-      message: '작업 이름 (영문, 하이픈 허용):',
-      validate: (val: string) => {
-        if (!val) return '작업 이름을 입력해주세요.';
-        if (!/^[a-z0-9-]+$/.test(val)) return '영문 소문자, 숫자, 하이픈만 사용 가능합니다.';
-        return true;
-      },
+  const name = await input({
+    message: '작업 이름 (영문, 하이픈 허용):',
+    validate: (val) => {
+      if (!val) return '작업 이름을 입력해주세요.';
+      if (!/^[a-z0-9-]+$/.test(val)) return '영문 소문자, 숫자, 하이픈만 사용 가능합니다.';
+      return true;
     },
-    {
-      type: 'list',
-      name: 'agent',
-      message: 'AI 에이전트:',
-      choices: [
-        { name: 'Claude Code CLI', value: 'claude-code' },
-        { name: 'Cursor CLI', value: 'cursor' },
-      ],
-      default: 'claude-code',
+  });
+
+  const agent = await select<Agent>({
+    message: 'AI 에이전트:',
+    choices: [
+      { name: 'Claude Code CLI', value: 'claude-code' as const },
+      { name: 'Cursor CLI', value: 'cursor' as const },
+    ],
+    default: 'claude-code',
+  });
+
+  const model = await input({
+    message: '모델 (선택사항, 비용 최적화용 - 비워두면 기본값 사용):',
+    default: '',
+  });
+
+  const working_dir = await input({
+    message: '작업 디렉토리 (절대경로 또는 ~/ 사용):',
+    validate: (val) => {
+      if (!val) return '작업 디렉토리를 입력해주세요.';
+      const resolved = val.replace(/^~/, process.env.HOME || '~');
+      if (!fs.pathExistsSync(resolved)) return `디렉토리가 존재하지 않습니다: ${resolved}`;
+      if (!fs.pathExistsSync(path.join(resolved, '.git'))) return `Git 저장소가 아닙니다: ${resolved}`;
+      return true;
     },
-    {
-      type: 'input',
-      name: 'model',
-      message: '모델 (선택사항, 비용 최적화용 - 비워두면 기본값 사용):',
-      default: '',
-    },
-    {
-      type: 'input',
-      name: 'working_dir',
-      message: '작업 디렉토리 (절대경로 또는 ~/ 사용):',
-      validate: (val: string) => {
-        if (!val) return '작업 디렉토리를 입력해주세요.';
-        const resolved = val.replace(/^~/, process.env.HOME || '~');
-        if (!fs.pathExistsSync(resolved)) return `디렉토리가 존재하지 않습니다: ${resolved}`;
-        if (!fs.pathExistsSync(path.join(resolved, '.git'))) return `Git 저장소가 아닙니다: ${resolved}`;
-        return true;
-      },
-    },
-    {
-      type: 'input',
-      name: 'schedule',
-      message: 'Cron 스케줄 (후속 작업용, 예: 0 */5 * * *):',
-      default: '0 */5 * * *',
-    },
-    {
-      type: 'input',
-      name: 'timeout',
-      message: '타임아웃 (예: 30m, 1h):',
-      default: '30m',
-    },
-    {
-      type: 'list',
-      name: 'prompt_mode',
-      message: '프롬프트 모드:',
-      choices: [
-        { name: '기본 프롬프트 사용 (내장 템플릿)', value: 'default' },
-        { name: '커스텀 프롬프트 사용 (직접 작성)', value: 'custom' },
-      ],
-      validate: (val: string) => {
-        if (!val) return '프롬프트 모드를 선택해주세요.';
-        if (val !== 'default' && val !== 'custom') return '유효하지 않은 프롬프트 모드입니다. "default" 또는 "custom" 중 하나를 선택해주세요.';
-        return true;
-      },
-      default: 'default',
-    },
-  ]);
+  });
+
+  const schedule = await input({
+    message: 'Cron 스케줄 (후속 작업용, 예: 0 */5 * * *):',
+    default: '0 */5 * * *',
+  });
+
+  const timeout = await input({
+    message: '타임아웃 (예: 30m, 1h):',
+    default: '30m',
+  });
+
+  const prompt_mode = await select<PromptMode>({
+    message: '프롬프트 모드:',
+    choices: [
+      { name: '기본 프롬프트 사용 (내장 템플릿)', value: 'default' },
+      { name: '커스텀 프롬프트 사용 (직접 작성)', value: 'custom' },
+    ],
+    default: 'default',
+  });
 
   try {
-    const promptMode = answers.prompt_mode as PromptMode;
+    const promptMode = prompt_mode as PromptMode;
 
     // 커스텀 프롬프트 파일 생성
     if (promptMode === 'custom') {
       await fs.ensureDir(PROMPTS_DIR);
-      const promptFile = path.join(PROMPTS_DIR, `${answers.name}.md`);
+      const promptFile = path.join(PROMPTS_DIR, `${name}.md`);
 
       if (await fs.pathExists(promptFile)) {
         console.log(chalk.yellow(`\n  기존 프롬프트 파일이 존재합니다: ${promptFile}`));
       } else {
-        const defaultPromptContent = `# ${answers.name} 커스텀 프롬프트
+        const defaultPromptContent = `# ${name} 커스텀 프롬프트
 
 ## 작업 정보
 아래 변수들은 실행 시 자동으로 치환됩니다:
@@ -135,21 +120,21 @@ export async function registerCommand(): Promise<void> {
     }
 
     await addJob({
-      name: answers.name as string,
-      agent: answers.agent as Agent,
-      model: answers.model ? answers.model : undefined,
-      prompt_mode: promptMode,
-      working_dir: answers.working_dir as string,
-      schedule: answers.schedule as string,
-      timeout: answers.timeout as string,
+      name,
+      agent,
+      ...(model && { model }),
+      prompt_mode,
+      working_dir,
+      schedule,
+      timeout,
     });
 
     console.log('');
-    console.log(chalk.green(`  작업 "${answers.name}"이(가) 등록되었습니다!`));
+    console.log(chalk.green(`  작업 "${name}"이(가) 등록되었습니다!`));
     console.log('');
-    console.log(`  실행: ${chalk.cyan(`dailyagent run ${answers.name}`)}`);
+    console.log(`  실행: ${chalk.cyan(`dailyagent run ${name}`)}`);
     if (promptMode === 'custom') {
-      const promptFile = path.join(PROMPTS_DIR, `${answers.name}.md`);
+      const promptFile = path.join(PROMPTS_DIR, `${name}.md`);
       console.log(`  프롬프트: ${chalk.cyan(promptFile)}`);
     }
     console.log('');
