@@ -190,15 +190,22 @@ export async function runCli<T>(
       try {
         const response = JSON.parse(stdout) as ClaudeCliEnvelope | CursorCliEnvelope;
         const sanitized = sanitizeOutput(stdout); // SECURITY: Mask sensitive data
+        const resultStr = extractJsonFromCodeBlock(response.result);
         resolve({
           rawOutput: sanitized,
           exitCode: code,
-          result: JSON.parse(extractJsonFromCodeBlock (response.result)) as T,
+          result: JSON.parse(resultStr) as T,
         });
-      } catch {
+      } catch (err) {
         const sanitized = sanitizeOutput(stdout); // SECURITY: Mask sensitive data
-        const error = { rawOutput: sanitized, exitCode: code };
-        resolve(error);
+        const parseErrorMsg =
+          err instanceof Error ? err.message : String(err);
+        resolve({
+          rawOutput: sanitized,
+          exitCode: code,
+          result: undefined,
+          parseError: parseErrorMsg,
+        });
       }
     });
 

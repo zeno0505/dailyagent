@@ -13,6 +13,8 @@ export interface RunnerResult<T> {
   rawOutput?: string;
   exitCode?: number;
   result?: T;
+  /** 파싱 실패 시 에러 메시지 (디버깅용) */
+  parseError?: string;
 }
 
 export interface CliAgentConfig {
