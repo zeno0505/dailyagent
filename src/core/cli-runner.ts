@@ -88,14 +88,28 @@ export async function runCli<T>(
       try {
         const response = JSON.parse(stdout) as ClaudeCliEnvelope | CursorCliEnvelope;
         const sanitized = sanitizeOutput(stdout); // SECURITY: Mask sensitive data
+
+        // Handle empty result (common in session mode when model ends with tool use)
+        if (!response.result || response.result.trim() === '') {
+          if (logger) await logger.warn(`${config.displayName} 결과가 비어있습니다 (stop_reason: ${response.stop_reason})`);
+          resolve({
+            rawOutput: sanitized,
+            exitCode: code,
+            sessionId: response.session_id,
+            // result is undefined - caller must handle this case
+          });
+          return;
+        }
+
         resolve({
           rawOutput: sanitized,
           exitCode: code,
-          result: JSON.parse(extractJsonFromCodeBlock (response.result)) as T,
+          result: JSON.parse(extractJsonFromCodeBlock(response.result)) as T,
           sessionId: response.session_id,
         });
-      } catch {
+      } catch (err) {
         const sanitized = sanitizeOutput(stdout); // SECURITY: Mask sensitive data
+        if (logger) await logger.error(`${config.displayName} 결과 파싱 실패: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
         const error = { rawOutput: sanitized, exitCode: code };
         resolve(error);
       }

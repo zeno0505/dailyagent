@@ -52,6 +52,7 @@ export interface CursorCliEnvelope {
   duration_ms: number;
   duration_api_ms: number;
   result: string;
+  stop_reason: string | null;
   session_id: string;
   request_id: string;
 }

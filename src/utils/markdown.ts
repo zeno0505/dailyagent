@@ -1,5 +1,21 @@
+/**
+ * Extract JSON from markdown code block, with fallback to raw string
+ * @param markdown - Markdown string that may contain a JSON code block
+ * @returns Extracted JSON string, or empty string if no valid content found
+ */
 export function extractJsonFromCodeBlock(markdown: string): string {
-  const codeBlockRegex = /```[a-zA-Z]*\n([\s\S]*?)\n```/;  
-  const match = markdown.match(codeBlockRegex);  
-  return match?.[1] ? match[1].trim() : markdown.trim();  
+  if (!markdown || markdown.trim() === '') {
+    return '';
+  }
+
+  const codeBlockRegex = /```(?:json)?\n([\s\S]*?)\n```/;
+  const match = markdown.match(codeBlockRegex);
+
+  if (match?.[1]) {
+    return match[1].trim();
+  }
+
+  // Fallback: return raw markdown if no code block found
+  const trimmed = markdown.trim();
+  return trimmed || '';
 }
