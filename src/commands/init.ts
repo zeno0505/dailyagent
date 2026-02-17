@@ -1,4 +1,4 @@
-import inquirer from 'inquirer';
+import { input, confirm, password } from '@inquirer/prompts';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs-extra';
@@ -11,6 +11,7 @@ import {
   saveConfig,
   isInitialized,
 } from '../config';
+import type { DailyAgentConfig } from '../types/config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,146 +20,117 @@ export async function initCommand(): Promise<void> {
   console.log(chalk.bold('\n  DailyAgent 설정 초기화\n'));
 
   if (isInitialized()) {
-    const { overwrite } = await inquirer.prompt<{ overwrite: boolean }>([
-      {
-        type: 'confirm',
-        name: 'overwrite',
-        message: '설정이 이미 존재합니다. 덮어쓰시겠습니까?',
-        default: false,
-      },
-    ]);
+    const overwrite = await confirm({
+      message: '설정이 이미 존재합니다. 덮어쓰시겠습니까?',
+      default: false,
+    });
     if (!overwrite) {
       console.log(chalk.yellow('초기화를 취소했습니다.'));
       return;
     }
   }
 
-  const answers = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'use_api',
-      message: 'Notion API를 직접 사용하시겠습니까? (MCP 대신 API 사용 시 토큰 소비 감소)',
-      default: false,
-    },
-    {
-      type: 'input',
-      name: 'database_url',
+  const use_api = await confirm({
+    message: 'Notion API를 직접 사용하시겠습니까? (MCP 대신 API 사용 시 토큰 소비 감소)',
+    default: false,
+  });
+
+  let database_url: string | undefined;
+  let api_token: string | undefined;
+  let datasource_id: string | undefined;
+
+  if (!use_api) {
+    database_url = await input({
       message: 'Notion 데이터베이스 URL:',
-      when: (answers) => !answers.use_api,
-      validate: (val: string) => (val.includes('notion.so') ? true : 'Notion URL을 입력해주세요.'),
-    },
-    {
-      type: 'password',
-      name: 'api_token',
+      validate: (val) => (val.includes('notion.so') ? true : 'Notion URL을 입력해주세요.'),
+    });
+  } else {
+    api_token = await password({
       message: 'Notion API 토큰 (Internal Integration Token):',
-      when: (answers) => answers.use_api,
-      validate: (val: string) => (val.length > 0 ? true : 'API 토큰을 입력해주세요.'),
-    },
-    {
-      type: 'input',
-      name: 'datasource_id',
+      validate: (val) => (val.length > 0 ? true : 'API 토큰을 입력해주세요.'),
+    });
+    datasource_id = await input({
       message: 'Notion 데이터소스 ID (API 사용 시 필요):',
-      when: (answers) => answers.use_api,
-      validate: (val: string) => (val.length > 0 ? true : '데이터소스 ID를 입력해주세요.'),
-    },
-    {
-      type: 'input',
-      name: 'column_priority',
-      message: '우선순위 컬럼명:',
-      default: DEFAULT_CONFIG.notion.column_priority,
-    },
-    {
-      type: 'input',
-      name: 'column_status',
-      message: '상태 컬럼명:',
-      default: DEFAULT_CONFIG.notion.column_status,
-    },
-    {
-      type: 'input',
-      name: 'column_status_wait',
-      message: '자동화 준비 완료 상태 값:',
-      default: DEFAULT_CONFIG.notion.column_status_wait,
-    },
-    {
-      type: 'input',
-      name: 'column_status_review',
-      message: '자동화 완료 상태 값:',
-      default: DEFAULT_CONFIG.notion.column_status_review,
-    },
-    {
-      type: 'input',
-      name: 'column_status_error',
-      message: '자동화 오류 상태값:',
-      default: DEFAULT_CONFIG.notion.column_status_error,
-    },
-    {
-      type: 'input',
-      name: 'column_status_complete',
-      message: '작업 완료 상태 값:',
-      default: DEFAULT_CONFIG.notion.column_status_complete,
-    },
-    {
-      type: 'input',
-      name: 'column_base_branch',
-      message: '기준 브랜치 컬럼명:',
-      default: DEFAULT_CONFIG.notion.column_base_branch,
-    },
-    {
-      type: 'input',
-      name: 'column_work_branch',
-      message: '작업 브랜치 컬럼명:',
-      default: DEFAULT_CONFIG.notion.column_work_branch,
-    },
-    {
-      type: 'input',
-      name: 'column_prerequisite',
-      message: '선행 작업 컬럼명:',
-      default: DEFAULT_CONFIG.notion.column_prerequisite,
-    },
-    {
-      type: 'input',
-      name: 'column_created_time',
-      message: '작업 일자 컬럼명:',
-      default: DEFAULT_CONFIG.notion.column_created_time,
-    },
-    {
-      type: 'confirm',
-      name: 'enable_slack',
-      message: '(선택사항) Slack 알림을 활성화하시겠습니까?',
-      default: false,
-    },
-    {
-      type: 'input',
-      name: 'slack_webhook_url',
+      validate: (val) => (val.length > 0 ? true : '데이터소스 ID를 입력해주세요.'),
+    });
+  }
+
+  const column_priority = await input({
+    message: '우선순위 컬럼명:',
+    default: DEFAULT_CONFIG.notion.column_priority,
+  });
+  const column_status = await input({
+    message: '상태 컬럼명:',
+    default: DEFAULT_CONFIG.notion.column_status,
+  });
+  const column_status_wait = await input({
+    message: '자동화 준비 완료 상태 값:',
+    default: DEFAULT_CONFIG.notion.column_status_wait,
+  });
+  const column_status_review = await input({
+    message: '자동화 완료 상태 값:',
+    default: DEFAULT_CONFIG.notion.column_status_review,
+  });
+  const column_status_error = await input({
+    message: '자동화 오류 상태값:',
+    default: DEFAULT_CONFIG.notion.column_status_error,
+  });
+  const column_status_complete = await input({
+    message: '작업 완료 상태 값:',
+    default: DEFAULT_CONFIG.notion.column_status_complete,
+  });
+  const column_base_branch = await input({
+    message: '기준 브랜치 컬럼명:',
+    default: DEFAULT_CONFIG.notion.column_base_branch,
+  });
+  const column_work_branch = await input({
+    message: '작업 브랜치 컬럼명:',
+    default: DEFAULT_CONFIG.notion.column_work_branch,
+  });
+  const column_prerequisite = await input({
+    message: '선행 작업 컬럼명:',
+    default: DEFAULT_CONFIG.notion.column_prerequisite,
+  });
+  const column_created_time = await input({
+    message: '작업 일자 컬럼명:',
+    default: DEFAULT_CONFIG.notion.column_created_time,
+  });
+
+  const enable_slack = await confirm({
+    message: '(선택사항) Slack 알림을 활성화하시겠습니까?',
+    default: false,
+  });
+
+  let slack_webhook_url = '';
+  if (enable_slack) {
+    slack_webhook_url = await input({
       message: 'Slack Webhook URL:',
-      default: '',
-      when: (answers: Record<string, unknown>) => answers.enable_slack === true,
-      validate: (val: string) => {
+      validate: (val) => {
         return val.startsWith('https://hooks.slack.com/services') ? true : 'Slack Webhook URL을 입력해주세요.';
       },
-    },
-  ]);
+    });
+  }
 
-  const config = {
+  const config: DailyAgentConfig = {
     version: DEFAULT_CONFIG.version,
     notion: {
-      database_url: answers.database_url,
-      use_api: answers.use_api,
-      api_token: answers.api_token || undefined,
-      datasource_id: answers.datasource_id,
-      column_priority: answers.column_priority,
-      column_status: answers.column_status,
-      column_status_wait: answers.column_status_wait,
-      column_status_review: answers.column_status_review,
-      column_status_error: answers.column_status_error,
-      column_base_branch: answers.column_base_branch,
-      column_work_branch: answers.column_work_branch,
-      column_prerequisite: answers.column_prerequisite,
-      column_created_time: answers.column_created_time,
+      ...(database_url != null && { database_url }),
+      use_api,
+      ...(api_token != null && { api_token }),
+      ...(datasource_id != null && { datasource_id }),
+      column_priority,
+      column_status,
+      column_status_wait,
+      column_status_review,
+      column_status_error,
+      column_base_branch,
+      column_work_branch,
+      column_prerequisite,
+      column_created_time,
     },
     slack: {
-      enabled: answers.enable_slack as boolean,
-      webhook_url: answers.slack_webhook_url as string,
+      enabled: enable_slack,
+      webhook_url: slack_webhook_url,
     },
   };
 
