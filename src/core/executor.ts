@@ -191,7 +191,12 @@ export async function executeJob (jobName: string): Promise<unknown> {
 
       // Phase 2 JSON 파싱 실패 체크
       if (!workRunnerResult.result) {
-        workResult = { success: false, error: `Phase 2 결과 파싱 실패` };
+        const parseError = workRunnerResult.parseError ?? 'unknown';
+        await logger.error(`Phase 2 결과 파싱 실패: ${parseError}`);
+        if (workRunnerResult.rawOutput) {
+          await logger.info(`Phase 2 rawOutput (디버깅용): ${workRunnerResult.rawOutput}`);
+        }
+        workResult = { success: false, error: `Phase 2 결과 파싱 실패: ${parseError}` };
       } else {
         workResult = workRunnerResult.result;
       }
