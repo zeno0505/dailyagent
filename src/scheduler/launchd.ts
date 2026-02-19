@@ -3,48 +3,10 @@ import { writeFileSync, unlinkSync, existsSync, readFileSync, readdirSync } from
 import path from 'path';
 import os from 'os';
 import { isCommandAvailable, resolveDailyagentCommand } from '../utils/process.js';
+import { cronToCalendarInterval } from '../utils/schedule.js';
 
 const PLIST_PREFIX = 'com.dailyagent.job.';
 const LAUNCH_AGENTS_DIR = path.join(os.homedir(), 'Library', 'LaunchAgents');
-
-/**
- * cron 스케줄(5필드)을 launchd plist의 StartCalendarInterval로 변환합니다.
- * 지원: 고정 숫자값 (*, 리스트, 범위 등은 단순화하여 처리)
- */
-function cronToCalendarInterval(schedule: string): Record<string, number>[] {
-  const parts = schedule.trim().split(/\s+/);
-  if (parts.length !== 5) {
-    throw new Error(`잘못된 cron 스케줄 형식: "${schedule}" (5개 필드 필요)`);
-  }
-
-  const [minute, hour, day, month, weekday] = parts.map((part) => {
-    if (part === '*') return null;
-    if (/\D+/.test(part)) return null;
-    let parsed = parseInt(part, 10);
-    if (isNaN(parsed)) return null;
-    return parsed;
-  });
-
-  const interval: Record<string, number> = {};
-
-  if (minute) {
-    interval.Minute = minute;
-  }
-  if (hour) {
-    interval.Hour = hour;
-  }
-  if (day) {
-    interval.Day = day;
-  }
-  if (month) {
-    interval.Month = month;
-  }
-  if (weekday) {
-    interval.Weekday = weekday;
-  }
-
-  return [interval];
-}
 
 /**
  * plist 라벨을 생성합니다.
@@ -126,6 +88,8 @@ ${intervalsXml}
     <string>${escapeXml(path.join(logDir, `${jobName}-launchd.log`))}</string>
     <key>RunAtLoad</key>
     <false/>
+    <key>X-DailyAgent-Schedule</key>
+    <string>${escapeXml(schedule)}</string>
 </dict>
 </plist>
 `;
@@ -218,12 +182,27 @@ export function listLaunchdJobs(): Array<{ jobName: string; schedule: string; pl
 }
 
 /**
- * plist 파일에서 StartCalendarInterval을 읽어 cron 스케줄 형태로 변환합니다.
+ * plist 파일에서 cron 스케줄 문자열을 복원합니다.
+ * X-DailyAgent-Schedule 커스텀 키가 있으면 원본 표현식을 그대로 반환하고,
+ * 없으면 StartCalendarInterval의 첫 번째 엔트리에서 역산합니다.
  */
 function extractScheduleFromPlist(filePath: string): string {
   try {
     const content = readFileSync(filePath, 'utf8');
 
+    // 원본 스케줄 문자열이 저장된 경우 우선 사용
+    const originalScheduleRegex = /<key>X-DailyAgent-Schedule<\/key>\s*<string>([^<]+)<\/string>/;
+    const originalMatch = content.match(originalScheduleRegex);
+    if (originalMatch) {
+      return originalMatch[1]!
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'");
+    }
+
+    // 폴백: 첫 번째 interval 엔트리의 값으로 역산 (단순 고정값만 지원)
     const minute = extractPlistValue(content, 'Minute') ?? '*';
     const hour = extractPlistValue(content, 'Hour') ?? '*';
     const day = extractPlistValue(content, 'Day') ?? '*';
