@@ -1,4 +1,4 @@
-import { runClaude, runCursor } from "../core/cli-runner";
+import { runClaude, runCursor } from "../core/cli-runner.js";
 
 async function main() {
   const testPrompt = '1부터 10까지의 배열을 출력하라. 형식은 무조건 JSON 형식으로 출력해야하며, 그 외에 불필요한 문구는 출력하지 않는다.';

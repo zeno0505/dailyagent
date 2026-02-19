@@ -1,9 +1,9 @@
 import chalk from 'chalk';
 import ora from 'ora';
-import { isInitialized, loadConfig } from '../config';
-import { getJob } from '../jobs';
-import { executeJob } from '../core/executor';
-import { getWorkspace } from '../workspace';
+import { isInitialized, loadConfig } from '../config.js';
+import { getJob } from '../jobs.js';
+import { executeJob } from '../core/executor.js';
+import { getWorkspace } from '../workspace.js';
 
 export async function runCommand(name: string): Promise<void> {
   const config = await loadConfig();

@@ -1,13 +1,13 @@
 import { fileURLToPath } from 'url';
-import { DailyAgentConfig, Workspace } from '../types/config';
-import { Logger } from "../logger";
+import { DailyAgentConfig, Workspace } from '../types/config.js';
+import { Logger } from "../logger.js";
 import path from 'path';
 import fs from 'fs-extra';
 import { execSync } from 'child_process';
-import { WorkResult } from '../types/core';
-import { runClaude, runCursor } from '../core/cli-runner';
-import { updateNotionPage } from '../notion-api';
-import { Job } from '../types/jobs';
+import { WorkResult } from '../types/core.js';
+import { runClaude, runCursor } from '../core/cli-runner.js';
+import { updateNotionPage } from '../notion-api.js';
+import { Job } from '../types/jobs.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

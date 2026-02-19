@@ -2,12 +2,12 @@ import { input, select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs-extra';
-import { isInitialized, PROMPTS_DIR } from '../config';
-import { addJob } from '../jobs';
-import { listWorkspaces } from '../workspace';
-import type { ExecutionConfig, Phase2Mode, PromptMode } from '../types/jobs';
-import { Agent } from '../utils/cli-runner';
-import { validateAgentModel } from '../utils/register';
+import { isInitialized, PROMPTS_DIR } from '../config.js';
+import { addJob } from '../jobs.js';
+import { listWorkspaces } from '../workspace.js';
+import type { ExecutionConfig, Phase2Mode, PromptMode } from '../types/jobs.js';
+import { Agent } from '../utils/cli-runner.js';
+import { validateAgentModel } from '../utils/register.js';
 
 export async function registerCommand (): Promise<void> {
   if (!isInitialized()) {

@@ -1,8 +1,8 @@
 import { confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
-import { isInitialized } from '../../config';
-import { removeWorkspace, getWorkspace } from '../../workspace';
-import { listJobs } from '../../jobs';
+import { isInitialized } from '../../config.js';
+import { removeWorkspace, getWorkspace } from '../../workspace.js';
+import { listJobs } from '../../jobs.js';
 
 export async function workspaceRemoveCommand(name: string): Promise<void> {
   if (!isInitialized()) {

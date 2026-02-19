@@ -1,6 +1,6 @@
 import chalk from 'chalk';
-import { isInitialized } from '../config';
-import { getJob, updateJob } from '../jobs';
+import { isInitialized } from '../config.js';
+import { getJob, updateJob } from '../jobs.js';
 
 export async function pauseCommand(name: string): Promise<void> {
   if (!isInitialized()) {

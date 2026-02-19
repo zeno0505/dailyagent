@@ -1,5 +1,5 @@
 import { execSync } from "child_process";
-import { Agent } from "./cli-runner";
+import { Agent } from "./cli-runner.js";
 import chalk from "chalk";
 
 export async function validateAgentModel (agent: Agent, val: string): Promise<string | true> {

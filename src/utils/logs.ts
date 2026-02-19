@@ -1,4 +1,4 @@
-import { LOGS_DIR } from '../config';
+import { LOGS_DIR } from '../config.js';
 import path from 'path';
 import fs from 'fs-extra';
 import chalk from 'chalk';

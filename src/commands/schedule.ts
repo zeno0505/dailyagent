@@ -1,15 +1,15 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import os from 'os';
-import { isInitialized } from '../config';
-import { getJob, listJobs } from '../jobs';
+import { isInitialized } from '../config.js';
+import { getJob, listJobs } from '../jobs.js';
 import {
   listCronJobs,
-} from '../scheduler/crontab';
+} from '../scheduler/crontab.js';
 import {
   listLaunchdJobs,
-} from '../scheduler/launchd';
-import { detectScheduler, installJob, isJobInstalled, schedulerName, SchedulerType, uninstallJob } from '../utils/schedule';
+} from '../scheduler/launchd.js';
+import { detectScheduler, installJob, isJobInstalled, schedulerName, SchedulerType, uninstallJob } from '../utils/schedule.js';
 
 
 

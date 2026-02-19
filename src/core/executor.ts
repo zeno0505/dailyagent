@@ -1,16 +1,16 @@
 import path from 'path';
 import fs from 'fs-extra';
-import { loadConfig, PROMPTS_DIR } from '../config';
-import { getJob, updateJob, acquireLock, releaseLock } from '../jobs';
-import { getWorkspace } from '../workspace';
-import { Logger } from '../logger';
-import { generateInitialPrompt, generateWorkPrompt, generateFinishPrompt, generatePlanPrompt, generateImplementPrompt, generateReviewPrompt } from './prompt-generator';
+import { loadConfig, PROMPTS_DIR } from '../config.js';
+import { getJob, updateJob, acquireLock, releaseLock } from '../jobs.js';
+import { getWorkspace } from '../workspace.js';
+import { Logger } from '../logger.js';
+import { generateInitialPrompt, generateWorkPrompt, generateFinishPrompt, generatePlanPrompt, generateImplementPrompt, generateReviewPrompt } from './prompt-generator.js';
 import chalk from 'chalk';
-import { TaskInfo, WorkResult, PlanResult, ImplResult } from '../types/core';
-import { fetchPendingTask, updateNotionPage } from '../notion-api';
-import { runClaude, runCursor } from './cli-runner';
-import { resolveSettingsFile, validateEnvironment } from '../utils/executor';
-import { sendSlackNotification } from '../slack/webhook';
+import { TaskInfo, WorkResult, PlanResult, ImplResult } from '../types/core.js';
+import { fetchPendingTask, updateNotionPage } from '../notion-api.js';
+import { runClaude, runCursor } from './cli-runner.js';
+import { resolveSettingsFile, validateEnvironment } from '../utils/executor.js';
+import { sendSlackNotification } from '../slack/webhook.js';
 
 /**
  * 작업 실행 오케스트레이터

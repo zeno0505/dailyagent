@@ -10,9 +10,9 @@ import {
   ensureConfigDir,
   saveConfig,
   isInitialized,
-} from '../config';
-import type { DailyAgentConfig, Workspace } from '../types/config';
-import { promptWorkDirecotry, promptWorkspaceNotionConfig } from '../utils/workspace';
+} from '../config.js';
+import type { DailyAgentConfig, Workspace } from '../types/config.js';
+import { promptWorkDirecotry, promptWorkspaceNotionConfig } from '../utils/workspace.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

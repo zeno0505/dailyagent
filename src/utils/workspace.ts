@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import { confirm, input, password } from "@inquirer/prompts";
-import { NotionConfig } from "../types/config";
-import { DEFAULT_WORKSPACE_NOTION_CONFIG } from "../config";
+import { NotionConfig } from "../types/config.js";
+import { DEFAULT_WORKSPACE_NOTION_CONFIG } from "../config.js";
 import path from 'path';
 
 export async function promptWorkDirecotry() {

@@ -1,6 +1,6 @@
 import os from 'os';
-import { installLaunchdJob, isLaunchdAvailable, isLaunchdJobInstalled, uninstallLaunchdJob } from "../scheduler/launchd";
-import { installCronJob, isCronJobInstalled, isCrontabAvailable, uninstallCronJob } from '../scheduler/crontab';
+import { installLaunchdJob, isLaunchdAvailable, isLaunchdJobInstalled, uninstallLaunchdJob } from "../scheduler/launchd.js";
+import { installCronJob, isCronJobInstalled, isCrontabAvailable, uninstallCronJob } from '../scheduler/crontab.js';
 
 export type SchedulerType = 'launchd' | 'cron';
 

@@ -1,6 +1,6 @@
 import chalk from 'chalk';
-import { isInitialized } from '../../config';
-import { listWorkspaces, getActiveWorkspace } from '../../workspace';
+import { isInitialized } from '../../config.js';
+import { listWorkspaces, getActiveWorkspace } from '../../workspace.js';
 
 export async function workspaceListCommand(): Promise<void> {
   if (!isInitialized()) {

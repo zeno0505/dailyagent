@@ -1,6 +1,6 @@
 import chalk from "chalk";
-import { isInitialized } from "../../config";
-import { renameWorkspace } from "../../workspace";
+import { isInitialized } from "../../config.js";
+import { renameWorkspace } from "../../workspace.js";
 
 export async function workspaceRenameCommand(oldName: string, newName: string): Promise<void> {
   if (!isInitialized()) {

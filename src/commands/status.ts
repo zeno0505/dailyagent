@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 import fs from 'fs-extra';
-import { isInitialized, LOGS_DIR, loadConfig } from '../config';
-import { getJob } from '../jobs';
-import { getWorkspace } from '../workspace';
+import { isInitialized, LOGS_DIR, loadConfig } from '../config.js';
+import { getJob } from '../jobs.js';
+import { getWorkspace } from '../workspace.js';
 
 const DEFAULT_HISTORY_COUNT = 10;
 

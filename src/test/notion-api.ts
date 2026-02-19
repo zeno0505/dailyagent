@@ -1,6 +1,6 @@
-import { loadConfig } from "../config";
-import { getActiveWorkspace } from "../workspace";
-import { fetchPendingTask } from "../notion-api";
+import { loadConfig } from "../config.js";
+import { getActiveWorkspace } from "../workspace.js";
+import { fetchPendingTask } from "../notion-api.js";
 
 async function main() {
   const config = await loadConfig();

@@ -2,10 +2,10 @@ import { confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs-extra';
-import { isInitialized, LOGS_DIR, LOCKS_DIR, PROMPTS_DIR, loadConfig } from '../config';
-import { getJob, removeJob } from '../jobs';
-import { isJobInstalled, uninstallJob } from '../utils/schedule';
-import { getWorkspace } from '../workspace';
+import { isInitialized, LOGS_DIR, LOCKS_DIR, PROMPTS_DIR, loadConfig } from '../config.js';
+import { getJob, removeJob } from '../jobs.js';
+import { isJobInstalled, uninstallJob } from '../utils/schedule.js';
+import { getWorkspace } from '../workspace.js';
 
 export async function unregisterCommand(name: string): Promise<void> {
   const config = await loadConfig();

@@ -2,7 +2,7 @@ import { spawnSync } from 'child_process';
 import { writeFileSync, unlinkSync, existsSync, readFileSync, readdirSync } from 'fs';
 import path from 'path';
 import os from 'os';
-import { isCommandAvailable, resolveDailyagentCommand } from '../utils/process';
+import { isCommandAvailable, resolveDailyagentCommand } from '../utils/process.js';
 
 const PLIST_PREFIX = 'com.dailyagent.job.';
 const LAUNCH_AGENTS_DIR = path.join(os.homedir(), 'Library', 'LaunchAgents');

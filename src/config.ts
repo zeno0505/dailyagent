@@ -1,7 +1,7 @@
 import path from 'path';
 import os from 'os';
 import fs from 'fs-extra';
-import type { ColumnConfig, DailyAgentConfig } from './types/config';
+import type { ColumnConfig, DailyAgentConfig } from './types/config.js';
 
 export const CONFIG_DIR = path.join(os.homedir(), '.dailyagent');
 export const CONFIG_FILE = path.join(CONFIG_DIR, 'dailyagent.config.json');

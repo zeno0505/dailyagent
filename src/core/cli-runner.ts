@@ -1,8 +1,8 @@
 import { spawn, execSync } from 'child_process';
-import { RunnerOptions, RunnerResult, CliAgentConfig } from '../types/core';
-import { AGENT_CONFIGS, getAgentArgs, getFilteredEnv, parseTimeout, sanitizeOutput } from '../utils/cli-runner';
-import { ClaudeCliEnvelope, CursorCliEnvelope } from '../types/cli-runner';
-import { extractJsonFromCodeBlock } from '../utils/markdown';
+import { RunnerOptions, RunnerResult, CliAgentConfig } from '../types/core.js';
+import { AGENT_CONFIGS, getAgentArgs, getFilteredEnv, parseTimeout, sanitizeOutput } from '../utils/cli-runner.js';
+import { ClaudeCliEnvelope, CursorCliEnvelope } from '../types/cli-runner.js';
+import { extractJsonFromCodeBlock } from '../utils/markdown.js';
 import chalk from 'chalk';
 
 

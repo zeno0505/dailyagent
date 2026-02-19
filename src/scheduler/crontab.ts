@@ -1,5 +1,5 @@
 import { spawnSync, type SpawnSyncReturns } from 'child_process';
-import { isCommandAvailable, resolveDailyagentCommand } from '../utils/process';
+import { isCommandAvailable, resolveDailyagentCommand } from '../utils/process.js';
 
 const CRONTAB_MARKER = '# dailyagent:';
 

@@ -3,11 +3,11 @@
  * MCP 대신 직접 Notion API를 호출하여 토큰 소비를 최소화
  */
 
-import { resolveColumns } from './config';
-import { parseDateProperty, parseRelationProperty, parseSelectProperty, parseStatusProperty } from './utils/notion-api';
-import { ColumnConfig } from './types/config';
-import { TaskInfo } from './types/core';
-import { NOTION_BLOCK_HANDLER, NotionBlock } from './types/notion-api';
+import { resolveColumns } from './config.js';
+import { parseDateProperty, parseRelationProperty, parseSelectProperty, parseStatusProperty } from './utils/notion-api.js';
+import { ColumnConfig } from './types/config.js';
+import { TaskInfo } from './types/core.js';
+import { NOTION_BLOCK_HANDLER, NotionBlock } from './types/notion-api.js';
 
 export interface NotionPage {
   id: string;

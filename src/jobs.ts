@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
-import { JOBS_FILE, LOCKS_DIR } from './config';
-import type { Job, JobsData, JobStatus } from './types/jobs';
+import { JOBS_FILE, LOCKS_DIR } from './config.js';
+import type { Job, JobsData, JobStatus } from './types/jobs.js';
 
 const DEFAULT_JOBS_DATA: JobsData = { jobs: [] };
 

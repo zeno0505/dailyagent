@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import { CliAgentConfig, RunnerOptions } from "../types/core";
+import { CliAgentConfig, RunnerOptions } from "../types/core.js";
 
 export type Agent = 'claude-code' | 'cursor';
 

@@ -1,6 +1,6 @@
-import { loadConfig, saveConfig } from './config';
-import { loadJobs } from './jobs';
-import type { Workspace, NotionConfig } from './types/config';
+import { loadConfig, saveConfig } from './config.js';
+import { loadJobs } from './jobs.js';
+import type { Workspace, NotionConfig } from './types/config.js';
 
 export async function listWorkspaces(): Promise<Workspace[]> {
   const config = await loadConfig();

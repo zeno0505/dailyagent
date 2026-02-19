@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
 import path from 'path';
-import { LOGS_DIR } from './config';
+import { LOGS_DIR } from './config.js';
 
 function timestamp(): string {
   return new Date().toISOString().replace('T', ' ').replace(/\.\d+Z$/, '');

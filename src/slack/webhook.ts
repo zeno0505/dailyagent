@@ -1,5 +1,5 @@
-import { Logger } from '../logger';
-import { TaskInfo, WorkResult } from '../types/core';
+import { Logger } from '../logger.js';
+import { TaskInfo, WorkResult } from '../types/core.js';
 
 export interface SlackNotificationParams {
   taskInfo: TaskInfo;

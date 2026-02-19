@@ -1,9 +1,9 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
 
-import { isInitialized } from '../config';
-import { getJob } from '../jobs';
-import { formatFileSize, getJobLogFiles, tailLogFile } from '../utils/logs';
+import { isInitialized } from '../config.js';
+import { getJob } from '../jobs.js';
+import { formatFileSize, getJobLogFiles, tailLogFile } from '../utils/logs.js';
 
 export async function logsCommand(name: string, options: {
   follow?: boolean;

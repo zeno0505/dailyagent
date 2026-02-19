@@ -1,7 +1,7 @@
 import { select } from '@inquirer/prompts';
 import chalk from 'chalk';
-import { isInitialized } from '../../config';
-import { listWorkspaces, switchWorkspace } from '../../workspace';
+import { isInitialized } from '../../config.js';
+import { listWorkspaces, switchWorkspace } from '../../workspace.js';
 
 export async function workspaceSwitchCommand(name?: string): Promise<void> {
   if (!isInitialized()) {

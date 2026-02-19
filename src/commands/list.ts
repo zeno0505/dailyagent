@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
-import { isInitialized, loadConfig } from '../config';
-import { listJobs } from '../jobs';
-import { getWorkspace, listWorkspaces } from '../workspace';
+import { isInitialized, loadConfig } from '../config.js';
+import { listJobs } from '../jobs.js';
+import { getWorkspace, listWorkspaces } from '../workspace.js';
 
 export async function listCommand(): Promise<void> {
   const config = await loadConfig();

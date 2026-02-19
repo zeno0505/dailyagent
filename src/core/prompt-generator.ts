@@ -3,9 +3,9 @@
  * 3단계 분리: Phase 1 (Notion 조회), Phase 2 (코드 작업), Phase 3 (Notion 업데이트)
  */
 
-import { resolveColumns } from "../config";
-import { ColumnConfig } from "../types/config";
-import { TaskInfo, WorkResult, PlanResult } from "../types/core";
+import { resolveColumns } from "../config.js";
+import { ColumnConfig } from "../types/config.js";
+import { TaskInfo, WorkResult, PlanResult } from "../types/core.js";
 
 /**
  * Phase 1: Notion DB 조회 + 페이지 상세 읽기

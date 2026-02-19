@@ -1,4 +1,4 @@
-import { Agent } from "../utils/cli-runner";
+import { Agent } from "../utils/cli-runner.js";
 
 export type JobStatus = 'active' | 'paused' | 'stopped';
 export type LastStatus = 'success' | 'error' | null;

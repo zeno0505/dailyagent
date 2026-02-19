@@ -1,9 +1,9 @@
 import { input } from '@inquirer/prompts';
 import chalk from 'chalk';
-import { isInitialized } from '../../config';
-import { addWorkspace } from '../../workspace';
-import type { Workspace } from '../../types/config';
-import { promptWorkDirecotry, promptWorkspaceNotionConfig } from '../../utils/workspace';
+import { isInitialized } from '../../config.js';
+import { addWorkspace } from '../../workspace.js';
+import type { Workspace } from '../../types/config.js';
+import { promptWorkDirecotry, promptWorkspaceNotionConfig } from '../../utils/workspace.js';
 
 export async function workspaceAddCommand(): Promise<void> {
   if (!isInitialized()) {
