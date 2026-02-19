@@ -133,20 +133,14 @@ export async function registerCommand (): Promise<void> {
       } else {
         const defaultPromptContent = `# ${name} 커스텀 프롬프트
 
-## 작업 정보
-아래 변수들은 실행 시 자동으로 치환됩니다:
+## 변수
+실행 시 자동으로 치환됩니다:
 - \`{{workDir}}\` — 작업 디렉토리
-- \`{{taskInfo}}\` — Notion에서 가져온 작업 정보 (JSON)
 
 ## 프롬프트 내용
 여기에 AI 에이전트에게 전달할 프롬프트를 작성하세요.
 
 현재 작업 디렉토리: {{workDir}}
-
-### 작업 정보
-\`\`\`json
-{{taskInfo}}
-\`\`\`
 
 ### 수행할 작업
 (여기에 구체적인 작업 내용을 작성하세요)
@@ -162,7 +156,8 @@ export async function registerCommand (): Promise<void> {
   "files_changed": ["파일1", "파일2"],
   "summary": "작업 요약",
   "pr_url": "PR URL 또는 null",
-  "pr_skipped_reason": "PR 생성을 건너뛴 이유 또는 null"
+  "pr_skipped_reason": "PR 생성을 건너뛴 이유 또는 null",
+  "success": true
 }
 \`\`\`
 `;
