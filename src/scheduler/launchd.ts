@@ -51,9 +51,10 @@ function generatePlist(jobName: string, schedule: string): string {
   const logDir = path.join(os.homedir(), '.dailyagent', 'logs');
   const intervals = cronToCalendarInterval(schedule);
 
-  // 명령어를 공백으로 분리하여 ProgramArguments 배열 생성
-  const cmdParts = cmd.split(/\s+/);
-  const programArgs = [...cmdParts, 'run', jobName];
+  // launchd는 환경변수를 자동으로 로드하지 않으므로, 
+  // login shell을 통해 실행하여 환경변수를 로드
+  const shell = process.env.SHELL || '/bin/bash';
+  const programArgs = [shell, '-l', '-c', `${cmd} run ${jobName}`];
 
   const programArgsXml = programArgs
     .map((arg) => `      <string>${escapeXml(arg)}</string>`)
