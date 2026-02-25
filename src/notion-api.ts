@@ -1,26 +1,26 @@
 /**
- * Notion API 클라이언트
- * MCP 대신 직접 Notion API를 호출하여 토큰 소비를 최소화
+ * Notion SDK 클라이언트
+ * 공식 @notionhq/client SDK를 사용하여 안정적인 Notion API 상호작용
  */
 
+import { Client } from '@notionhq/client';
+import type {
+  PageObjectResponse,
+  BlockObjectResponse,
+} from '@notionhq/client/build/src/api-endpoints.js';
+
 import { resolveColumns } from './config.js';
-import { parseDateProperty, parseRelationProperty, parseSelectProperty, parseStatusProperty } from './utils/notion-api.js';
+import {
+  parseSelectProperty,
+  parseStatusProperty,
+  parseDateProperty,
+  parseRelationProperty,
+} from './utils/notion-api.js';
 import { ColumnConfig } from './types/config.js';
 import { TaskInfo } from './types/core.js';
-import { NOTION_BLOCK_HANDLER, NotionBlock } from './types/notion-api.js';
-
-export interface NotionPage {
-  id: string;
-  properties: Record<string, unknown>;
-  url: string;
-}
-
-export interface NotionQueryResult {
-  results: NotionPage[];
-}
 
 interface TaskCandidate {
-  page: NotionPage;
+  page: PageObjectResponse;
   priority: number;
   createdTime: Date;
   prerequisiteCompleted: boolean;
@@ -29,108 +29,108 @@ interface TaskCandidate {
 /**
  * 선행 작업이 완료되었는지 확인
  */
-async function checkPrerequisiteCompleted (
-  apiToken: string,
+async function checkPrerequisiteCompleted(
+  client: Client,
   prerequisitePageId: string,
   columns: ColumnConfig
 ): Promise<boolean> {
   const { columnStatus, statusComplete } = resolveColumns(columns);
-  const pageResponse = await fetch(`https://api.notion.com/v1/pages/${prerequisitePageId}`, {
-    headers: {
-      'Authorization': `Bearer ${apiToken}`,
-      'Notion-Version': '2025-09-03',
-    },
-  });
-  if (!pageResponse.ok) {
+
+  try {
+    const pageResponse = await client.pages.retrieve({
+      page_id: prerequisitePageId,
+    });
+
+    if (pageResponse.object !== 'page') {
+      return true;
+    }
+
+    const pageData = pageResponse as PageObjectResponse;
+    const statusProp = pageData.properties[columnStatus];
+    const statusValue = parseStatusProperty(statusProp);
+
+    if (statusValue) {
+      return statusValue === statusComplete;
+    }
+
+    return false;
+  } catch (error) {
     // 선행 작업 페이지를 찾을 수 없으면 완료된 것으로 간주
     return true;
   }
-
-  const pageData = (await pageResponse.json()) as NotionPage;
-  const statusProp = pageData.properties[columnStatus];
-  const statusValue = parseStatusProperty(statusProp);
-  if (statusValue) {
-    return statusValue === statusComplete;
-  }
-
-  return false;
 }
 
 /**
  * 우선도 계산: 우선순위가 높을수록, 작업 일자가 오래될수록 높은 점수
  */
-function calculatePriority ({ createdTime, priority }: TaskCandidate): number {
+function calculatePriority({ createdTime, priority }: TaskCandidate): number {
   const daysSinceCreation = (Date.now() - createdTime.getTime()) / (1000 * 60 * 60 * 24);
   // 우선순위는 가중치 100, 경과 일수는 가중치 1
   return priority * 100 + daysSinceCreation;
 }
 
 /**
- * Notion API를 사용하여 작업 대기 항목 조회
- * - 여러 항목을 가져와서 클라이언트에서 우선도 계산
- * - 선행 작업이 완료된 항목만 선택
+ * Notion SDK를 사용하여 작업 대기 항목 조회
  */
-export async function fetchPendingTask (
+export async function fetchPendingTask(
   apiToken: string,
-  datasourceId: string,
+  databaseId: string,
   columns: ColumnConfig
 ): Promise<TaskInfo | null> {
-  const { columnStatus, statusWait, columnBaseBranch, columnPriority, columnPrerequisite, columnCreatedTime } = resolveColumns(columns);
+  const client = new Client({ auth: apiToken });
 
-  // 데이터베이스 쿼리 (여러 항목 가져오기)
-  const queryResponse = await fetch(`https://api.notion.com/v1/data_sources/${datasourceId}/query`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiToken}`,
-      'Notion-Version': '2025-09-03',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      filter: {
-        and: [
-          {
-            property: columnStatus,
-            status: {
-              equals: statusWait,
-            },
-          },
-          {
-            property: columnBaseBranch,
-            rich_text: {
-              is_not_empty: true,
-            },
-          },
-        ],
-      },
-      sorts: [
+  const {
+    columnStatus,
+    statusWait,
+    columnBaseBranch,
+    columnPriority,
+    columnPrerequisite,
+    columnCreatedTime,
+  } = resolveColumns(columns);
+
+  // 데이터베이스 쿼리
+  const queryResponse = await client.databases.query({
+    database_id: databaseId,
+    filter: {
+      and: [
         {
-          property: columnPriority,
-          direction: 'descending',
+          property: columnStatus,
+          status: {
+            equals: statusWait,
+          },
         },
         {
-          property: columnCreatedTime,
-          direction: 'ascending',
+          property: columnBaseBranch,
+          rich_text: {
+            is_not_empty: true,
+          },
         },
       ],
-      page_size: 20,  // 여러 항목을 가져와서 클라이언트에서 필터링
-    }),
+    },
+    sorts: [
+      {
+        property: columnPriority,
+        direction: 'descending',
+      },
+      {
+        property: columnCreatedTime,
+        direction: 'ascending',
+      },
+    ],
+    page_size: 20,
   });
 
-  if (!queryResponse.ok) {
-    const errorText = await queryResponse.text();
-    throw new Error(`Notion API query failed: ${queryResponse.status} ${errorText}`);
-  }
-
-  const queryResult = (await queryResponse.json()) as NotionQueryResult;
-
-  if (queryResult.results.length === 0) {
+  if (queryResponse.results.length === 0) {
     return null;
   }
 
   // 각 항목의 우선도 계산 및 선행 작업 확인
   const candidates: TaskCandidate[] = [];
 
-  for (const page of queryResult.results) {
+  for (const result of queryResponse.results) {
+    if (result.object !== 'page') continue;
+
+    const page = result as PageObjectResponse;
     const properties = page.properties;
 
     // 우선순위 추출
@@ -153,8 +153,10 @@ export async function fetchPendingTask (
     let prerequisiteCompleted = true;
     const prerequisiteProp = properties[columnPrerequisite];
     const prerequisiteValue = parseRelationProperty(prerequisiteProp);
-    if (prerequisiteValue) {
-      const checkArr = await Promise.all(prerequisiteValue.map((id) => checkPrerequisiteCompleted(apiToken, id, columns)));
+    if (prerequisiteValue && prerequisiteValue.length > 0) {
+      const checkArr = await Promise.all(
+        prerequisiteValue.map((id) => checkPrerequisiteCompleted(client, id, columns))
+      );
       prerequisiteCompleted = checkArr.every((result) => result);
     }
 
@@ -175,7 +177,7 @@ export async function fetchPendingTask (
 
   // 우선도 계산 및 정렬
   validCandidates.sort((a, b) => {
-    return calculatePriority(a) - calculatePriority(b);  // 높은 우선도가 먼저
+    return calculatePriority(a) - calculatePriority(b);
   });
 
   // 최우선 항목 선택
@@ -183,69 +185,99 @@ export async function fetchPendingTask (
   if (!selectedCandidate) {
     return null;
   }
+
   const page = selectedCandidate.page;
 
-  // 페이지 상세 정보 조회
-  const pageResponse = await fetch(`https://api.notion.com/v1/pages/${page.id}`, {
-    headers: {
-      'Authorization': `Bearer ${apiToken}`,
-      'Notion-Version': '2025-09-03',
-    },
-  });
-
-  if (!pageResponse.ok) {
-    const errorText = await pageResponse.text();
-    throw new Error(`Notion API page fetch failed: ${pageResponse.status} ${errorText}`);
-  }
-
-  const pageData = (await pageResponse.json()) as NotionPage;
-
   // 페이지 블록 내용 조회
-  const blocksResponse = await fetch(`https://api.notion.com/v1/blocks/${page.id}/children`, {
-    headers: {
-      'Authorization': `Bearer ${apiToken}`,
-      'Notion-Version': '2025-09-03',
-    },
+  const blocksResponse = await client.blocks.children.list({
+    block_id: page.id,
   });
-
-  if (!blocksResponse.ok) {
-    const errorText = await blocksResponse.text();
-    throw new Error(`Notion API blocks fetch failed: ${blocksResponse.status} ${errorText}`);
-  }
-
-  const blocksData = (await blocksResponse.json()) as { results: Array<NotionBlock> };
 
   // 블록 내용을 텍스트로 변환
   let requirements = '';
 
-  for (const block of blocksData.results) {
-    if (block.type in NOTION_BLOCK_HANDLER) {
-      requirements += NOTION_BLOCK_HANDLER[block.type](block);
-    } else {
-      console.warn(`   Unknown block type: ${block.type}`);
-      console.dir(block, { depth: null });
+  for (const block of blocksResponse.results) {
+    // 블록 객체 타입 체크
+    const blockData = block as BlockObjectResponse;
+    if (!blockData.type) {
+      continue;
+    }
+
+    const blockType = blockData.type;
+
+    switch (blockType) {
+      case 'paragraph':
+        if ('paragraph' in blockData && blockData.paragraph) {
+          requirements += blockData.paragraph.rich_text.map((t) => t.plain_text).join('');
+        }
+        break;
+      case 'heading_1':
+        if ('heading_1' in blockData && blockData.heading_1) {
+          requirements += blockData.heading_1.rich_text.map((t) => t.plain_text).join('');
+        }
+        break;
+      case 'heading_2':
+        if ('heading_2' in blockData && blockData.heading_2) {
+          requirements += blockData.heading_2.rich_text.map((t) => t.plain_text).join('');
+        }
+        break;
+      case 'heading_3':
+        if ('heading_3' in blockData && blockData.heading_3) {
+          requirements += blockData.heading_3.rich_text.map((t) => t.plain_text).join('');
+        }
+        break;
+      case 'bulleted_list_item':
+        if ('bulleted_list_item' in blockData && blockData.bulleted_list_item) {
+          requirements += blockData.bulleted_list_item.rich_text
+            .map((t) => `- ${t.plain_text}`)
+            .join('\n');
+        }
+        break;
+      case 'numbered_list_item':
+        if ('numbered_list_item' in blockData && blockData.numbered_list_item) {
+          requirements += blockData.numbered_list_item.rich_text
+            .map((t, index) => `${index + 1}. ${t.plain_text}`)
+            .join('\n');
+        }
+        break;
+      case 'code':
+        if ('code' in blockData && blockData.code) {
+          requirements += `\`\`\`${blockData.code.language}\n${blockData.code.rich_text.map((t) => t.plain_text).join('')}\n\`\`\``;
+        }
+        break;
+      case 'divider':
+        requirements += '\n---\n';
+        break;
+      case 'to_do':
+        if ('to_do' in blockData && blockData.to_do) {
+          requirements += blockData.to_do.rich_text.map((t) => t.plain_text).join('\n');
+        }
+        break;
+      case 'quote':
+        if ('quote' in blockData && blockData.quote) {
+          requirements += blockData.quote.rich_text.map((t) => `> ${t.plain_text}`).join('\n');
+        }
+        break;
+      default:
+        console.warn(`   Unknown block type: ${blockType}`);
     }
   }
 
   // 속성 추출
-  const properties = pageData.properties;
+  const properties = page.properties;
   const titleProp = properties['제목'] || properties['Name'] || properties['Title'];
   const baseBranchProp = properties[columnBaseBranch];
 
   let taskTitle = '';
-  if (titleProp && typeof titleProp === 'object' && 'title' in titleProp) {
-    const title = titleProp.title as Array<{ plain_text: string }>;
-    taskTitle = title.map((t) => t.plain_text).join('');
+  if (titleProp && 'title' in titleProp) {
+    const title = (titleProp as any).title;
+    taskTitle = title.map((t: any) => t.plain_text).join('');
   }
 
   let baseBranch = '';
-  if (baseBranchProp && typeof baseBranchProp === 'object' && 'rich_text' in baseBranchProp) {
-    const richText = baseBranchProp.rich_text as Array<{ plain_text: string }>;
-    baseBranch = richText.map((t) => t.plain_text).join('');
-  }
-
-  if (!page) {
-    return null;
+  if (baseBranchProp && 'rich_text' in baseBranchProp) {
+    const richText = (baseBranchProp as any).rich_text;
+    baseBranch = richText.map((t: any) => t.plain_text).join('');
   }
 
   return {
@@ -253,97 +285,84 @@ export async function fetchPendingTask (
     task_title: taskTitle,
     base_branch: baseBranch,
     requirements: requirements.trim(),
-    page_url: pageData.url,
+    page_url: page.url,
   };
 }
 
 /**
- * Notion API를 사용하여 페이지 업데이트
+ * Notion SDK를 사용하여 페이지 업데이트
  */
-export async function updateNotionPage (
+export async function updateNotionPage(
   apiToken: string,
   pageId: string,
   properties: Record<string, unknown>,
   content?: string
 ): Promise<void> {
-  // 속성 업데이트
-  const updateResponse = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
-    method: 'PATCH',
-    headers: {
-      'Authorization': `Bearer ${apiToken}`,
-      'Notion-Version': '2025-09-03',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      properties,
-    }),
-  });
+  const client = new Client({ auth: apiToken });
 
-  if (!updateResponse.ok) {
-    const errorText = await updateResponse.text();
-    throw new Error(`Notion API page update failed: ${updateResponse.status} ${errorText}`);
-  }
+  // 속성 업데이트
+  await client.pages.update({
+    page_id: pageId,
+    properties: properties as any,
+  });
 
   // 본문 내용 추가 (선택적)
   if (content) {
-    const blocks = content.split('\n').filter(line => line !== '').map((line) => {
-      if (line.trim() === '---') {
-        return {
-          object: 'block',
-          type: 'divider',
-          divider: {},
-        };
-      }
-      if (line.startsWith('# ')) {
-        return {
-          object: 'block',
-          type: 'heading_1',
-          heading_1: {
-            rich_text: [{ type: 'text', text: { content: line.slice(2) } }],
-          },
-        };
-      } else if (line.startsWith('## ')) {
-        return {
-          object: 'block',
-          type: 'heading_2',
-          heading_2: {
-            rich_text: [{ type: 'text', text: { content: line.slice(3) } }],
-          },
-        };
-      } else if (line.startsWith('**') && line.endsWith('**')) {
-        return {
-          object: 'block',
-          type: 'paragraph',
-          paragraph: {
-            rich_text: [{ type: 'text', text: { content: line.slice(2, -2) }, annotations: { bold: true } }],
-          },
-        };
-      } else {
-        return {
-          object: 'block',
-          type: 'paragraph',
-          paragraph: {
-            rich_text: [{ type: 'text', text: { content: line } }],
-          },
-        };
-      }
-    });
+    const blocks = content
+      .split('\n')
+      .filter((line) => line !== '')
+      .map((line) => {
+        if (line.trim() === '---') {
+          return {
+            object: 'block',
+            type: 'divider',
+            divider: {},
+          };
+        }
+        if (line.startsWith('# ')) {
+          return {
+            object: 'block',
+            type: 'heading_1',
+            heading_1: {
+              rich_text: [{ type: 'text', text: { content: line.slice(2) } }],
+            },
+          };
+        } else if (line.startsWith('## ')) {
+          return {
+            object: 'block',
+            type: 'heading_2',
+            heading_2: {
+              rich_text: [{ type: 'text', text: { content: line.slice(3) } }],
+            },
+          };
+        } else if (line.startsWith('**') && line.endsWith('**')) {
+          return {
+            object: 'block',
+            type: 'paragraph',
+            paragraph: {
+              rich_text: [
+                {
+                  type: 'text',
+                  text: { content: line.slice(2, -2) },
+                  annotations: { bold: true },
+                },
+              ],
+            },
+          };
+        } else {
+          return {
+            object: 'block',
+            type: 'paragraph',
+            paragraph: {
+              rich_text: [{ type: 'text', text: { content: line } }],
+            },
+          };
+        }
+      });
 
-    const appendResponse = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${apiToken}`,
-        'Notion-Version': '2025-09-03',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        children: blocks,
-      }),
+    await client.blocks.children.append({
+      block_id: pageId,
+      children: blocks as any,
     });
-
-    if (!appendResponse.ok) {
-      const errorText = await appendResponse.text();
-      throw new Error(`Notion API block append failed: ${appendResponse.status} ${errorText}`);
-    }
   }
 }
