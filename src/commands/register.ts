@@ -2,18 +2,16 @@ import { input, select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs-extra';
-import { isInitialized, PROMPTS_DIR } from '../config.js';
+import { PROMPTS_DIR } from '../config.js';
 import { addJob } from '../jobs.js';
 import { listWorkspaces } from '../workspace.js';
 import type { ExecutionConfig, Phase2Mode, PromptMode } from '../types/jobs.js';
 import { Agent } from '../utils/cli-runner.js';
 import { validateAgentModel } from '../utils/register.js';
+import { requireInitialized } from '../utils/validation.js';
 
 export async function registerCommand (): Promise<void> {
-  if (!isInitialized()) {
-    console.log(chalk.red('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.'));
-    process.exit(1);
-  }
+  requireInitialized();
 
   console.log(chalk.bold('\n  새 작업 등록\n'));
 

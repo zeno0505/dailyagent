@@ -2,7 +2,8 @@ import { spawnSync } from 'child_process';
 import { writeFileSync, unlinkSync, existsSync, readFileSync, readdirSync } from 'fs';
 import path from 'path';
 import os from 'os';
-import { isCommandAvailable, resolveDailyagentCommand } from '../utils/process.js';
+import { LOGS_DIR } from '../config.js';
+import { DEFAULT_ENV_PATH, isCommandAvailable, resolveDailyagentCommand } from '../utils/process.js';
 import { cronToCalendarInterval } from '../utils/schedule.js';
 
 const PLIST_PREFIX = 'com.dailyagent.job.';
@@ -48,12 +49,11 @@ function runLaunchctl(action: 'load' | 'unload', filePath: string, ignoreFailure
 function generatePlist(jobName: string, schedule: string): string {
   const label = plistLabel(jobName);
   const cmd = resolveDailyagentCommand();
-  const logDir = path.join(os.homedir(), '.dailyagent', 'logs');
   const intervals = cronToCalendarInterval(schedule);
 
   // 등록 시점의 PATH를 캡처하여 launchd 실행 환경에 주입
   // launchd는 ~/.zshrc를 소싱하지 않으므로 EnvironmentVariables로 명시적으로 제공
-  const envPath = process.env.PATH || '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
+  const envPath = process.env.PATH || DEFAULT_ENV_PATH;
   const shell = process.env.SHELL || '/bin/bash';
   const programArgs = [shell, '-l', '-c', `export PATH="${envPath}"; ${cmd} run ${jobName}`];
 
@@ -90,9 +90,9 @@ ${intervalsXml}
         <string>${escapeXml(envPath)}</string>
     </dict>
     <key>StandardOutPath</key>
-    <string>${escapeXml(path.join(logDir, `${jobName}-launchd.log`))}</string>
+    <string>${escapeXml(path.join(LOGS_DIR, `${jobName}-launchd.log`))}</string>
     <key>StandardErrorPath</key>
-    <string>${escapeXml(path.join(logDir, `${jobName}-launchd.log`))}</string>
+    <string>${escapeXml(path.join(LOGS_DIR, `${jobName}-launchd.log`))}</string>
     <key>RunAtLoad</key>
     <false/>
     <key>X-DailyAgent-Schedule</key>

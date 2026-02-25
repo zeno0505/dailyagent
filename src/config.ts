@@ -9,6 +9,7 @@ export const JOBS_FILE = path.join(CONFIG_DIR, 'jobs.json');
 export const LOGS_DIR = path.join(CONFIG_DIR, 'logs');
 export const LOCKS_DIR = path.join(CONFIG_DIR, 'locks');
 export const PROMPTS_DIR = path.join(CONFIG_DIR, 'prompts');
+export const SCRIPTS_DIR = path.join(CONFIG_DIR, 'scripts');
 
 export const DEFAULT_CONFIG = {
   version: '2.0.0',
@@ -60,6 +61,7 @@ export async function ensureConfigDir(): Promise<void> {
   await fs.ensureDir(LOGS_DIR);
   await fs.ensureDir(LOCKS_DIR);
   await fs.ensureDir(PROMPTS_DIR);
+  await fs.ensureDir(SCRIPTS_DIR);
 }
 
 export async function loadConfig(): Promise<DailyAgentConfig | null> {

@@ -1,7 +1,8 @@
 import chalk from 'chalk';
 import fs from 'fs-extra';
-import { isInitialized, LOGS_DIR, loadConfig } from '../config.js';
-import { getJob } from '../jobs.js';
+import { LOGS_DIR } from '../config.js';
+import { formatDate } from '../utils/format.js';
+import { requireConfig, requireJob } from '../utils/validation.js';
 import { getWorkspace } from '../workspace.js';
 
 const DEFAULT_HISTORY_COUNT = 10;
@@ -11,17 +12,9 @@ interface StatusOptions {
 }
 
 export async function statusCommand(name: string, options: StatusOptions = {}): Promise<void> {
-  const config = await loadConfig();
-  if (!config || !isInitialized()) {
-    console.log(chalk.red('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.'));
-    process.exit(1);
-  }
+  const config = await requireConfig();
 
-  const job = await getJob(name);
-  if (!job) {
-    console.log(chalk.red(`작업 "${name}"을(를) 찾을 수 없습니다.`));
-    process.exit(1);
-  }
+  const job = await requireJob(name);
 
   const workspace = await getWorkspace(job.workspace || config.active_workspace || 'default');
   if (!workspace) {
@@ -60,11 +53,6 @@ export async function statusCommand(name: string, options: StatusOptions = {}): 
     }
   }
   console.log('');
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return chalk.gray('-');
-  return new Date(dateStr).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 }
 
 function formatStatus(status: string): string {
