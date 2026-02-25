@@ -67,7 +67,8 @@ export function installCronJob(jobName: string, schedule: string): void {
   // cron 환경의 제한된 PATH를 우회: 등록 시점의 PATH를 명시적으로 주입
   // zsh -l 단독으로는 ~/.zshrc가 소싱되지 않아 ~/.local/bin 등이 누락됨
   const envPath = process.env.PATH || '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
-  const cronLine = `${schedule} ${shell} -l -c "export PATH=${envPath}; ${cmd} run ${jobName}" >> ${logDir}/${jobName}-cron.log 2>&1 ${marker(jobName)}`;
+  const exportCmd = `export PATH="${envPath}"; ${cmd} run ${jobName}`;
+  const cronLine = `${schedule} ${shell} -l -c "${exportCmd}" >> ${logDir}/${jobName}-cron.log 2>&1 ${marker(jobName)}`;
 
   filtered.push(cronLine);
   writeCrontab(filtered);

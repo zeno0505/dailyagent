@@ -55,7 +55,7 @@ function generatePlist(jobName: string, schedule: string): string {
   // launchd는 ~/.zshrc를 소싱하지 않으므로 EnvironmentVariables로 명시적으로 제공
   const envPath = process.env.PATH || '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
   const shell = process.env.SHELL || '/bin/bash';
-  const programArgs = [shell, '-l', '-c', `${cmd} run ${jobName}`];
+  const programArgs = [shell, '-l', '-c', `export PATH="${envPath}"; ${cmd} run ${jobName}`];
 
   const programArgsXml = programArgs
     .map((arg) => `      <string>${escapeXml(arg)}</string>`)
