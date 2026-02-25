@@ -60,6 +60,14 @@ export async function registerCommand (): Promise<void> {
   const schedule = await input({
     message: 'Cron 스케줄 (후속 작업용, 예: 0 */5 * * *):',
     default: '0 */5 * * *',
+    validate: (val) => {
+      if (!val) return '스케줄을 입력해주세요.';
+      const parts = val.trim().split(/\s+/);
+      if (parts.length !== 5) return '5개 필드가 필요합니다 (분 시 일 월 요일)';
+      const allowed = /^[\d,\-*/]+$/;
+      if (!parts.every((p) => allowed.test(p))) return '허용 문자: 숫자, *, /, -, ,';
+      return true;
+    },
   });
 
   const timeout = await input({
