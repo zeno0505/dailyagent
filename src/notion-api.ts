@@ -3,10 +3,12 @@
  * 공식 @notionhq/client SDK를 사용하여 안정적인 Notion API 상호작용
  */
 
-import { Client } from '@notionhq/client';
+import { Client, isNotionClientError } from '@notionhq/client';
 import type {
   PageObjectResponse,
   BlockObjectResponse,
+  UpdatePageParameters,
+  BlockObjectRequest,
 } from '@notionhq/client/build/src/api-endpoints.js';
 
 import { resolveColumns } from './config.js';
@@ -55,8 +57,11 @@ async function checkPrerequisiteCompleted(
 
     return false;
   } catch (error) {
-    // 선행 작업 페이지를 찾을 수 없으면 완료된 것으로 간주
-    return true;
+    // 선행 작업 페이지를 찾을 수 없는 경우(404)에만 완료된 것으로 간주
+    if (isNotionClientError(error) && error.code === 'object_not_found') {
+      return true;
+    }
+    throw error;
   }
 }
 
@@ -175,10 +180,8 @@ export async function fetchPendingTask(
     return null;
   }
 
-  // 우선도 계산 및 정렬
-  validCandidates.sort((a, b) => {
-    return calculatePriority(a) - calculatePriority(b);
-  });
+  // 우선도 계산 및 정렬 (내림차순: 높은 우선도가 먼저)
+  validCandidates.sort((a, b) => calculatePriority(b) - calculatePriority(a));
 
   // 최우선 항목 선택
   const selectedCandidate = validCandidates[0];
@@ -209,40 +212,43 @@ export async function fetchPendingTask(
       case 'paragraph':
         if ('paragraph' in blockData && blockData.paragraph) {
           requirements += blockData.paragraph.rich_text.map((t) => t.plain_text).join('');
+          requirements += '\n';
         }
         break;
       case 'heading_1':
         if ('heading_1' in blockData && blockData.heading_1) {
           requirements += blockData.heading_1.rich_text.map((t) => t.plain_text).join('');
+          requirements += '\n';
         }
         break;
       case 'heading_2':
         if ('heading_2' in blockData && blockData.heading_2) {
           requirements += blockData.heading_2.rich_text.map((t) => t.plain_text).join('');
+          requirements += '\n';
         }
         break;
       case 'heading_3':
         if ('heading_3' in blockData && blockData.heading_3) {
           requirements += blockData.heading_3.rich_text.map((t) => t.plain_text).join('');
+          requirements += '\n';
         }
         break;
       case 'bulleted_list_item':
         if ('bulleted_list_item' in blockData && blockData.bulleted_list_item) {
-          requirements += blockData.bulleted_list_item.rich_text
-            .map((t) => `- ${t.plain_text}`)
-            .join('\n');
+          requirements += '- ' + blockData.bulleted_list_item.rich_text.map((t) => t.plain_text).join('');
+          requirements += '\n';
         }
         break;
       case 'numbered_list_item':
         if ('numbered_list_item' in blockData && blockData.numbered_list_item) {
-          requirements += blockData.numbered_list_item.rich_text
-            .map((t, index) => `${index + 1}. ${t.plain_text}`)
-            .join('\n');
+          requirements += '- ' + blockData.numbered_list_item.rich_text.map((t) => t.plain_text).join('');
+          requirements += '\n';
         }
         break;
       case 'code':
         if ('code' in blockData && blockData.code) {
           requirements += `\`\`\`${blockData.code.language}\n${blockData.code.rich_text.map((t) => t.plain_text).join('')}\n\`\`\``;
+          requirements += '\n';
         }
         break;
       case 'divider':
@@ -250,12 +256,14 @@ export async function fetchPendingTask(
         break;
       case 'to_do':
         if ('to_do' in blockData && blockData.to_do) {
-          requirements += blockData.to_do.rich_text.map((t) => t.plain_text).join('\n');
+          requirements += blockData.to_do.rich_text.map((t) => t.plain_text).join('');
+          requirements += '\n';
         }
         break;
       case 'quote':
         if ('quote' in blockData && blockData.quote) {
-          requirements += blockData.quote.rich_text.map((t) => `> ${t.plain_text}`).join('\n');
+          requirements += '> ' + blockData.quote.rich_text.map((t) => t.plain_text).join('');
+          requirements += '\n';
         }
         break;
       default:
@@ -269,15 +277,13 @@ export async function fetchPendingTask(
   const baseBranchProp = properties[columnBaseBranch];
 
   let taskTitle = '';
-  if (titleProp && 'title' in titleProp) {
-    const title = (titleProp as any).title;
-    taskTitle = title.map((t: any) => t.plain_text).join('');
+  if (titleProp?.type === 'title') {
+    taskTitle = titleProp.title.map((t) => t.plain_text).join('');
   }
 
   let baseBranch = '';
-  if (baseBranchProp && 'rich_text' in baseBranchProp) {
-    const richText = (baseBranchProp as any).rich_text;
-    baseBranch = richText.map((t: any) => t.plain_text).join('');
+  if (baseBranchProp?.type === 'rich_text') {
+    baseBranch = baseBranchProp.rich_text.map((t) => t.plain_text).join('');
   }
 
   return {
@@ -303,7 +309,7 @@ export async function updateNotionPage(
   // 속성 업데이트
   await client.pages.update({
     page_id: pageId,
-    properties: properties as any,
+    properties: properties as NonNullable<UpdatePageParameters['properties']>,
   });
 
   // 본문 내용 추가 (선택적)
@@ -314,35 +320,31 @@ export async function updateNotionPage(
       .map((line) => {
         if (line.trim() === '---') {
           return {
-            object: 'block',
-            type: 'divider',
+            type: 'divider' as const,
             divider: {},
           };
         }
         if (line.startsWith('# ')) {
           return {
-            object: 'block',
-            type: 'heading_1',
+            type: 'heading_1' as const,
             heading_1: {
-              rich_text: [{ type: 'text', text: { content: line.slice(2) } }],
+              rich_text: [{ type: 'text' as const, text: { content: line.slice(2) } }],
             },
           };
         } else if (line.startsWith('## ')) {
           return {
-            object: 'block',
-            type: 'heading_2',
+            type: 'heading_2' as const,
             heading_2: {
-              rich_text: [{ type: 'text', text: { content: line.slice(3) } }],
+              rich_text: [{ type: 'text' as const, text: { content: line.slice(3) } }],
             },
           };
         } else if (line.startsWith('**') && line.endsWith('**')) {
           return {
-            object: 'block',
-            type: 'paragraph',
+            type: 'paragraph' as const,
             paragraph: {
               rich_text: [
                 {
-                  type: 'text',
+                  type: 'text' as const,
                   text: { content: line.slice(2, -2) },
                   annotations: { bold: true },
                 },
@@ -351,10 +353,9 @@ export async function updateNotionPage(
           };
         } else {
           return {
-            object: 'block',
-            type: 'paragraph',
+            type: 'paragraph' as const,
             paragraph: {
-              rich_text: [{ type: 'text', text: { content: line } }],
+              rich_text: [{ type: 'text' as const, text: { content: line } }],
             },
           };
         }

@@ -54,5 +54,5 @@ export function parseRelationProperty(property: unknown): string[] | null {
   if (typeof property !== 'object' || !('relation' in property)) return null;
   const relation = (property as any).relation;
   if (!Array.isArray(relation)) return null;
-  return relation.map((item: any) => item.id);
+  return relation.map((item: { id: string }) => item.id);
 }
