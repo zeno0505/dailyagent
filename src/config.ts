@@ -38,6 +38,8 @@ export const DEFAULT_WORKSPACE_NOTION_CONFIG = {
   column_work_branch: '작업 브랜치',
   column_prerequisite: '선행 작업',
   column_created_time: '날짜',
+  column_review_count: '검토 횟수',
+  max_review_count: 3,
 } as const;
 
 export function resolveColumns(columns: ColumnConfig) {
@@ -52,6 +54,7 @@ export function resolveColumns(columns: ColumnConfig) {
     columnWorkBranch: columns.column_work_branch || DEFAULT_WORKSPACE_NOTION_CONFIG.column_work_branch,
     columnPrerequisite: columns.column_prerequisite || DEFAULT_WORKSPACE_NOTION_CONFIG.column_prerequisite,
     columnCreatedTime: columns.column_created_time || DEFAULT_WORKSPACE_NOTION_CONFIG.column_created_time,
+    columnReviewCount: columns.column_review_count || DEFAULT_WORKSPACE_NOTION_CONFIG.column_review_count,
   }
 }
 

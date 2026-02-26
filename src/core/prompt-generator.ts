@@ -298,6 +298,82 @@ export function generateReviewPrompt({ taskInfo }: { taskInfo: TaskInfo }): stri
 }
 
 /**
+ * 재검토: 기존 작업 브랜치를 체크아웃하여 코드 품질 재검토 후 수정·커밋·Push
+ */
+export function generateReviewTaskPrompt({ workDir, taskInfo }: { workDir: string; taskInfo: TaskInfo }): string {
+  const workBranch = taskInfo.work_branch || '';
+  const reviewCount = taskInfo.review_count ?? 0;
+
+  return `# 재검토: 코드 품질 검토 및 개선
+
+현재 작업 디렉토리: ${workDir}
+
+## 작업 정보
+\`\`\`json
+${JSON.stringify(taskInfo, null, 2)}
+\`\`\`
+
+## 목표
+이미 완료된 작업(${workBranch})을 재검토하여 코드 품질, 타입 안전성, lint 준수 여부를 점검하고
+문제가 있으면 수정하여 동일 브랜치에 Push합니다.
+현재 검토 횟수: ${reviewCount}회
+
+## 수행 단계
+
+### 1단계: 작업 브랜치 체크아웃
+${workDir} 디렉토리에서:
+1. 현재 브랜치 확인: \`git branch --show-current\`
+2. 작업 중인 변경사항이 있다면 stash
+3. 작업 브랜치로 전환: \`git checkout ${workBranch}\`
+4. 최신화: \`git pull origin ${workBranch}\`
+
+### 2단계: 코드 품질 검토
+다음 항목을 체계적으로 검토합니다:
+1. **타입 안전성**: TypeScript 타입 에러, any 남용, 타입 assertion 검토
+2. **Lint**: ESLint/Prettier 규칙 준수 여부 확인 (해당 도구가 있는 경우 실행)
+3. **로직 정확성**: 요구사항(requirements)에 맞게 구현되었는지 확인
+4. **사이드 이펙트**: 기존 코드에 미치는 영향 검토
+5. **코드 구조**: SOLID 원칙, 가독성, 유지보수성 검토
+6. **에러 처리**: 예외 상황 처리 여부 확인
+
+### 3단계: 문제 수정
+검토 중 발견된 문제를 수정합니다:
+1. 발견된 이슈를 우선순위 순으로 수정
+2. 수정 후 다시 검토하여 추가 문제가 없는지 확인
+3. 수정 사항이 있다면 커밋:
+   - \`git add <files>\`
+   - \`git commit -m "refactor: 코드 품질 개선 (${reviewCount + 1}차 검토)"\`
+
+### 4단계: Git Push
+수정 사항이 있는 경우:
+1. 원격 저장소에 Push: \`git push origin ${workBranch}\`
+2. Push 결과 확인
+
+## 결과 출력
+**반드시 아래 JSON 형식으로만 결과를 반환하세요. 다른 텍스트 없이 JSON만 출력**:
+\`\`\`json
+{
+  "branch_name": "${workBranch}",
+  "commits": [
+    { "hash": "커밋해시", "message": "커밋메시지" }
+  ],
+  "files_changed": ["수정된 파일1", "수정된 파일2"],
+  "summary": "검토 결과 요약 및 수정 사항",
+  "issues_found": ["발견된 이슈1", "발견된 이슈2"],
+  "pr_url": null,
+  "pr_skipped_reason": "재검토 단계에서는 PR을 생성하지 않습니다."
+}
+\`\`\`
+
+## 중요 주의사항
+1. API 키, 비밀번호, 토큰 등 민감한 정보는 절대 커밋하지 않음
+2. 모든 명령은 ${workDir} 디렉토리에서 실행
+3. 수정 사항이 없으면 commits와 files_changed는 빈 배열로 반환
+4. 커밋 메시지는 접두사(refactor, fix)와 한국어로 작성
+`;
+}
+
+/**
  * Phase 3: Notion 업데이트 + 결과 보고
  */
 export function generateFinishPrompt({ 

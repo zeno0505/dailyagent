@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import { confirm, input, password } from "@inquirer/prompts";
+import { confirm, input, number, password } from "@inquirer/prompts";
 import { NotionConfig } from "../types/config.js";
 import { DEFAULT_WORKSPACE_NOTION_CONFIG } from "../config.js";
 import path from 'path';
@@ -59,6 +59,7 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
   let column_work_branch: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_work_branch;
   let column_prerequisite: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_prerequisite;
   let column_created_time: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_created_time;
+  let column_review_count: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_review_count;
 
   if (!use_notion_template) {
     column_priority = await input({
@@ -101,7 +102,22 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
       message: '작업 일자 컬럼명:',
       default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_created_time,
     });
+    column_review_count = await input({
+      message: '검토 횟수 컬럼명:',
+      default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_review_count,
+    });
   }
+
+  const max_review_count = await number({
+    message: '자동 재검토 최대 횟수 (작업 대기 항목이 없을 때 검토 전 항목을 재검토하는 최대 횟수):',
+    default: DEFAULT_WORKSPACE_NOTION_CONFIG.max_review_count,
+    validate: (val) => {
+      if (val === undefined || val === null) return '숫자를 입력해주세요.';
+      if (val < 0) return '0 이상의 숫자를 입력해주세요.';
+      return true;
+    },
+  });
+
   return {
     use_api,
     column_priority,
@@ -114,6 +130,8 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
     column_work_branch,
     column_prerequisite,
     column_created_time,
+    column_review_count,
+    max_review_count: max_review_count ?? DEFAULT_WORKSPACE_NOTION_CONFIG.max_review_count,
     ...(database_url != null && { database_url }),
     ...(api_token != null && { api_token }),
     ...(datasource_id != null && { datasource_id }),
