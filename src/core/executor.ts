@@ -72,24 +72,23 @@ export async function executeJob (jobName: string): Promise<unknown> {
 
     // Notion API 사용 여부에 따라 분기
     if (workspace.notion.use_api && workspace.notion.api_token) {
-      // Notion API 직접 호출
-      await logger.info('Notion API를 사용하여 작업 조회');
+      // Notion SDK 사용
+      await logger.info('Notion SDK를 사용하여 작업 조회');
       console.log(chalk.gray('--------------------------------'));
-      console.log(chalk.gray('[Phase 1] Notion API 직접 호출'));
+      console.log(chalk.gray('[Phase 1] Notion SDK 호출'));
       console.log(chalk.gray('--------------------------------'));
 
       const apiToken = workspace.notion.api_token;
-      if (!apiToken) {
-        throw new Error('Notion API 토큰이 설정되지 않았습니다.');
-      }
-      const datasourceId = workspace.notion.datasource_id;
-      if (!datasourceId) {
-        throw new Error('Notion 데이터소스 ID가 설정되지 않았습니다.');
+
+      // database_id 우선, 없으면 datasource_id 사용 (하위 호환성)
+      const databaseId = workspace.notion.database_id || workspace.notion.datasource_id;
+      if (!databaseId) {
+        throw new Error('Notion 데이터베이스 ID가 설정되지 않았습니다.');
       }
 
       taskInfo = await fetchPendingTask(
         apiToken,
-        datasourceId,
+        databaseId,
         workspace.notion
       );
 
@@ -102,7 +101,8 @@ export async function executeJob (jobName: string): Promise<unknown> {
         return { no_tasks: true };
       }
 
-      await logger.info(`Phase 1 완료: ${JSON.stringify(taskInfo)}`);
+      const { page_url: _pageUrl, ...logSafeTaskInfo } = taskInfo;
+      await logger.info(`Phase 1 완료: ${JSON.stringify(logSafeTaskInfo)}`);
     } else {
       // MCP 사용 (기존 방식)
       await logger.info('MCP를 사용하여 작업 조회');
@@ -291,10 +291,10 @@ export async function executeJob (jobName: string): Promise<unknown> {
 
     // Notion API 사용 여부에 따라 분기
     if (workspace.notion.use_api && workspace.notion.api_token) {
-      // Notion API 직접 호출
-      await logger.info('Notion API를 사용하여 업데이트');
+      // Notion SDK 사용
+      await logger.info('Notion SDK를 사용하여 업데이트');
       console.log(chalk.gray('--------------------------------'));
-      console.log(chalk.gray('[Phase 3] Notion API 직접 호출'));
+      console.log(chalk.gray('[Phase 3] Notion SDK 호출'));
       console.log(chalk.gray('--------------------------------'));
 
       const isSuccess = workResult.success !== false && !workResult.error;
@@ -329,12 +329,8 @@ export async function executeJob (jobName: string): Promise<unknown> {
         ? `\n---\n\n## 자동화 작업 완료\n\n완료 시간: ${new Date().toISOString()}\n\n커밋 해시: ${workResult.commits?.[0]?.hash || ''}\n\nPR: ${workResult.pr_url || workResult.pr_skipped_reason || 'PR 정보 없음'}\n\n수행 작업 요약:\n${workResult.summary || ''}\n`
         : `\n---\n\n## 자동화 작업 실패\n\n실패 시간: ${new Date().toISOString()}\n\n에러 내용:\n${workResult.error || 'Unknown error'}\n`;
 
-      if (!workspace.notion.api_token) {
-        throw new Error('Notion API 토큰이 설정되지 않았습니다.');
-      }
-
       await updateNotionPage(
-        workspace.notion.api_token!,
+        workspace.notion.api_token,
         taskInfo.task_id!,
         properties,
         content
