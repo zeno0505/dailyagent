@@ -191,8 +191,8 @@ export async function fetchPendingTask(
     return null;
   }
 
-  // 우선도 계산 및 정렬 (내림차순: 높은 우선도가 먼저)
-  validCandidates.sort((a, b) => calculatePriority(b) - calculatePriority(a));
+  // 우선도 계산 및 정렬 (P1~P5 순으로 정렬되어야 함 -> 오름차순 정렬)
+  validCandidates.sort((a, b) => calculatePriority(a) - calculatePriority(b));
 
   // 최우선 항목 선택
   const selectedCandidate = validCandidates[0];
