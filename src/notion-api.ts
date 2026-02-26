@@ -8,7 +8,8 @@ import type {
   PageObjectResponse,
   BlockObjectResponse,
   UpdatePageParameters,
-} from '@notionhq/client/build/src/api-endpoints.js';
+  AppendBlockChildrenParameters,
+} from './types/notion-api.js';
 
 import { resolveColumns } from './config.js';
 import {
@@ -20,8 +21,15 @@ import {
 import { ColumnConfig } from './types/config.js';
 import { TaskInfo } from './types/core.js';
 
+let _cachedToken: string | undefined;
+let _cachedClient: Client | undefined;
+
 function createClient(apiToken: string): Client {
-  return new Client({ auth: apiToken });
+  if (_cachedToken !== apiToken || !_cachedClient) {
+    _cachedClient = new Client({ auth: apiToken });
+    _cachedToken = apiToken;
+  }
+  return _cachedClient;
 }
 
 interface TaskCandidate {
@@ -203,11 +211,15 @@ export async function fetchPendingTask(
       block_id: page.id,
       ...(cursor ? { start_cursor: cursor } : {}),
     });
-    allBlocks.push(...(blocksResponse.results as BlockObjectResponse[]));
+    const fullBlocks = blocksResponse.results.filter(
+      (block): block is BlockObjectResponse => 'type' in block
+    );
+    allBlocks.push(...fullBlocks);
     cursor = blocksResponse.has_more ? (blocksResponse.next_cursor ?? undefined) : undefined;
   } while (cursor);
 
   // 블록 내용을 텍스트로 변환
+  let numberedListIndex = 0;
   let requirements = '';
 
   for (const blockData of allBlocks) {
@@ -246,7 +258,8 @@ export async function fetchPendingTask(
         break;
       case 'numbered_list_item':
         if ('numbered_list_item' in blockData && blockData.numbered_list_item) {
-          requirements += '1. ' + blockData.numbered_list_item.rich_text.map((t) => t.plain_text).join('');
+          numberedListIndex++;
+          requirements += `${numberedListIndex}. ` + blockData.numbered_list_item.rich_text.map((t) => t.plain_text).join('');
           requirements += '\n';
         }
         break;
@@ -261,7 +274,8 @@ export async function fetchPendingTask(
         break;
       case 'to_do':
         if ('to_do' in blockData && blockData.to_do) {
-          requirements += blockData.to_do.rich_text.map((t) => t.plain_text).join('');
+          const checked = blockData.to_do.checked ? '[x]' : '[ ]';
+          requirements += `- ${checked} ` + blockData.to_do.rich_text.map((t) => t.plain_text).join('');
           requirements += '\n';
         }
         break;
@@ -368,7 +382,7 @@ export async function updateNotionPage(
 
     await client.blocks.children.append({
       block_id: pageId,
-      children: blocks as any,
+      children: blocks as AppendBlockChildrenParameters['children'],
     });
   }
 }

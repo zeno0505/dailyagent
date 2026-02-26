@@ -3,4 +3,10 @@
  * @notionhq/client SDK에서 제공하는 타입을 재사용합니다.
  */
 
-export type { BlockObjectResponse } from '@notionhq/client/build/src/api-endpoints.js';
+export type {
+  BlockObjectResponse,
+  PartialBlockObjectResponse,
+  PageObjectResponse,
+  UpdatePageParameters,
+  AppendBlockChildrenParameters,
+} from '@notionhq/client';
