@@ -305,8 +305,8 @@ export async function executeJob (jobName: string): Promise<unknown> {
       // 커스텀 모드에서는 Notion 업데이트 없음
       result = {
         success: workResult.success !== false && !workResult.error,
-        task_id: taskInfo.task_id,
-        task_title: taskInfo.task_title,
+        task_id: taskInfo.task_id || '',
+        task_title: taskInfo.task_title || '',
         branch_name: workResult.branch_name || '',
         commits: workResult.commits || [],
         files_changed: workResult.files_changed || [],
@@ -371,14 +371,14 @@ export async function executeJob (jobName: string): Promise<unknown> {
 
         result = {
           success: isSuccess,
-          task_id: taskInfo.task_id,
-          task_title: taskInfo.task_title,
-          branch_name: isSuccess ? workResult.branch_name : '',
-          commits: isSuccess ? workResult.commits : [],
-          files_changed: isSuccess ? workResult.files_changed : [],
-          pr_url: isSuccess ? workResult.pr_url : '',
-          pr_skipped_reason: isSuccess ? workResult.pr_skipped_reason : '',
-          summary: isSuccess ? workResult.summary : workResult.error,
+          task_id: taskInfo.task_id || '',
+          task_title: taskInfo.task_title || '',
+          branch_name: isSuccess ? (workResult.branch_name || '') : '',
+          commits: isSuccess ? (workResult.commits || []) : [],
+          files_changed: isSuccess ? (workResult.files_changed || []) : [],
+          pr_url: isSuccess ? (workResult.pr_url || '') : '',
+          pr_skipped_reason: isSuccess ? (workResult.pr_skipped_reason || '') : '',
+          summary: isSuccess ? (workResult.summary || '') : (workResult.error || ''),
           notion_updated: true,
         };
 
