@@ -8,7 +8,6 @@ import type {
   PageObjectResponse,
   BlockObjectResponse,
   UpdatePageParameters,
-  BlockObjectRequest,
 } from '@notionhq/client/build/src/api-endpoints.js';
 
 import { resolveColumns } from './config.js';
@@ -20,6 +19,10 @@ import {
 } from './utils/notion-api.js';
 import { ColumnConfig } from './types/config.js';
 import { TaskInfo } from './types/core.js';
+
+function createClient(apiToken: string): Client {
+  return new Client({ auth: apiToken });
+}
 
 interface TaskCandidate {
   page: PageObjectResponse;
@@ -82,7 +85,7 @@ export async function fetchPendingTask(
   databaseId: string,
   columns: ColumnConfig
 ): Promise<TaskInfo | null> {
-  const client = new Client({ auth: apiToken });
+  const client = createClient(apiToken);
 
   const {
     columnStatus,
@@ -191,21 +194,23 @@ export async function fetchPendingTask(
 
   const page = selectedCandidate.page;
 
-  // 페이지 블록 내용 조회
-  const blocksResponse = await client.blocks.children.list({
-    block_id: page.id,
-  });
+  // 페이지 블록 내용 조회 (페이지네이션 처리)
+  const allBlocks: BlockObjectResponse[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const blocksResponse = await client.blocks.children.list({
+      block_id: page.id,
+      ...(cursor ? { start_cursor: cursor } : {}),
+    });
+    allBlocks.push(...(blocksResponse.results as BlockObjectResponse[]));
+    cursor = blocksResponse.has_more ? (blocksResponse.next_cursor ?? undefined) : undefined;
+  } while (cursor);
 
   // 블록 내용을 텍스트로 변환
   let requirements = '';
 
-  for (const block of blocksResponse.results) {
-    // 블록 객체 타입 체크
-    const blockData = block as BlockObjectResponse;
-    if (!blockData.type) {
-      continue;
-    }
-
+  for (const blockData of allBlocks) {
     const blockType = blockData.type;
 
     switch (blockType) {
@@ -217,19 +222,19 @@ export async function fetchPendingTask(
         break;
       case 'heading_1':
         if ('heading_1' in blockData && blockData.heading_1) {
-          requirements += blockData.heading_1.rich_text.map((t) => t.plain_text).join('');
+          requirements += '# ' + blockData.heading_1.rich_text.map((t) => t.plain_text).join('');
           requirements += '\n';
         }
         break;
       case 'heading_2':
         if ('heading_2' in blockData && blockData.heading_2) {
-          requirements += blockData.heading_2.rich_text.map((t) => t.plain_text).join('');
+          requirements += '## ' + blockData.heading_2.rich_text.map((t) => t.plain_text).join('');
           requirements += '\n';
         }
         break;
       case 'heading_3':
         if ('heading_3' in blockData && blockData.heading_3) {
-          requirements += blockData.heading_3.rich_text.map((t) => t.plain_text).join('');
+          requirements += '### ' + blockData.heading_3.rich_text.map((t) => t.plain_text).join('');
           requirements += '\n';
         }
         break;
@@ -241,7 +246,7 @@ export async function fetchPendingTask(
         break;
       case 'numbered_list_item':
         if ('numbered_list_item' in blockData && blockData.numbered_list_item) {
-          requirements += '- ' + blockData.numbered_list_item.rich_text.map((t) => t.plain_text).join('');
+          requirements += '1. ' + blockData.numbered_list_item.rich_text.map((t) => t.plain_text).join('');
           requirements += '\n';
         }
         break;
@@ -304,7 +309,7 @@ export async function updateNotionPage(
   properties: Record<string, unknown>,
   content?: string
 ): Promise<void> {
-  const client = new Client({ auth: apiToken });
+  const client = createClient(apiToken);
 
   // 속성 업데이트
   await client.pages.update({
