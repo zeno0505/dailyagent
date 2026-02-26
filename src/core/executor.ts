@@ -64,14 +64,22 @@ export async function executeJob (jobName: string): Promise<unknown> {
 
   try {
     // ========================================
-    // Phase 1: Notion 조회 (model: sonnet, timeout: 5m)
+    // 커스텀 모드 처리: Phase 1, 3 스킵
     // ========================================
-    await logger.info('--- Phase 1: Notion 조회 시작 ---');
-    
+    const isCustomMode = job.prompt_mode === 'custom';
+
     let taskInfo: TaskInfo | null = null;
 
+    if (isCustomMode) {
+      await logger.info('커스텀 모드: Phase 1 (Notion 조회) 스킵');
+      // 커스텀 모드에서는 최소한의 taskInfo만 생성
+      taskInfo = {
+        task_id: jobName,
+        task_title: `Custom Job: ${jobName}`,
+      };
+    }
     // Notion API 사용 여부에 따라 분기
-    if (workspace.notion.use_api && workspace.notion.api_token) {
+    else if (workspace.notion.use_api && workspace.notion.api_token) {
       // Notion SDK 사용
       await logger.info('Notion SDK를 사용하여 작업 조회');
       console.log(chalk.gray('--------------------------------'));
@@ -104,55 +112,94 @@ export async function executeJob (jobName: string): Promise<unknown> {
       const { page_url: _pageUrl, ...logSafeTaskInfo } = taskInfo;
       await logger.info(`Phase 1 완료: ${JSON.stringify(logSafeTaskInfo)}`);
     } else {
-      // MCP 사용 (기존 방식)
-      await logger.info('MCP를 사용하여 작업 조회');
+      // ========================================
+      // Phase 1: Notion 조회 (model: sonnet, timeout: 5m)
+      // ========================================
+      await logger.info('--- Phase 1: Notion 조회 시작 ---');
 
+      // Notion API 사용 여부에 따라 분기
+      if (workspace.notion.use_api && workspace.notion.api_token) {
+        // Notion API 직접 호출
+        await logger.info('Notion API를 사용하여 작업 조회');
+        console.log(chalk.gray('--------------------------------'));
+        console.log(chalk.gray('[Phase 1] Notion API 직접 호출'));
+        console.log(chalk.gray('--------------------------------'));
 
-      const databaseUrl = workspace.notion.database_url;
-      if (!databaseUrl) {
-        throw new Error('Notion 데이터베이스 URL이 설정되지 않았습니다.');
-      }
+        const apiToken = workspace.notion.api_token;
+        if (!apiToken) {
+          throw new Error('Notion API 토큰이 설정되지 않았습니다.');
+        }
+        const datasourceId = workspace.notion.datasource_id;
+        if (!datasourceId) {
+          throw new Error('Notion 데이터소스 ID가 설정되지 않았습니다.');
+        }
 
-      const initPrompt = generateInitialPrompt({
-        databaseUrl: databaseUrl,
-        columns: workspace.notion,
-      });
-      console.log(chalk.gray('--------------------------------'));
-      console.log(chalk.gray('[Phase 1] 프롬프트:'));
-      console.log(chalk.gray(initPrompt));
-      console.log(chalk.gray('--------------------------------'));
+        taskInfo = await fetchPendingTask(
+          apiToken,
+          datasourceId,
+          workspace.notion
+        );
 
-      const initResult = await runAgent<TaskInfo>({
-        prompt: initPrompt,
-        workDir,
-        settingsFile,
-        timeout: '5m',
-        logger,
-        model: 'sonnet',
-      });
-      await logger.info(`Phase 1 완료: ${JSON.stringify(initResult)}`);
+        if (!taskInfo) {
+          await logger.info('작업 대기 항목 없음 — 조기 종료');
+          await updateJob(jobName, {
+            last_run: new Date().toISOString(),
+            last_status: null,
+          });
+          return { no_tasks: true };
+        }
 
-      // Phase 1 JSON 파싱 실패 체크
-      if (!initResult.result) {
-        throw new Error(`Phase 1 결과 파싱 실패: ${initResult.rawOutput}`);
-      }
+        await logger.info(`Phase 1 완료: ${JSON.stringify(taskInfo)}`);
+      } else {
+        // MCP 사용 (기존 방식)
+        await logger.info('MCP를 사용하여 작업 조회');
 
-      // 작업 대기 항목 없으면 조기 종료
-      if ('no_tasks' in initResult && initResult.no_tasks) {
-        await logger.info('작업 대기 항목 없음 — 조기 종료');
-        await updateJob(jobName, {
-          last_run: new Date().toISOString(),
-          last_status: null,
+        const databaseUrl = workspace.notion.database_url;
+        if (!databaseUrl) {
+          throw new Error('Notion 데이터베이스 URL이 설정되지 않았습니다.');
+        }
+
+        const initPrompt = generateInitialPrompt({
+          databaseUrl: databaseUrl,
+          columns: workspace.notion,
         });
-        return initResult;
+        console.log(chalk.gray('--------------------------------'));
+        console.log(chalk.gray('[Phase 1] 프롬프트:'));
+        console.log(chalk.gray(initPrompt));
+        console.log(chalk.gray('--------------------------------'));
+
+        const initResult = await runAgent<TaskInfo>({
+          prompt: initPrompt,
+          workDir,
+          settingsFile,
+          timeout: '5m',
+          logger,
+          model: 'sonnet',
+        });
+        await logger.info(`Phase 1 완료: ${JSON.stringify(initResult)}`);
+
+        // Phase 1 JSON 파싱 실패 체크
+        if (!initResult.result) {
+          throw new Error(`Phase 1 결과 파싱 실패: ${initResult.rawOutput}`);
+        }
+
+        // 작업 대기 항목 없으면 조기 종료
+        if ('no_tasks' in initResult && initResult.no_tasks) {
+          await logger.info('작업 대기 항목 없음 — 조기 종료');
+          await updateJob(jobName, {
+            last_run: new Date().toISOString(),
+            last_status: null,
+          });
+          return initResult;
+        }
+
+        taskInfo = initResult.result;
       }
 
-      taskInfo = initResult.result;
-    }
-
-    // taskInfo null 체크
-    if (!taskInfo) {
-      throw new Error('작업 정보를 가져올 수 없습니다.');
+      // taskInfo null 체크
+      if (!taskInfo) {
+        throw new Error('작업 정보를 가져올 수 없습니다.');
+      }
     }
 
     // ========================================
@@ -285,12 +332,14 @@ export async function executeJob (jobName: string): Promise<unknown> {
     // ========================================
     // Phase 3: Notion 업데이트 (model: sonnet, timeout: 5m)
     // ========================================
-    await logger.info('--- Phase 3: Notion 업데이트 시작 ---');
-    
     let result: unknown;
 
+    // 커스텀 모드에서는 Notion 업데이트 없음
+    if (isCustomMode) {
+      await logger.info('커스텀 모드: Phase 3 (Notion 업데이트) 스킵');
+    }
     // Notion API 사용 여부에 따라 분기
-    if (workspace.notion.use_api && workspace.notion.api_token) {
+    else if (workspace.notion.use_api && workspace.notion.api_token) {
       // Notion SDK 사용
       await logger.info('Notion SDK를 사용하여 업데이트');
       console.log(chalk.gray('--------------------------------'));
@@ -337,46 +386,113 @@ export async function executeJob (jobName: string): Promise<unknown> {
       );
 
       result = {
-        success: isSuccess,
-        task_id: taskInfo.task_id,
-        task_title: taskInfo.task_title,
-        branch_name: isSuccess ? workResult.branch_name : '',
-        commits: isSuccess ? workResult.commits : [],
-        files_changed: isSuccess ? workResult.files_changed : [],
-        pr_url: isSuccess ? workResult.pr_url : '',
-        pr_skipped_reason: isSuccess ? workResult.pr_skipped_reason : '',
-        summary: isSuccess ? workResult.summary : workResult.error,
-        notion_updated: true,
+        success: workResult.success !== false && !workResult.error,
+        task_id: taskInfo.task_id || '',
+        task_title: taskInfo.task_title || '',
+        branch_name: workResult.branch_name || '',
+        commits: workResult.commits || [],
+        files_changed: workResult.files_changed || [],
+        pr_url: workResult.pr_url || '',
+        pr_skipped_reason: workResult.pr_skipped_reason || '',
+        summary: workResult.summary || workResult.error || '',
+        notion_updated: false,
       };
-
-      await logger.info(`Phase 3 완료: ${JSON.stringify(result)}`);
     } else {
-      // MCP 사용 (기존 방식)
-      await logger.info('MCP를 사용하여 업데이트');
-      const databaseUrl = workspace.notion.database_url;
-      if (!databaseUrl) {
-        throw new Error('Notion 데이터베이스 URL이 설정되지 않았습니다.');
-      }
-      const finishPrompt = generateFinishPrompt({
-        databaseUrl: databaseUrl,
-        taskInfo,
-        workResult,
-        columns: workspace.notion,
-      });
-      console.log(chalk.gray('--------------------------------'));
-      console.log(chalk.gray('[Phase 3] 프롬프트:'));
-      console.log(chalk.gray(finishPrompt));
-      console.log(chalk.gray('--------------------------------'));
+      await logger.info('--- Phase 3: Notion 업데이트 시작 ---');
 
-      result = await runAgent({
-        prompt: finishPrompt,
-        workDir,
-        settingsFile,
-        timeout: '5m',
-        logger,
-        model: 'sonnet',
-      });
-      await logger.info(`Phase 3 완료: ${JSON.stringify(result)}`);
+      // Notion API 사용 여부에 따라 분기
+      if (workspace.notion.use_api && workspace.notion.api_token) {
+        // Notion API 직접 호출
+        await logger.info('Notion API를 사용하여 업데이트');
+        console.log(chalk.gray('--------------------------------'));
+        console.log(chalk.gray('[Phase 3] Notion API 직접 호출'));
+        console.log(chalk.gray('--------------------------------'));
+
+        const isSuccess = workResult.success !== false && !workResult.error;
+        const statusColumn = workspace.notion.column_status || '상태';
+        const workBranchColumn = workspace.notion.column_work_branch || '작업 브랜치';
+        const statusValue = isSuccess
+          ? workspace.notion.column_status_review || '검토 전'
+          : workspace.notion.column_status_error || '작업 실패';
+
+        const properties: Record<string, unknown> = {
+          [statusColumn]: {
+            status: {
+              name: statusValue,
+            },
+          },
+        };
+
+        if (isSuccess && workResult.branch_name) {
+          properties[workBranchColumn] = {
+            rich_text: [
+              {
+                type: 'text',
+                text: {
+                  content: workResult.branch_name,
+                },
+              },
+            ],
+          };
+        }
+
+        const content = isSuccess
+          ? `\n---\n\n## 자동화 작업 완료\n\n완료 시간: ${new Date().toISOString()}\n\n커밋 해시: ${workResult.commits?.[0]?.hash || ''}\n\nPR: ${workResult.pr_url || workResult.pr_skipped_reason || 'PR 정보 없음'}\n\n수행 작업 요약:\n${workResult.summary || ''}\n`
+          : `\n---\n\n## 자동화 작업 실패\n\n실패 시간: ${new Date().toISOString()}\n\n에러 내용:\n${workResult.error || 'Unknown error'}\n`;
+
+        if (!workspace.notion.api_token) {
+          throw new Error('Notion API 토큰이 설정되지 않았습니다.');
+        }
+
+        await updateNotionPage(
+          workspace.notion.api_token!,
+          taskInfo.task_id!,
+          properties,
+          content
+        );
+
+        result = {
+          success: isSuccess,
+          task_id: taskInfo.task_id || '',
+          task_title: taskInfo.task_title || '',
+          branch_name: isSuccess ? (workResult.branch_name || '') : '',
+          commits: isSuccess ? (workResult.commits || []) : [],
+          files_changed: isSuccess ? (workResult.files_changed || []) : [],
+          pr_url: isSuccess ? (workResult.pr_url || '') : '',
+          pr_skipped_reason: isSuccess ? (workResult.pr_skipped_reason || '') : '',
+          summary: isSuccess ? (workResult.summary || '') : (workResult.error || ''),
+          notion_updated: true,
+        };
+
+        await logger.info(`Phase 3 완료: ${JSON.stringify(result)}`);
+      } else {
+        // MCP 사용 (기존 방식)
+        await logger.info('MCP를 사용하여 업데이트');
+        const databaseUrl = workspace.notion.database_url;
+        if (!databaseUrl) {
+          throw new Error('Notion 데이터베이스 URL이 설정되지 않았습니다.');
+        }
+        const finishPrompt = generateFinishPrompt({
+          databaseUrl: databaseUrl,
+          taskInfo,
+          workResult,
+          columns: workspace.notion,
+        });
+        console.log(chalk.gray('--------------------------------'));
+        console.log(chalk.gray('[Phase 3] 프롬프트:'));
+        console.log(chalk.gray(finishPrompt));
+        console.log(chalk.gray('--------------------------------'));
+
+        result = await runAgent({
+          prompt: finishPrompt,
+          workDir,
+          settingsFile,
+          timeout: '5m',
+          logger,
+          model: 'sonnet',
+        });
+        await logger.info(`Phase 3 완료: ${JSON.stringify(result)}`);
+      }
     }
 
     // 7. Update job metadata
@@ -441,8 +557,7 @@ async function executePhase2Single(
     }
     const template = await fs.readFile(promptFile, 'utf8');
     workPrompt = template
-      .replace(/\{\{workDir\}\}/g, workDir)
-      .replace(/\{\{taskInfo\}\}/g, JSON.stringify(taskInfo, null, 2));
+      .replace(/\{\{workDir\}\}/g, workDir);
     await logger.info(`커스텀 프롬프트 사용: ${promptFile}`);
   } else {
     workPrompt = generateWorkPrompt({ workDir, taskInfo });

@@ -1,7 +1,13 @@
 import { spawnSync, type SpawnSyncReturns } from 'child_process';
+import { mkdirSync, rmSync, writeFileSync } from 'fs';
+import { homedir } from 'os';
 import { isCommandAvailable, resolveDailyagentCommand } from '../utils/process.js';
 
 const CRONTAB_MARKER = '# dailyagent:';
+const DEFAULT_PATH = '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
+const DAILYAGENT_HOME = `${homedir()}/.dailyagent`;
+const SCRIPTS_DIR = `${DAILYAGENT_HOME}/scripts`;
+const LOGS_DIR = `${DAILYAGENT_HOME}/logs`;
 
 function runCrontab(args: string[], input?: string): SpawnSyncReturns<string> {
   return spawnSync('crontab', args, {
@@ -51,6 +57,46 @@ function marker(jobName: string): string {
   return `${CRONTAB_MARKER}${jobName}`;
 }
 
+function escapeDoubleQuoted(value: string): string {
+  return value.replace(/(["\\$`])/g, '\\$1');
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function buildWrapperScript(jobName: string, cmd: string, envPath: string, logFile: string): string {
+  const safePath = escapeDoubleQuoted(envPath);
+  return [
+    '#!/bin/bash',
+    `export PATH="${safePath}"`,
+    `mkdir -p ${shellQuote(LOGS_DIR)}`,
+    `${cmd} run ${shellQuote(jobName)} >> ${shellQuote(logFile)} 2>&1`,
+    ''
+  ].join('\n');
+}
+
+function writeWrapperScript(jobName: string, cmd: string): string {
+  const envPath = (process.env.PATH || '')
+    .split(':')
+    .filter((part) => part && !part.startsWith('/mnt/'))
+    .join(':') || DEFAULT_PATH;
+
+  mkdirSync(SCRIPTS_DIR, { recursive: true });
+
+  const scriptPath = `${SCRIPTS_DIR}/${jobName}.sh`;
+  const logFile = `${LOGS_DIR}/${jobName}-cron.log`;
+  const scriptContent = buildWrapperScript(jobName, cmd, envPath, logFile);
+  writeFileSync(scriptPath, scriptContent, { mode: 0o755 });
+
+  return scriptPath;
+}
+
+function deleteWrapperScript(jobName: string): void {
+  const scriptPath = `${SCRIPTS_DIR}/${jobName}.sh`;
+  rmSync(scriptPath, { force: true });
+}
+
 /**
  * crontab에 job 스케줄을 등록합니다.
  */
@@ -61,14 +107,8 @@ export function installCronJob(jobName: string, schedule: string): void {
   const filtered = lines.filter((l) => !l.includes(marker(jobName)));
 
   const cmd = resolveDailyagentCommand();
-  const logDir = `$HOME/.dailyagent/logs`;
-  
-  const shell = process.env.SHELL || '/bin/bash';
-  // cron 환경의 제한된 PATH를 우회: 등록 시점의 PATH를 명시적으로 주입
-  // zsh -l 단독으로는 ~/.zshrc가 소싱되지 않아 ~/.local/bin 등이 누락됨
-  const envPath = process.env.PATH || '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
-  const exportCmd = `export PATH="${envPath}"; ${cmd} run ${jobName}`;
-  const cronLine = `${schedule} ${shell} -l -c "${exportCmd}" >> ${logDir}/${jobName}-cron.log 2>&1 ${marker(jobName)}`;
+  const scriptPath = writeWrapperScript(jobName, cmd);
+  const cronLine = `${schedule} /bin/bash ${scriptPath} ${marker(jobName)}`;
 
   filtered.push(cronLine);
   writeCrontab(filtered);
@@ -86,6 +126,7 @@ export function uninstallCronJob(jobName: string): void {
   }
 
   writeCrontab(filtered);
+  deleteWrapperScript(jobName);
 }
 
 /**
