@@ -51,9 +51,11 @@ function generatePlist(jobName: string, schedule: string): string {
   const logDir = path.join(os.homedir(), '.dailyagent', 'logs');
   const intervals = cronToCalendarInterval(schedule);
 
-  // 명령어를 공백으로 분리하여 ProgramArguments 배열 생성
-  const cmdParts = cmd.split(/\s+/);
-  const programArgs = [...cmdParts, 'run', jobName];
+  // 등록 시점의 PATH를 캡처하여 launchd 실행 환경에 주입
+  // launchd는 ~/.zshrc를 소싱하지 않으므로 EnvironmentVariables로 명시적으로 제공
+  const envPath = process.env.PATH || '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
+  const shell = process.env.SHELL || '/bin/bash';
+  const programArgs = [shell, '-l', '-c', `export PATH="${envPath}"; ${cmd} run ${jobName}`];
 
   const programArgsXml = programArgs
     .map((arg) => `      <string>${escapeXml(arg)}</string>`)
@@ -82,6 +84,11 @@ ${programArgsXml}
     <array>
 ${intervalsXml}
     </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>${escapeXml(envPath)}</string>
+    </dict>
     <key>StandardOutPath</key>
     <string>${escapeXml(path.join(logDir, `${jobName}-launchd.log`))}</string>
     <key>StandardErrorPath</key>
