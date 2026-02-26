@@ -101,12 +101,14 @@ export async function executeJob (jobName: string): Promise<unknown> {
       );
 
       if (!taskInfo) {
-        await logger.info('작업 대기 항목 없음 — 검토 전 항목 확인');
         const maxReviewCount = workspace.notion.max_review_count ?? DEFAULT_WORKSPACE_NOTION_CONFIG.max_review_count;
-        taskInfo = await fetchReviewTask(apiToken, databaseId, workspace.notion, maxReviewCount);
+        if (maxReviewCount > 0) {
+          await logger.info(`작업 대기 항목 없음 — 검토 전 항목 확인 (최대 ${maxReviewCount}회)`);
+          taskInfo = await fetchReviewTask(apiToken, databaseId, workspace.notion, maxReviewCount);
+        }
 
         if (!taskInfo) {
-          await logger.info('검토 전 항목도 없음 — 조기 종료');
+          await logger.info('작업 대기 항목 없음 — 조기 종료');
           await updateJob(jobName, {
             last_run: new Date().toISOString(),
             last_status: null,
@@ -214,7 +216,7 @@ export async function executeJob (jobName: string): Promise<unknown> {
     // Phase 2: 코드 작업 + Git Push
     // ========================================
     const phase2Mode = job.execution?.phase2_mode || 'single';
-    await logger.info(`--- Phase 2: 코드 작업 시작 (mode: ${phase2Mode}) ---`);
+    await logger.info(`--- Phase 2: 코드 작업 시작 (mode: ${taskInfo.is_review ? 'review' : phase2Mode}) ---`);
 
     let workResult: WorkResult;
 
