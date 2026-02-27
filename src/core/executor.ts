@@ -4,10 +4,11 @@ import { loadConfig, PROMPTS_DIR, DEFAULT_WORKSPACE_NOTION_CONFIG } from '../con
 import { getJob, updateJob, acquireLock, releaseLock } from '../jobs.js';
 import { getWorkspace } from '../workspace.js';
 import { Logger } from '../logger.js';
-import { generateInitialPrompt, generateWorkPrompt, generateFinishPrompt, generatePlanPrompt, generateImplementPrompt, generateReviewPrompt, generateReviewTaskPrompt } from './prompt-generator.js';
+import { generateInitialPrompt, generateWorkPrompt, generatePlanPrompt, generateImplementPrompt, generateReviewPrompt, generateReviewTaskPrompt } from './prompt-generator.js';
+import { executePhase3 } from './notion-updater.js';
 import chalk from 'chalk';
 import { TaskInfo, WorkResult, PlanResult, ImplResult } from '../types/core.js';
-import { fetchPendingTask, fetchReviewTask, incrementReviewCount, updateNotionPage } from '../notion-api.js';
+import { fetchPendingTask, fetchReviewTask } from '../notion-api.js';
 import { runClaude, runCursor } from './cli-runner.js';
 import { resolveSettingsFile, validateEnvironment } from '../utils/executor.js';
 import { sendSlackNotification } from '../slack/webhook.js';
@@ -346,209 +347,16 @@ export async function executeJob (jobName: string): Promise<unknown> {
     }
 
     // ========================================
-    // Phase 3: Notion 업데이트 (model: sonnet, timeout: 5m)
+    // Phase 3: Notion 업데이트
     // ========================================
     let result: unknown;
 
-    // 커스텀 모드에서는 Notion 업데이트 없음
     if (isCustomMode) {
       await logger.info('커스텀 모드: Phase 3 (Notion 업데이트) 스킵');
-    }
-    // Notion API 사용 여부에 따라 분기
-    else if (workspace.notion.use_api && workspace.notion.api_token) {
-      // Notion SDK 사용
-      await logger.info('Notion SDK를 사용하여 업데이트');
-      console.log(chalk.gray('--------------------------------'));
-      console.log(chalk.gray('[Phase 3] Notion SDK 호출'));
-      console.log(chalk.gray('--------------------------------'));
-
-      const isSuccess = workResult.success !== false && !workResult.error;
-
-      if (taskInfo.is_review) {
-        // ========================================
-        // 재검토 모드: 검토 횟수 증가, 상태는 성공 시 유지
-        // ========================================
-        const columnReviewCount = workspace.notion.column_review_count || DEFAULT_WORKSPACE_NOTION_CONFIG.column_review_count;
-        const currentReviewCount = taskInfo.review_count ?? 0;
-
-        const reviewProperties: Record<string, unknown> = {};
-        if (!isSuccess) {
-          const statusColumn = workspace.notion.column_status || '상태';
-          reviewProperties[statusColumn] = {
-            status: { name: workspace.notion.column_status_error || '작업 실패' },
-          };
-        }
-
-        const reviewContent = isSuccess
-          ? `\n---\n\n## ${currentReviewCount + 1}차 자동 재검토 완료\n\n검토 시간: ${new Date().toISOString()}\n\n커밋 해시: ${workResult.commits?.[0]?.hash || '변경 없음'}\n\n검토 결과 요약:\n${workResult.summary || ''}\n`
-          : `\n---\n\n## ${currentReviewCount + 1}차 자동 재검토 실패\n\n실패 시간: ${new Date().toISOString()}\n\n에러 내용:\n${workResult.error || 'Unknown error'}\n`;
-
-        await incrementReviewCount(workspace.notion.api_token, taskInfo.task_id!, columnReviewCount, currentReviewCount);
-        await updateNotionPage(workspace.notion.api_token, taskInfo.task_id!, reviewProperties, reviewContent);
-
-        result = {
-          success: isSuccess,
-          task_id: taskInfo.task_id || '',
-          task_title: taskInfo.task_title || '',
-          branch_name: workResult.branch_name || '',
-          commits: workResult.commits || [],
-          files_changed: workResult.files_changed || [],
-          pr_url: workResult.pr_url || '',
-          pr_skipped_reason: workResult.pr_skipped_reason || '',
-          summary: workResult.summary || workResult.error || '',
-          notion_updated: true,
-        };
-      } else {
-        // ========================================
-        // 일반 모드: 상태 업데이트
-        // ========================================
-        const statusColumn = workspace.notion.column_status || '상태';
-        const workBranchColumn = workspace.notion.column_work_branch || '작업 브랜치';
-        const statusValue = isSuccess
-          ? workspace.notion.column_status_review || '검토 전'
-          : workspace.notion.column_status_error || '작업 실패';
-
-        const properties: Record<string, unknown> = {
-          [statusColumn]: {
-            status: {
-              name: statusValue,
-            },
-          },
-        };
-
-        if (isSuccess && workResult.branch_name) {
-          properties[workBranchColumn] = {
-            rich_text: [
-              {
-                type: 'text',
-                text: {
-                  content: workResult.branch_name,
-                },
-              },
-            ],
-          };
-        }
-
-        const content = isSuccess
-          ? `\n---\n\n## 자동화 작업 완료\n\n완료 시간: ${new Date().toISOString()}\n\n커밋 해시: ${workResult.commits?.[0]?.hash || ''}\n\nPR: ${workResult.pr_url || workResult.pr_skipped_reason || 'PR 정보 없음'}\n\n수행 작업 요약:\n${workResult.summary || ''}\n`
-          : `\n---\n\n## 자동화 작업 실패\n\n실패 시간: ${new Date().toISOString()}\n\n에러 내용:\n${workResult.error || 'Unknown error'}\n`;
-
-        await updateNotionPage(
-          workspace.notion.api_token,
-          taskInfo.task_id!,
-          properties,
-          content
-        );
-
-        result = {
-          success: workResult.success !== false && !workResult.error,
-          task_id: taskInfo.task_id || '',
-          task_title: taskInfo.task_title || '',
-          branch_name: workResult.branch_name || '',
-          commits: workResult.commits || [],
-          files_changed: workResult.files_changed || [],
-          pr_url: workResult.pr_url || '',
-          pr_skipped_reason: workResult.pr_skipped_reason || '',
-          summary: workResult.summary || workResult.error || '',
-          notion_updated: false,
-        };
-      }
     } else {
       await logger.info('--- Phase 3: Notion 업데이트 시작 ---');
-
-      // Notion API 사용 여부에 따라 분기
-      if (workspace.notion.use_api && workspace.notion.api_token) {
-        // Notion API 직접 호출
-        await logger.info('Notion API를 사용하여 업데이트');
-        console.log(chalk.gray('--------------------------------'));
-        console.log(chalk.gray('[Phase 3] Notion API 직접 호출'));
-        console.log(chalk.gray('--------------------------------'));
-
-        const isSuccess = workResult.success !== false && !workResult.error;
-        const statusColumn = workspace.notion.column_status || '상태';
-        const workBranchColumn = workspace.notion.column_work_branch || '작업 브랜치';
-        const statusValue = isSuccess
-          ? workspace.notion.column_status_review || '검토 전'
-          : workspace.notion.column_status_error || '작업 실패';
-
-        const properties: Record<string, unknown> = {
-          [statusColumn]: {
-            status: {
-              name: statusValue,
-            },
-          },
-        };
-
-        if (isSuccess && workResult.branch_name) {
-          properties[workBranchColumn] = {
-            rich_text: [
-              {
-                type: 'text',
-                text: {
-                  content: workResult.branch_name,
-                },
-              },
-            ],
-          };
-        }
-
-        const content = isSuccess
-          ? `\n---\n\n## 자동화 작업 완료\n\n완료 시간: ${new Date().toISOString()}\n\n커밋 해시: ${workResult.commits?.[0]?.hash || ''}\n\nPR: ${workResult.pr_url || workResult.pr_skipped_reason || 'PR 정보 없음'}\n\n수행 작업 요약:\n${workResult.summary || ''}\n`
-          : `\n---\n\n## 자동화 작업 실패\n\n실패 시간: ${new Date().toISOString()}\n\n에러 내용:\n${workResult.error || 'Unknown error'}\n`;
-
-        if (!workspace.notion.api_token) {
-          throw new Error('Notion API 토큰이 설정되지 않았습니다.');
-        }
-
-        await updateNotionPage(
-          workspace.notion.api_token!,
-          taskInfo.task_id!,
-          properties,
-          content
-        );
-
-        result = {
-          success: isSuccess,
-          task_id: taskInfo.task_id || '',
-          task_title: taskInfo.task_title || '',
-          branch_name: isSuccess ? (workResult.branch_name || '') : '',
-          commits: isSuccess ? (workResult.commits || []) : [],
-          files_changed: isSuccess ? (workResult.files_changed || []) : [],
-          pr_url: isSuccess ? (workResult.pr_url || '') : '',
-          pr_skipped_reason: isSuccess ? (workResult.pr_skipped_reason || '') : '',
-          summary: isSuccess ? (workResult.summary || '') : (workResult.error || ''),
-          notion_updated: true,
-        };
-
-        await logger.info(`Phase 3 완료: ${JSON.stringify(result)}`);
-      } else {
-        // MCP 사용 (기존 방식)
-        await logger.info('MCP를 사용하여 업데이트');
-        const databaseUrl = workspace.notion.database_url;
-        if (!databaseUrl) {
-          throw new Error('Notion 데이터베이스 URL이 설정되지 않았습니다.');
-        }
-        const finishPrompt = generateFinishPrompt({
-          databaseUrl: databaseUrl,
-          taskInfo,
-          workResult,
-          columns: workspace.notion,
-        });
-        console.log(chalk.gray('--------------------------------'));
-        console.log(chalk.gray('[Phase 3] 프롬프트:'));
-        console.log(chalk.gray(finishPrompt));
-        console.log(chalk.gray('--------------------------------'));
-
-        result = await runAgent({
-          prompt: finishPrompt,
-          workDir,
-          settingsFile,
-          timeout: '5m',
-          logger,
-          model: 'sonnet',
-        });
-        await logger.info(`Phase 3 완료: ${JSON.stringify(result)}`);
-      }
+      result = await executePhase3(runAgent, taskInfo, workResult, workspace, workDir, settingsFile, logger);
+      await logger.info(`Phase 3 완료: ${JSON.stringify(result)}`);
     }
 
     // 7. Update job metadata
