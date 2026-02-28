@@ -449,7 +449,7 @@ async function executeReviewPhase(
       prompt: reviewPrompt,
       workDir,
       settingsFile,
-      timeout: String(job.timeout || '30m'),
+      timeout: job.timeout || '30m',
       logger,
       model: job.model,
     });
