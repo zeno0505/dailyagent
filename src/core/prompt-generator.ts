@@ -257,6 +257,7 @@ ${JSON.stringify(planResult, null, 2)}
  * 구현된 코드의 품질 검토, 사이드이펙트 확인, Git Push 및 PR 생성
  */
 export function generateReviewPrompt({ taskInfo }: { taskInfo: TaskInfo }): string {
+  const ctx = sanitizeTaskContext(taskInfo);
   return `# Phase 2-3: 구현 결과 검토 및 Git Push
 
 ## 목표
@@ -287,8 +288,8 @@ export function generateReviewPrompt({ taskInfo }: { taskInfo: TaskInfo }): stri
    - \`pr_skipped_reason\`에 "gh CLI가 설치되어 있지 않습니다."로 설정
 3. \`gh\` CLI가 설치되어 있는 경우:
    - 인증 상태 확인: \`gh auth status\`
-   - 인증된 경우 base 브랜치(\`${taskInfo.base_branch || 'main'}\`)를 대상으로 Draft PR 생성
-   - \`gh pr create --draft --base ${taskInfo.base_branch || 'main'} --title "<작업 제목>" --body "<작업 요약>"\`
+   - 인증된 경우 base 브랜치(\`${ctx.base_branch || 'main'}\`)를 대상으로 Draft PR 생성
+   - \`gh pr create --draft --base ${ctx.base_branch || 'main'} --title "<작업 제목>" --body "<작업 요약>"\`
    - PR 생성에 실패해도 오류를 발생시키지 않고 \`pr_skipped_reason\`에 실패 이유를 설정
 
 ## 결과 출력
@@ -466,14 +467,14 @@ ${isSuccess ? `**성공 케이스 - 속성 업데이트:**
 \`\`\`json
 {
   "success": ${isSuccess},
-  "task_id": "${taskInfo.task_id || ''}",
-  "task_title": "${taskInfo.task_title || ''}",
-  "branch_name": "${isSuccess ? (workResult.branch_name || '') : ''}",
+  "task_id": ${JSON.stringify(taskInfo.task_id || '')},
+  "task_title": ${JSON.stringify(taskInfo.task_title || '')},
+  "branch_name": ${JSON.stringify(isSuccess ? (workResult.branch_name || '') : '')},
   "commits": ${isSuccess ? JSON.stringify(workResult.commits || []) : '[]'},
   "files_changed": ${isSuccess ? JSON.stringify(workResult.files_changed || []) : '[]'},
-  "pr_url": "${isSuccess ? (workResult.pr_url || '') : ''}",
-  "pr_skipped_reason": "${isSuccess ? (workResult.pr_skipped_reason || '') : ''}",
-  "summary": "${isSuccess ? (workResult.summary || '') : (workResult.error || '')}",
+  "pr_url": ${JSON.stringify(isSuccess ? (workResult.pr_url || '') : '')},
+  "pr_skipped_reason": ${JSON.stringify(isSuccess ? (workResult.pr_skipped_reason || '') : '')},
+  "summary": ${JSON.stringify(isSuccess ? (workResult.summary || '') : (workResult.error || ''))},
   "notion_updated": true
 }
 \`\`\`
