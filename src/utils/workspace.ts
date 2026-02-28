@@ -24,10 +24,10 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
     validate: (val) => (val.length > 0 ? true : 'API 토큰을 입력해주세요.'),
   });
   const database_id = await input({
-    message: 'Notion 데이터베이스 ID:',
+    message: 'Notion 데이터베이스 ID (32자 UUID):',
     validate: (val) => (val.length > 0 ? true : '데이터베이스 ID를 입력해주세요.'),
   });
-   
+
   const use_notion_template = await confirm({
     message: 'Notion 템플릿을 그대로 사용하시겠습니까? (미사용 시 컬럼명을 직접 입력합니다.)',
     default: true,

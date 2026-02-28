@@ -148,14 +148,14 @@ export async function executePhase3(
   workspace: Workspace,
   logger: Logger
 ): Promise<unknown> {
-  const api_token = workspace.notion.api_token;
-  if (!api_token) {
+  const apiToken = workspace.notion.api_token;
+  if (!apiToken) {
     throw new Error('Notion API 토큰이 설정되지 않았습니다.');
   }
 
   if (taskInfo.is_review) {
-    return updateNotionForReview(api_token, taskInfo, workResult, workspace.notion, logger);
+    return updateNotionForReview(apiToken, taskInfo, workResult, workspace.notion, logger);
   } else {
-    return updateNotionForNormal(api_token, taskInfo, workResult, workspace.notion, logger);
+    return updateNotionForNormal(apiToken, taskInfo, workResult, workspace.notion, logger);
   }
 }
