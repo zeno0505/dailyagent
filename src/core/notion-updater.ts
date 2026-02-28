@@ -4,17 +4,14 @@
  * executor.ts의 Phase 3 로직을 분리하여 유지보수성을 높입니다.
  * - 재검토 모드와 일반 모드의 공통 result 빌더 제공
  * - notion_updated 플래그를 항상 true로 통일 (실제 업데이트가 이루어졌을 때)
- * - SDK 경로(use_api=true)와 MCP 경로(use_api=false) 분기 처리
+ * - Notion SDK를 통해 업데이트 수행
  */
 
-import { TaskInfo, WorkResult, FinishResult, RunnerOptions } from '../types/core.js';
+import { TaskInfo, WorkResult, FinishResult } from '../types/core.js';
 import { NotionConfig, Workspace } from '../types/config.js';
 import { DEFAULT_WORKSPACE_NOTION_CONFIG } from '../config.js';
 import { incrementReviewCount, updateNotionPage } from '../notion-api.js';
-import { generateFinishPrompt } from './prompt-generator.js';
 import { Logger } from '../logger.js';
-
-type RunAgentFn = (options: RunnerOptions) => Promise<unknown>;
 
 /**
  * Phase 3에서 반환할 공통 result 객체를 생성합니다.
@@ -141,74 +138,24 @@ export async function updateNotionForNormal(
 }
 
 /**
- * MCP 경로 Notion 업데이트
- *
- * generateFinishPrompt를 통해 LLM이 Notion MCP 도구를 호출하도록 합니다.
- */
-export async function updateNotionViaMcp(
-  runAgent: RunAgentFn,
-  taskInfo: TaskInfo,
-  workResult: WorkResult,
-  workspace: Workspace,
-  workDir: string,
-  settingsFile: string | undefined,
-  logger: Logger
-): Promise<unknown> {
-  const databaseUrl = workspace.notion.database_url;
-  if (!databaseUrl) {
-    throw new Error('Notion 데이터베이스 URL이 설정되지 않았습니다.');
-  }
-
-  const finishPrompt = generateFinishPrompt({
-    databaseUrl,
-    taskInfo,
-    workResult,
-    columns: workspace.notion,
-  });
-
-  await logger.info('MCP를 사용하여 Notion 업데이트');
-  return runAgent({
-    prompt: finishPrompt,
-    workDir,
-    settingsFile,
-    timeout: '5m',
-    logger,
-    model: 'sonnet',
-  });
-}
-
-/**
  * Phase 3 통합 진입점
  *
- * Notion 업데이트 방식(SDK/MCP)과 실행 모드(재검토/일반)를 판별하여
- * 적절한 업데이트 함수로 위임합니다.
+ * 실행 모드(재검토/일반)를 판별하여 적절한 SDK 업데이트 함수로 위임합니다.
  */
 export async function executePhase3(
-  runAgent: RunAgentFn,
   taskInfo: TaskInfo,
   workResult: WorkResult,
   workspace: Workspace,
-  workDir: string,
-  settingsFile: string | undefined,
   logger: Logger
 ): Promise<unknown> {
-  const { api_token, use_api } = workspace.notion;
+  const api_token = workspace.notion.api_token;
+  if (!api_token) {
+    throw new Error('Notion API 토큰이 설정되지 않았습니다.');
+  }
 
-  if (use_api && api_token) {
-    if (taskInfo.is_review) {
-      return updateNotionForReview(api_token, taskInfo, workResult, workspace.notion, logger);
-    } else {
-      return updateNotionForNormal(api_token, taskInfo, workResult, workspace.notion, logger);
-    }
+  if (taskInfo.is_review) {
+    return updateNotionForReview(api_token, taskInfo, workResult, workspace.notion, logger);
   } else {
-    return updateNotionViaMcp(
-      runAgent,
-      taskInfo,
-      workResult,
-      workspace,
-      workDir,
-      settingsFile,
-      logger
-    );
+    return updateNotionForNormal(api_token, taskInfo, workResult, workspace.notion, logger);
   }
 }

@@ -22,11 +22,7 @@ export async function workspaceListCommand(): Promise<void> {
     const isActive = ws.name === active?.name;
     const indicator = isActive ? chalk.green('●') : ' ';
     const name = isActive ? chalk.cyan(ws.name) : ws.name;
-    const dbInfo = ws.notion?.database_url
-      ? `(${ws.notion.database_url.substring(0, 50)}...)`
-      : ws.notion?.api_token
-      ? '(Notion API)'
-      : '(미설정)';
+    const dbInfo = ws.notion?.api_token ? '(Notion API)' : '(미설정)';
 
     console.log(`  ${indicator} ${name} ${chalk.gray(dbInfo)}`);
   });

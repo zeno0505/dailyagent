@@ -4,7 +4,7 @@ import { loadConfig, PROMPTS_DIR, DEFAULT_WORKSPACE_NOTION_CONFIG } from '../con
 import { getJob, updateJob, acquireLock, releaseLock } from '../jobs.js';
 import { getWorkspace } from '../workspace.js';
 import { Logger } from '../logger.js';
-import { generateInitialPrompt, generateWorkPrompt, generatePlanPrompt, generateImplementPrompt, generateReviewPrompt, generateReviewTaskPrompt } from './prompt-generator.js';
+import { generateWorkPrompt, generatePlanPrompt, generateImplementPrompt, generateReviewPrompt, generateReviewTaskPrompt } from './prompt-generator.js';
 import { executePhase3 } from './notion-updater.js';
 import chalk from 'chalk';
 import { TaskInfo, WorkResult, PlanResult, ImplResult } from '../types/core.js';
@@ -79,15 +79,19 @@ export async function executeJob (jobName: string): Promise<unknown> {
         task_title: `Custom Job: ${jobName}`,
       };
     }
-    // Notion API 사용 여부에 따라 분기
-    else if (workspace.notion.use_api && workspace.notion.api_token) {
-      // Notion SDK 사용
-      await logger.info('Notion SDK를 사용하여 작업 조회');
+    // ========================================
+    // Phase 1: Notion SDK로 작업 조회
+    // ========================================
+    else {
+      await logger.info('--- Phase 1: Notion 조회 시작 ---');
       console.log(chalk.gray('--------------------------------'));
       console.log(chalk.gray('[Phase 1] Notion SDK 호출'));
       console.log(chalk.gray('--------------------------------'));
 
       const apiToken = workspace.notion.api_token;
+      if (!apiToken) {
+        throw new Error('Notion API 토큰이 설정되지 않았습니다.');
+      }
 
       // database_id 우선, 없으면 datasource_id 사용 (하위 호환성)
       const databaseId = workspace.notion.database_id || workspace.notion.datasource_id;
@@ -122,60 +126,6 @@ export async function executeJob (jobName: string): Promise<unknown> {
 
       const { page_url: _pageUrl, ...logSafeTaskInfo } = taskInfo;
       await logger.info(`Phase 1 완료: ${JSON.stringify(logSafeTaskInfo)}`);
-    } else {
-      // ========================================
-      // Phase 1: Notion 조회 (model: sonnet, timeout: 5m)
-      // ========================================
-      await logger.info('--- Phase 1: Notion 조회 시작 ---');
-
-      // MCP 사용 (기존 방식)
-      await logger.info('MCP를 사용하여 작업 조회');
-
-      const databaseUrl = workspace.notion.database_url;
-      if (!databaseUrl) {
-        throw new Error('Notion 데이터베이스 URL이 설정되지 않았습니다.');
-      }
-
-      const initPrompt = generateInitialPrompt({
-        databaseUrl: databaseUrl,
-        columns: workspace.notion,
-      });
-      console.log(chalk.gray('--------------------------------'));
-      console.log(chalk.gray('[Phase 1] 프롬프트:'));
-      console.log(chalk.gray(initPrompt));
-      console.log(chalk.gray('--------------------------------'));
-
-      const initResult = await runAgent<TaskInfo>({
-        prompt: initPrompt,
-        workDir,
-        settingsFile,
-        timeout: '5m',
-        logger,
-        model: 'sonnet',
-      });
-      await logger.info(`Phase 1 완료: ${JSON.stringify(initResult)}`);
-
-      // Phase 1 JSON 파싱 실패 체크
-      if (!initResult.result) {
-        throw new Error(`Phase 1 결과 파싱 실패: ${initResult.rawOutput}`);
-      }
-
-      // 작업 대기 항목 없으면 조기 종료
-      if ('no_tasks' in initResult && initResult.no_tasks) {
-        await logger.info('작업 대기 항목 없음 — 조기 종료');
-        await updateJob(jobName, {
-          last_run: new Date().toISOString(),
-          last_status: null,
-        });
-        return initResult;
-      }
-
-      taskInfo = initResult.result;
-
-      // taskInfo null 체크
-      if (!taskInfo) {
-        throw new Error('작업 정보를 가져올 수 없습니다.');
-      }
     }
 
     // ========================================
@@ -320,7 +270,7 @@ export async function executeJob (jobName: string): Promise<unknown> {
       await logger.info('커스텀 모드: Phase 3 (Notion 업데이트) 스킵');
     } else {
       await logger.info('--- Phase 3: Notion 업데이트 시작 ---');
-      result = await executePhase3(runAgent, taskInfo, workResult, workspace, workDir, settingsFile, logger);
+      result = await executePhase3(taskInfo, workResult, workspace, logger);
       await logger.info(`Phase 3 완료: ${JSON.stringify(result)}`);
     }
 
