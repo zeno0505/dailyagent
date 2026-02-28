@@ -4,8 +4,6 @@
  */
 
 export type {
-  BlockObjectResponse,
-  PartialBlockObjectResponse,
   PageObjectResponse,
   UpdatePageParameters,
   AppendBlockChildrenParameters,

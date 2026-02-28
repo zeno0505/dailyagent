@@ -42,6 +42,10 @@ export interface TaskInfo {
    */
   base_branch?: string;
   /**
+   * 작업 브랜치 (검토 태스크에서 사용)
+   */
+  work_branch?: string;
+  /**
    * 요구사항
    */
   requirements?: string;
@@ -49,6 +53,14 @@ export interface TaskInfo {
    * 페이지 URL
    */
   page_url?: string;
+  /**
+   * 현재 검토 횟수 (검토 태스크에서 사용)
+   */
+  review_count?: number;
+  /**
+   * 검토 모드 여부
+   */
+  is_review?: boolean;
 }
 
 

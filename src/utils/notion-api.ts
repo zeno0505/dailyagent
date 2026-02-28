@@ -62,3 +62,29 @@ export function parseRelationProperty(property: unknown): string[] | null {
   if (!Array.isArray(relation)) return null;
   return relation.map((item: { id: string }) => item.id);
 }
+
+/**
+ * Notion Number 타입을 파싱합니다.
+ * @param property Notion 속성
+ * @returns 설정된 Number 타입의 값 또는 null
+ */
+export function parseNumberProperty(property: unknown): number | null {
+  if (!property || typeof property !== 'object') return null;
+  if (!('number' in property)) return null;
+  const { number } = property as { number: unknown };
+  if (typeof number !== 'number') return null;
+  return number;
+}
+
+/**
+ * Notion Rich Text 타입을 파싱합니다.
+ * @param property Notion 속성
+ * @returns 설정된 Rich Text 타입의 텍스트 또는 null
+ */
+export function parseRichTextProperty(property: unknown): string | null {
+  if (!property || typeof property !== 'object') return null;
+  if (!('rich_text' in property)) return null;
+  const { rich_text } = property as { rich_text: unknown };
+  if (!Array.isArray(rich_text)) return null;
+  return rich_text.map((t: { plain_text: string }) => t.plain_text).join('');
+}

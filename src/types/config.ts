@@ -9,6 +9,7 @@ export interface ColumnConfig {
   column_work_branch?: string;
   column_prerequisite?: string;
   column_created_time?: string;
+  column_review_count?: string;
 }
 
 export interface NotionConfig extends ColumnConfig {
@@ -18,6 +19,10 @@ export interface NotionConfig extends ColumnConfig {
    * - false: MCP 사용 (기본값)
    */
   use_api?: boolean;
+  /**
+   * 자동 재검토 최대 횟수 (기본값: 3)
+   */
+  max_review_count?: number;
   /**
    * (use_api가 false일 때 사용)
    * Notion 데이터베이스 URL

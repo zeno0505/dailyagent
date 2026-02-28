@@ -4,9 +4,9 @@
  */
 
 import { Client, isNotionClientError } from '@notionhq/client';
+import { NotionToMarkdown } from 'notion-to-md';
 import type {
   PageObjectResponse,
-  BlockObjectResponse,
   UpdatePageParameters,
   AppendBlockChildrenParameters,
 } from './types/notion-api.js';
@@ -17,19 +17,33 @@ import {
   parseStatusProperty,
   parseDateProperty,
   parseRelationProperty,
+  parseNumberProperty,
+  parseRichTextProperty,
 } from './utils/notion-api.js';
 import { ColumnConfig } from './types/config.js';
 import { TaskInfo } from './types/core.js';
 
 let _cachedToken: string | undefined;
 let _cachedClient: Client | undefined;
+let _cachedN2m: NotionToMarkdown | undefined;
 
-function createClient(apiToken: string): Client {
-  if (_cachedToken !== apiToken || !_cachedClient) {
+function createClient(apiToken: string): { client: Client; n2m: NotionToMarkdown } {
+  if (_cachedToken !== apiToken || !_cachedClient || !_cachedN2m) {
     _cachedClient = new Client({ auth: apiToken });
+    _cachedN2m = new NotionToMarkdown({ notionClient: _cachedClient });
     _cachedToken = apiToken;
   }
-  return _cachedClient;
+  return { client: _cachedClient, n2m: _cachedN2m };
+}
+
+/**
+ * Notion 페이지의 블록 내용을 마크다운 문자열로 변환
+ * notion-to-md 라이브러리를 사용하여 페이지네이션과 블록 변환을 처리
+ */
+async function fetchPageContent(n2m: NotionToMarkdown, pageId: string): Promise<string> {
+  const mdBlocks = await n2m.pageToMarkdown(pageId);
+  const mdStringObj = n2m.toMarkdownString(mdBlocks);
+  return (mdStringObj['parent'] ?? '').trim();
 }
 
 interface TaskCandidate {
@@ -93,7 +107,7 @@ export async function fetchPendingTask(
   databaseId: string,
   columns: ColumnConfig
 ): Promise<TaskInfo | null> {
-  const client = createClient(apiToken);
+  const { client, n2m } = createClient(apiToken);
 
   const {
     columnStatus,
@@ -202,93 +216,7 @@ export async function fetchPendingTask(
 
   const page = selectedCandidate.page;
 
-  // 페이지 블록 내용 조회 (페이지네이션 처리)
-  const allBlocks: BlockObjectResponse[] = [];
-  let cursor: string | undefined;
-
-  do {
-    const blocksResponse = await client.blocks.children.list({
-      block_id: page.id,
-      ...(cursor ? { start_cursor: cursor } : {}),
-    });
-    const fullBlocks = blocksResponse.results.filter(
-      (block): block is BlockObjectResponse => 'type' in block
-    );
-    allBlocks.push(...fullBlocks);
-    cursor = blocksResponse.has_more ? (blocksResponse.next_cursor ?? undefined) : undefined;
-  } while (cursor);
-
-  // 블록 내용을 텍스트로 변환
-  let numberedListIndex = 0;
-  let requirements = '';
-
-  for (const blockData of allBlocks) {
-    const blockType = blockData.type;
-
-    switch (blockType) {
-      case 'paragraph':
-        if ('paragraph' in blockData && blockData.paragraph) {
-          requirements += blockData.paragraph.rich_text.map((t) => t.plain_text).join('');
-          requirements += '\n';
-        }
-        break;
-      case 'heading_1':
-        if ('heading_1' in blockData && blockData.heading_1) {
-          requirements += '# ' + blockData.heading_1.rich_text.map((t) => t.plain_text).join('');
-          requirements += '\n';
-        }
-        break;
-      case 'heading_2':
-        if ('heading_2' in blockData && blockData.heading_2) {
-          requirements += '## ' + blockData.heading_2.rich_text.map((t) => t.plain_text).join('');
-          requirements += '\n';
-        }
-        break;
-      case 'heading_3':
-        if ('heading_3' in blockData && blockData.heading_3) {
-          requirements += '### ' + blockData.heading_3.rich_text.map((t) => t.plain_text).join('');
-          requirements += '\n';
-        }
-        break;
-      case 'bulleted_list_item':
-        if ('bulleted_list_item' in blockData && blockData.bulleted_list_item) {
-          requirements += '- ' + blockData.bulleted_list_item.rich_text.map((t) => t.plain_text).join('');
-          requirements += '\n';
-        }
-        break;
-      case 'numbered_list_item':
-        if ('numbered_list_item' in blockData && blockData.numbered_list_item) {
-          numberedListIndex++;
-          requirements += `${numberedListIndex}. ` + blockData.numbered_list_item.rich_text.map((t) => t.plain_text).join('');
-          requirements += '\n';
-        }
-        break;
-      case 'code':
-        if ('code' in blockData && blockData.code) {
-          requirements += `\`\`\`${blockData.code.language}\n${blockData.code.rich_text.map((t) => t.plain_text).join('')}\n\`\`\``;
-          requirements += '\n';
-        }
-        break;
-      case 'divider':
-        requirements += '\n---\n';
-        break;
-      case 'to_do':
-        if ('to_do' in blockData && blockData.to_do) {
-          const checked = blockData.to_do.checked ? '[x]' : '[ ]';
-          requirements += `- ${checked} ` + blockData.to_do.rich_text.map((t) => t.plain_text).join('');
-          requirements += '\n';
-        }
-        break;
-      case 'quote':
-        if ('quote' in blockData && blockData.quote) {
-          requirements += '> ' + blockData.quote.rich_text.map((t) => t.plain_text).join('');
-          requirements += '\n';
-        }
-        break;
-      default:
-        console.warn(`   Unknown block type: ${blockType}`);
-    }
-  }
+  const requirements = await fetchPageContent(n2m, page.id);
 
   // 속성 추출
   const properties = page.properties;
@@ -309,9 +237,190 @@ export async function fetchPendingTask(
     task_id: page.id,
     task_title: taskTitle,
     base_branch: baseBranch,
-    requirements: requirements.trim(),
+    requirements,
     page_url: page.url,
   };
+}
+
+/**
+ * Notion SDK를 사용하여 검토 전 태스크 조회
+ * 상태가 '검토 전'이면서 검토 횟수가 maxReviewCount 미만인 항목 반환
+ */
+export async function fetchReviewTask(
+  apiToken: string,
+  databaseId: string,
+  columns: ColumnConfig,
+  maxReviewCount: number
+): Promise<TaskInfo | null> {
+  const { client, n2m } = createClient(apiToken);
+
+  const {
+    columnStatus,
+    statusReview,
+    columnBaseBranch,
+    columnPriority,
+    columnPrerequisite,
+    columnCreatedTime,
+    columnWorkBranch,
+    columnReviewCount,
+  } = resolveColumns(columns);
+
+  // 검토 전 상태이면서 검토 횟수가 maxReviewCount 미만인 항목 조회
+  const queryResponse = await client.databases.query({
+    database_id: databaseId,
+    filter: {
+      and: [
+        {
+          property: columnStatus,
+          status: {
+            equals: statusReview,
+          },
+        },
+        {
+          property: columnBaseBranch,
+          rich_text: {
+            is_not_empty: true,
+          },
+        },
+        {
+          property: columnWorkBranch,
+          rich_text: {
+            is_not_empty: true,
+          },
+        },
+        {
+          or: [
+            {
+              property: columnReviewCount,
+              number: {
+                is_empty: true,
+              },
+            },
+            {
+              property: columnReviewCount,
+              number: {
+                less_than: maxReviewCount,
+              },
+            },
+          ],
+        },
+      ],
+    },
+    sorts: [
+      {
+        property: columnPriority,
+        direction: 'descending',
+      },
+      {
+        property: columnCreatedTime,
+        direction: 'ascending',
+      },
+    ],
+    page_size: 20,
+  });
+
+  if (queryResponse.results.length === 0) {
+    return null;
+  }
+
+  // 선행 작업 확인 및 우선도 계산
+  const candidates: TaskCandidate[] = [];
+
+  for (const result of queryResponse.results) {
+    if (result.object !== 'page') continue;
+
+    const page = result as PageObjectResponse;
+    const properties = page.properties;
+
+    let priority = 0;
+    const priorityProp = properties[columnPriority];
+    const priorityValue = parseSelectProperty(priorityProp);
+    if (priorityValue) {
+      priority = parseInt(priorityValue.replace(/[^0-9]/g, ''), 10) || 0;
+    }
+
+    let createdTime = new Date();
+    const createdTimeProp = properties[columnCreatedTime];
+    const createdTimeValue = parseDateProperty(createdTimeProp);
+    if (createdTimeValue) {
+      createdTime = createdTimeValue;
+    }
+
+    let prerequisiteCompleted = true;
+    const prerequisiteProp = properties[columnPrerequisite];
+    const prerequisiteValue = parseRelationProperty(prerequisiteProp);
+    if (prerequisiteValue && prerequisiteValue.length > 0) {
+      const checkArr = await Promise.all(
+        prerequisiteValue.map((id) => checkPrerequisiteCompleted(client, id, columns))
+      );
+      prerequisiteCompleted = checkArr.every((result) => result);
+    }
+
+    candidates.push({ page, priority, createdTime, prerequisiteCompleted });
+  }
+
+  const validCandidates = candidates.filter((c) => c.prerequisiteCompleted);
+  if (validCandidates.length === 0) return null;
+
+  validCandidates.sort((a, b) => calculatePriority(a) - calculatePriority(b));
+
+  const selectedCandidate = validCandidates[0];
+  if (!selectedCandidate) return null;
+
+  const page = selectedCandidate.page;
+
+  const requirements = await fetchPageContent(n2m, page.id);
+
+  const properties = page.properties;
+  const titleProp = properties['제목'] || properties['Name'] || properties['Title'];
+  const baseBranchProp = properties[columnBaseBranch];
+  const workBranchProp = properties[columnWorkBranch];
+  const reviewCountProp = properties[columnReviewCount];
+
+  let taskTitle = '';
+  if (titleProp?.type === 'title') {
+    taskTitle = titleProp.title.map((t) => t.plain_text).join('');
+  }
+
+  let baseBranch = '';
+  if (baseBranchProp?.type === 'rich_text') {
+    baseBranch = baseBranchProp.rich_text.map((t) => t.plain_text).join('');
+  }
+
+  const workBranch = parseRichTextProperty(workBranchProp) || '';
+  const reviewCount = parseNumberProperty(reviewCountProp) ?? 0;
+
+  return {
+    task_id: page.id,
+    task_title: taskTitle,
+    base_branch: baseBranch,
+    work_branch: workBranch,
+    requirements,
+    page_url: page.url,
+    review_count: reviewCount,
+    is_review: true,
+  };
+}
+
+/**
+ * Notion 페이지의 검토 횟수를 1 증가시킴
+ */
+export async function incrementReviewCount(
+  apiToken: string,
+  pageId: string,
+  columnReviewCount: string,
+  currentCount: number
+): Promise<void> {
+  const { client } = createClient(apiToken);
+
+  await client.pages.update({
+    page_id: pageId,
+    properties: {
+      [columnReviewCount]: {
+        number: currentCount + 1,
+      },
+    } as NonNullable<UpdatePageParameters['properties']>,
+  });
 }
 
 /**
@@ -323,7 +432,7 @@ export async function updateNotionPage(
   properties: Record<string, unknown>,
   content?: string
 ): Promise<void> {
-  const client = createClient(apiToken);
+  const { client } = createClient(apiToken);
 
   // 속성 업데이트
   await client.pages.update({
