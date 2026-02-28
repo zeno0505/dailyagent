@@ -56,6 +56,10 @@ export async function updateNotionForReview(
   notionConfig: NotionConfig,
   logger: Logger
 ): Promise<FinishResult> {
+  if (!taskInfo.task_id) {
+    throw new Error('task_id가 없습니다. Notion 업데이트를 수행할 수 없습니다.');
+  }
+  const taskId = taskInfo.task_id;
   const isSuccess = workResult.success !== false && !workResult.error;
   const columnReviewCount =
     notionConfig.column_review_count || DEFAULT_WORKSPACE_NOTION_CONFIG.column_review_count;
@@ -75,11 +79,11 @@ export async function updateNotionForReview(
 
   await incrementReviewCount(
     apiToken,
-    taskInfo.task_id!,
-    columnReviewCount!,
+    taskId,
+    columnReviewCount,
     currentReviewCount
   );
-  await updateNotionPage(apiToken, taskInfo.task_id!, reviewProperties, reviewContent);
+  await updateNotionPage(apiToken, taskId, reviewProperties, reviewContent);
 
   await logger.info(`재검토 모드 Phase 3 완료: 검토 횟수 ${currentReviewCount + 1}`);
   return buildNotionResult(taskInfo, workResult, true);
@@ -98,6 +102,10 @@ export async function updateNotionForNormal(
   notionConfig: NotionConfig,
   logger: Logger
 ): Promise<FinishResult> {
+  if (!taskInfo.task_id) {
+    throw new Error('task_id가 없습니다. Notion 업데이트를 수행할 수 없습니다.');
+  }
+  const taskId = taskInfo.task_id;
   const isSuccess = workResult.success !== false && !workResult.error;
   const statusColumn = notionConfig.column_status || '상태';
   const workBranchColumn = notionConfig.column_work_branch || '작업 브랜치';
@@ -126,7 +134,7 @@ export async function updateNotionForNormal(
     ? `\n---\n\n## 자동화 작업 완료\n\n완료 시간: ${new Date().toISOString()}\n\n커밋 해시: ${workResult.commits?.[0]?.hash || ''}\n\nPR: ${workResult.pr_url || workResult.pr_skipped_reason || 'PR 정보 없음'}\n\n수행 작업 요약:\n${workResult.summary || ''}\n`
     : `\n---\n\n## 자동화 작업 실패\n\n실패 시간: ${new Date().toISOString()}\n\n에러 내용:\n${workResult.error || 'Unknown error'}\n`;
 
-  await updateNotionPage(apiToken, taskInfo.task_id!, properties, content);
+  await updateNotionPage(apiToken, taskId, properties, content);
 
   await logger.info('일반 모드 Phase 3 완료');
   return buildNotionResult(taskInfo, workResult, true);
