@@ -128,84 +128,49 @@ export async function executeJob (jobName: string): Promise<unknown> {
       // ========================================
       await logger.info('--- Phase 1: Notion 조회 시작 ---');
 
-      // Notion API 사용 여부에 따라 분기
-      if (workspace.notion.use_api && workspace.notion.api_token) {
-        // Notion API 직접 호출
-        await logger.info('Notion API를 사용하여 작업 조회');
-        console.log(chalk.gray('--------------------------------'));
-        console.log(chalk.gray('[Phase 1] Notion API 직접 호출'));
-        console.log(chalk.gray('--------------------------------'));
+      // MCP 사용 (기존 방식)
+      await logger.info('MCP를 사용하여 작업 조회');
 
-        const apiToken = workspace.notion.api_token;
-        if (!apiToken) {
-          throw new Error('Notion API 토큰이 설정되지 않았습니다.');
-        }
-        const datasourceId = workspace.notion.datasource_id;
-        if (!datasourceId) {
-          throw new Error('Notion 데이터소스 ID가 설정되지 않았습니다.');
-        }
-
-        taskInfo = await fetchPendingTask(
-          apiToken,
-          datasourceId,
-          workspace.notion
-        );
-
-        if (!taskInfo) {
-          await logger.info('작업 대기 항목 없음 — 조기 종료');
-          await updateJob(jobName, {
-            last_run: new Date().toISOString(),
-            last_status: null,
-          });
-          return { no_tasks: true };
-        }
-
-        await logger.info(`Phase 1 완료: ${JSON.stringify(taskInfo)}`);
-      } else {
-        // MCP 사용 (기존 방식)
-        await logger.info('MCP를 사용하여 작업 조회');
-
-        const databaseUrl = workspace.notion.database_url;
-        if (!databaseUrl) {
-          throw new Error('Notion 데이터베이스 URL이 설정되지 않았습니다.');
-        }
-
-        const initPrompt = generateInitialPrompt({
-          databaseUrl: databaseUrl,
-          columns: workspace.notion,
-        });
-        console.log(chalk.gray('--------------------------------'));
-        console.log(chalk.gray('[Phase 1] 프롬프트:'));
-        console.log(chalk.gray(initPrompt));
-        console.log(chalk.gray('--------------------------------'));
-
-        const initResult = await runAgent<TaskInfo>({
-          prompt: initPrompt,
-          workDir,
-          settingsFile,
-          timeout: '5m',
-          logger,
-          model: 'sonnet',
-        });
-        await logger.info(`Phase 1 완료: ${JSON.stringify(initResult)}`);
-
-        // Phase 1 JSON 파싱 실패 체크
-        if (!initResult.result) {
-          throw new Error(`Phase 1 결과 파싱 실패: ${initResult.rawOutput}`);
-        }
-
-        // 작업 대기 항목 없으면 조기 종료
-        if ('no_tasks' in initResult && initResult.no_tasks) {
-          await logger.info('작업 대기 항목 없음 — 조기 종료');
-          await updateJob(jobName, {
-            last_run: new Date().toISOString(),
-            last_status: null,
-          });
-          return initResult;
-        }
-
-        taskInfo = initResult.result;
+      const databaseUrl = workspace.notion.database_url;
+      if (!databaseUrl) {
+        throw new Error('Notion 데이터베이스 URL이 설정되지 않았습니다.');
       }
+
+      const initPrompt = generateInitialPrompt({
+        databaseUrl: databaseUrl,
+        columns: workspace.notion,
+      });
+      console.log(chalk.gray('--------------------------------'));
+      console.log(chalk.gray('[Phase 1] 프롬프트:'));
+      console.log(chalk.gray(initPrompt));
+      console.log(chalk.gray('--------------------------------'));
+
+      const initResult = await runAgent<TaskInfo>({
+        prompt: initPrompt,
+        workDir,
+        settingsFile,
+        timeout: '5m',
+        logger,
+        model: 'sonnet',
+      });
+      await logger.info(`Phase 1 완료: ${JSON.stringify(initResult)}`);
+
+      // Phase 1 JSON 파싱 실패 체크
+      if (!initResult.result) {
+        throw new Error(`Phase 1 결과 파싱 실패: ${initResult.rawOutput}`);
+      }
+
+      // 작업 대기 항목 없으면 조기 종료
+      if ('no_tasks' in initResult && initResult.no_tasks) {
+        await logger.info('작업 대기 항목 없음 — 조기 종료');
+        await updateJob(jobName, {
+          last_run: new Date().toISOString(),
+          last_status: null,
+        });
+        return initResult;
+      }
+
+      taskInfo = initResult.result;
 
       // taskInfo null 체크
       if (!taskInfo) {
