@@ -66,7 +66,7 @@ export function sanitizeForPrompt(raw: string): string {
 export function sanitizeTaskContext(taskInfo: TaskInfo): SafeTaskContext {
   return {
     task_title: sanitizeForPrompt(taskInfo.task_title || ''),
-    base_branch: sanitizeForPrompt(taskInfo.base_branch || ''),
+    base_branch: sanitizeGitBranchName(taskInfo.base_branch || ''),
     requirements: sanitizeForPrompt(taskInfo.requirements || ''),
   };
 }
