@@ -1,13 +1,9 @@
 import { spawnSync, type SpawnSyncReturns } from 'child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
-import { homedir } from 'os';
-import { isCommandAvailable, resolveDailyagentCommand } from '../utils/process.js';
+import { LOGS_DIR, SCRIPTS_DIR } from '../config.js';
+import { isCommandAvailable, resolveDailyagentCommand, resolveLinuxPath } from '../utils/process.js';
 
 const CRONTAB_MARKER = '# dailyagent:';
-const DEFAULT_PATH = '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
-const DAILYAGENT_HOME = `${homedir()}/.dailyagent`;
-const SCRIPTS_DIR = `${DAILYAGENT_HOME}/scripts`;
-const LOGS_DIR = `${DAILYAGENT_HOME}/logs`;
 
 function runCrontab(args: string[], input?: string): SpawnSyncReturns<string> {
   return spawnSync('crontab', args, {
@@ -77,10 +73,7 @@ function buildWrapperScript(jobName: string, cmd: string, envPath: string, logFi
 }
 
 function writeWrapperScript(jobName: string, cmd: string): string {
-  const envPath = (process.env.PATH || '')
-    .split(':')
-    .filter((part) => part && !part.startsWith('/mnt/'))
-    .join(':') || DEFAULT_PATH;
+  const envPath = resolveLinuxPath();
 
   mkdirSync(SCRIPTS_DIR, { recursive: true });
 

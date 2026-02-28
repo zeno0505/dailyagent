@@ -1,24 +1,17 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
 
-import { isInitialized } from '../config.js';
-import { getJob } from '../jobs.js';
+import { formatDate } from '../utils/format.js';
 import { formatFileSize, getJobLogFiles, tailLogFile } from '../utils/logs.js';
+import { requireInitialized, requireJob } from '../utils/validation.js';
 
 export async function logsCommand(name: string, options: {
   follow?: boolean;
   lines?: number;
 } = {}): Promise<void> {
-  if (!isInitialized()) {
-    console.log(chalk.red('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.'));
-    process.exit(1);
-  }
+  requireInitialized();
 
-  const job = await getJob(name);
-  if (!job) {
-    console.log(chalk.red(`작업 "${name}"을(를) 찾을 수 없습니다.`));
-    process.exit(1);
-  }
+  await requireJob(name);
 
   // Fetch all logs for this job
   const logs = await getJobLogFiles(name);
@@ -48,7 +41,7 @@ export async function logsCommand(name: string, options: {
 
     for (const log of logs) {
       const sizeStr = formatFileSize(log.size);
-      const dateStr = new Date(log.date).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+      const dateStr = formatDate(log.date);
 
       table.push([
         chalk.cyan(log.fullPath),

@@ -1,5 +1,17 @@
 import { spawnSync } from 'child_process';
 
+export const DEFAULT_ENV_PATH = '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
+
+/**
+ * WSL2의 Windows 경로(/mnt/...)를 제거한 Linux 전용 PATH를 반환합니다.
+ */
+export function resolveLinuxPath(): string {
+  return (process.env.PATH || '')
+    .split(':')
+    .filter((part) => part && !part.startsWith('/mnt/'))
+    .join(':') || DEFAULT_ENV_PATH;
+}
+
 /**
  * which 명령어로 실행 파일 경로를 찾습니다.
  */
