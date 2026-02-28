@@ -283,6 +283,12 @@ export async function fetchReviewTask(
           },
         },
         {
+          property: columnWorkBranch,
+          rich_text: {
+            is_not_empty: true,
+          },
+        },
+        {
           or: [
             {
               property: columnReviewCount,
