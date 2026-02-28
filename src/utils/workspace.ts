@@ -19,31 +19,15 @@ export async function promptWorkDirecotry() {
 }
 
 export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
-  const use_api = await confirm({
-    message: '(권장) Notion API를 직접 사용하시겠습니까? (MCP 대신 API 사용 시 토큰 소비 감소)',
-    default: true,
+  const api_token = await password({
+    message: 'Notion API 토큰 (Internal Integration Token):',
+    validate: (val) => (val.length > 0 ? true : 'API 토큰을 입력해주세요.'),
+  });
+  const database_id = await input({
+    message: 'Notion 데이터베이스 ID (32자 UUID):',
+    validate: (val) => (val.length > 0 ? true : '데이터베이스 ID를 입력해주세요.'),
   });
 
-  let database_url: string | undefined;
-  let api_token: string | undefined;
-  let datasource_id: string | undefined;
-
-  if (!use_api) {
-    database_url = await input({
-      message: 'Notion 데이터베이스 URL:',
-      validate: (val) => (val.includes('notion.so') ? true : 'Notion URL을 입력해주세요.'),
-    });
-  } else {
-    api_token = await password({
-      message: 'Notion API 토큰 (Internal Integration Token):',
-      validate: (val) => (val.length > 0 ? true : 'API 토큰을 입력해주세요.'),
-    });
-    datasource_id = await input({
-      message: 'Notion 데이터소스 ID (API 사용 시 필요):',
-      validate: (val) => (val.length > 0 ? true : '데이터소스 ID를 입력해주세요.'),
-    });
-  }
-   
   const use_notion_template = await confirm({
     message: 'Notion 템플릿을 그대로 사용하시겠습니까? (미사용 시 컬럼명을 직접 입력합니다.)',
     default: true,
@@ -119,7 +103,8 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
   });
 
   return {
-    use_api,
+    api_token,
+    database_id,
     column_priority,
     column_status,
     column_status_wait,
@@ -132,8 +117,5 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
     column_created_time,
     column_review_count,
     max_review_count: max_review_count ?? DEFAULT_WORKSPACE_NOTION_CONFIG.max_review_count,
-    ...(database_url != null && { database_url }),
-    ...(api_token != null && { api_token }),
-    ...(datasource_id != null && { datasource_id }),
   };
 }

@@ -1,48 +1,10 @@
 /**
  * AI 프롬프트 템플릿 생성기
- * 3단계 분리: Phase 1 (Notion 조회), Phase 2 (코드 작업), Phase 3 (Notion 업데이트)
+ * Phase 2 (코드 작업) 프롬프트 생성
  */
 
-import { resolveColumns } from "../config.js";
-import { ColumnConfig } from "../types/config.js";
-import { TaskInfo, WorkResult, PlanResult } from "../types/core.js";
+import { TaskInfo, PlanResult } from "../types/core.js";
 import { sanitizeTaskContext, sanitizeReviewContext } from "../utils/prompt-sanitizer.js";
-
-/**
- * Phase 1: Notion DB 조회 + 페이지 상세 읽기
- */
-export function generateInitialPrompt({ databaseUrl, columns }: { databaseUrl: string; columns: ColumnConfig }): string {
-  const col = resolveColumns(columns);
-
-  return `# Phase 1: Notion 작업 조회
-
-## 1단계: Notion 데이터베이스 조회
-Notion MCP 도구를 사용하여 데이터 조회:
-- 데이터베이스 URL: ${databaseUrl}
-- "${col.columnStatus}"가 ${col.statusWait}이면서, "${col.columnBaseBranch}"가 설정된 항목 조회
-- 만약 "선행 작업"이 존재하는데, 선행 작업이 완료되지 않았다면 해당 항목은 무시
-- ${col.columnPriority}가 가장 높거나 가장 오래된 항목 1개 선택
-
-## 2단계: 작업 상세 내용 확인
-Notion MCP 도구를 사용하여 선택된 페이지의 상세 내용 읽기:
-- 페이지 ID 또는 URL 사용
-- 작업 요구사항, 기술 스택, 관련 파일 등 분석
-- 작업 범위와 복잡도 평가
-
-## 결과 출력
-반드시 아래 JSON 형식으로만 결과를 반환하세요. 다른 텍스트 없이 JSON만 출력:
-\`\`\`json
-{
-  "task_id": "페이지 ID",
-  "task_title": "작업 제목",
-  "base_branch": "기준 브랜치명",
-  "requirements": "작업 요구사항 전체 내용",
-  "page_url": "페이지 URL"
-}
-\`\`\`
-`;
-}
-
 
 /**
  * Phase 2: Git 준비 → 코드 작업 → 검증 → Git Push
@@ -390,93 +352,3 @@ ${workDir} 디렉토리에서:
 `;
 }
 
-/**
- * Phase 3: Notion 업데이트 + 결과 보고
- */
-export function generateFinishPrompt({ 
-  taskInfo, 
-  workResult, 
-  columns, 
-  databaseUrl 
-}: { 
-  taskInfo: TaskInfo; 
-  workResult: WorkResult; 
-  columns: ColumnConfig; 
-  databaseUrl: string;
-}): string {
-  const col = resolveColumns(columns);
-  const isSuccess = workResult.success !== false && !workResult.error;
-
-  return `# Phase 3: Notion 업데이트 및 결과 보고
-
-## 작업 정보
-\`\`\`json
-${JSON.stringify(taskInfo, null, 2)}
-\`\`\`
-
-## 코드 작업 결과
-\`\`\`json
-${JSON.stringify(workResult, null, 2)}
-\`\`\`
-
-## Notion 업데이트
-위 JSON 작업 정보를 읽고 작업된 내용을 Notion 페이지에 업데이트 합니다.
-- **MCP 도구 \`notion-update-page\` 사용**
-- 데이터베이스 URL: ${databaseUrl}
-
-${isSuccess ? `**성공 케이스 - 속성 업데이트:**
-- ${col.columnStatus}: "${col.statusWait}" → "${col.statusReview}"
-- ${col.columnWorkBranch}: "작업 브랜치명"
-
-**본문에 작업 결과 추가:**
-\`\`\`markdown
-
----
-
-## 자동화 작업 완료
-
-**완료 시간:** {YYYY-MM-DD HH:MM:SS}
-
-**커밋 해시:** \`{커밋해시}\`
-
-**PR:** ${workResult.pr_url ? `[${workResult.pr_url}](${workResult.pr_url})` : workResult.pr_skipped_reason || 'PR 정보 없음'}
-
-**수행 작업 요약:**
-{작업 요약}
-
-\`\`\`` : `**실패 케이스 - 속성 업데이트:**
-- ${col.columnStatus}: "${col.statusWait}" → "${col.statusError}"
-
-**본문에 에러 내용 추가:**
-\`\`\`markdown
-
----
-
-## 자동화 작업 실패
-
-**실패 시간:** {YYYY-MM-DD HH:MM:SS}
-
-**에러 내용:**
-{에러 메시지}
-
-\`\`\``}
-
-## 결과 보고
-위 JSON 작업 정보를 읽고 작업된 내용을 결과로 반환합니다.
-**반드시 아래 JSON 형식으로만 결과를 반환하세요. 다른 텍스트 없이 JSON만 출력**:
-\`\`\`json
-{
-  "success": ${isSuccess},
-  "task_id": ${JSON.stringify(taskInfo.task_id || '')},
-  "task_title": ${JSON.stringify(taskInfo.task_title || '')},
-  "branch_name": ${JSON.stringify(isSuccess ? (workResult.branch_name || '') : '')},
-  "commits": ${isSuccess ? JSON.stringify(workResult.commits || []) : '[]'},
-  "files_changed": ${isSuccess ? JSON.stringify(workResult.files_changed || []) : '[]'},
-  "pr_url": ${JSON.stringify(isSuccess ? (workResult.pr_url || '') : '')},
-  "pr_skipped_reason": ${JSON.stringify(isSuccess ? (workResult.pr_skipped_reason || '') : '')},
-  "summary": ${JSON.stringify(isSuccess ? (workResult.summary || '') : (workResult.error || ''))},
-  "notion_updated": true
-}
-\`\`\`
-`;
-}
