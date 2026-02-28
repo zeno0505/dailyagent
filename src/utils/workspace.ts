@@ -23,9 +23,9 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
     message: 'Notion API 토큰 (Internal Integration Token):',
     validate: (val) => (val.length > 0 ? true : 'API 토큰을 입력해주세요.'),
   });
-  const datasource_id = await input({
-    message: 'Notion 데이터소스 ID:',
-    validate: (val) => (val.length > 0 ? true : '데이터소스 ID를 입력해주세요.'),
+  const database_id = await input({
+    message: 'Notion 데이터베이스 ID:',
+    validate: (val) => (val.length > 0 ? true : '데이터베이스 ID를 입력해주세요.'),
   });
    
   const use_notion_template = await confirm({
@@ -104,7 +104,7 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
 
   return {
     api_token,
-    datasource_id,
+    database_id,
     column_priority,
     column_status,
     column_status_wait,

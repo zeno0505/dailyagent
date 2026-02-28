@@ -15,7 +15,7 @@ async function main() {
   }
 
   const apiToken = workspace.notion.api_token;
-  const databaseId = workspace.notion.database_id || workspace.notion.datasource_id;
+  const databaseId = workspace.notion.database_id;
   if (!apiToken || !databaseId) {
     throw new Error('API token or database ID not found');
   }

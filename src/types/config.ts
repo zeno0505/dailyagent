@@ -18,7 +18,7 @@ export interface NotionConfig extends ColumnConfig {
    */
   max_review_count?: number;
   /**
-   * Notion API 토큰 (Internal Integration Token)
+   * Notion API 토큰
    */
   api_token?: string;
   /**
@@ -26,10 +26,6 @@ export interface NotionConfig extends ColumnConfig {
    * 예: 89d63e10550d445a9fbda3a7a4e3e0f9
    */
   database_id?: string;
-  /**
-   * @deprecated datasource_id는 더 이상 사용되지 않습니다. database_id를 사용하세요.
-   */
-  datasource_id?: string;
 }
 
 export interface SlackConfig {

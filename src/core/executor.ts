@@ -93,8 +93,7 @@ export async function executeJob (jobName: string): Promise<unknown> {
         throw new Error('Notion API 토큰이 설정되지 않았습니다.');
       }
 
-      // database_id 우선, 없으면 datasource_id 사용 (하위 호환성)
-      const databaseId = workspace.notion.database_id || workspace.notion.datasource_id;
+      const databaseId = workspace.notion.database_id;
       if (!databaseId) {
         throw new Error('Notion 데이터베이스 ID가 설정되지 않았습니다.');
       }
