@@ -39,7 +39,7 @@ DailyAgent를 사용하기 전에 아래 도구들이 반드시 설치 및 설�
 |---|---|
 | **Node.js 18+** | [nodejs.org](https://nodejs.org) |
 | **Claude Code CLI** | [claude.ai/code](https://claude.ai/code) 또는 `npm install -g @anthropic-ai/claude-code` |
-| **Notion MCP 서버** | Claude Code의 MCP 설정 필요 (아래 참고) |
+| **Notion API 키** | Notion 문서 자동화를 위한 API Key |
 | **Git + SSH 키** | Git push를 위해 SSH 키 인증 필수 |
 
 ### SSH 키 설정
@@ -109,28 +109,14 @@ Claude에 로그인:
 claude login
 ```
 
-### 3단계: Notion MCP 서버 설정
+### 3단계: Notion API Key 설정
 
-Claude Code에서 Notion MCP를 사용하려면 MCP 서버를 등록해야 합니다.
+DailyAgent 를 사용하기 위해선 Notion 문서를 자동으로 가져오기 위한 API Key 가 필요합니다.
 
-Claude Code 설정 파일(`~/.claude/claude_desktop_config.json` 또는 Claude Code 설정)에 아래를 추가하세요:
+다음 경로에서 Notion API 를 발급받으세요.
 
-```json
-{
-  "mcpServers": {
-    "notion": {
-      "command": "npx",
-      "args": ["-y", "@notionhq/notion-mcp-server"],
-      "env": {
-        "OPENAPI_MCP_HEADERS": "{\"Authorization\": \"Bearer YOUR_NOTION_API_TOKEN\", \"Notion-Version\": \"2022-06-28\"}"
-      }
-    }
-  }
-}
-```
+https://www.notion.so/profile/integrations/internal
 
-> Notion API 토큰은 [Notion Integrations](https://www.notion.so/my-integrations)에서 발급받을 수 있습니다.
-> 발급 후 사용할 Notion 데이터베이스에 Integration을 연결해야 합니다.
 
 ### 4단계: Claude 권한 설정 (선택사항)
 
