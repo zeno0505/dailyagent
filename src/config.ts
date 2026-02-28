@@ -27,7 +27,6 @@ export const DEFAULT_CONFIG = {
 } as const;
 
 export const DEFAULT_WORKSPACE_NOTION_CONFIG = {
-  use_api: true,
   column_priority: '우선순위',
   column_status: '상태',
   column_status_wait: '작업 대기',
