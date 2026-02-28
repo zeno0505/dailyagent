@@ -15,12 +15,12 @@ async function main() {
   }
 
   const apiToken = workspace.notion.api_token;
-  const datasourceId = workspace.notion.datasource_id;
-  if (!apiToken || !datasourceId) {
-    throw new Error('API token or datasource ID not found');
+  const databaseId = workspace.notion.database_id;
+  if (!apiToken || !databaseId) {
+    throw new Error('API token or database ID not found');
   }
 
-  const task = await fetchPendingTask(apiToken, datasourceId, workspace.notion);
+  const task = await fetchPendingTask(apiToken, databaseId, workspace.notion);
   console.log(task);
 }
 

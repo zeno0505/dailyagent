@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import { confirm, input, password } from "@inquirer/prompts";
+import { confirm, input, number, password } from "@inquirer/prompts";
 import { NotionConfig } from "../types/config.js";
 import { DEFAULT_WORKSPACE_NOTION_CONFIG } from "../config.js";
 import path from 'path';
@@ -19,31 +19,15 @@ export async function promptWorkDirecotry() {
 }
 
 export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
-  const use_api = await confirm({
-    message: '(권장) Notion API를 직접 사용하시겠습니까? (MCP 대신 API 사용 시 토큰 소비 감소)',
-    default: true,
+  const api_token = await password({
+    message: 'Notion API 토큰 (Internal Integration Token):',
+    validate: (val) => (val.length > 0 ? true : 'API 토큰을 입력해주세요.'),
+  });
+  const database_id = await input({
+    message: 'Notion 데이터베이스 ID (32자 UUID):',
+    validate: (val) => (val.length > 0 ? true : '데이터베이스 ID를 입력해주세요.'),
   });
 
-  let database_url: string | undefined;
-  let api_token: string | undefined;
-  let datasource_id: string | undefined;
-
-  if (!use_api) {
-    database_url = await input({
-      message: 'Notion 데이터베이스 URL:',
-      validate: (val) => (val.includes('notion.so') ? true : 'Notion URL을 입력해주세요.'),
-    });
-  } else {
-    api_token = await password({
-      message: 'Notion API 토큰 (Internal Integration Token):',
-      validate: (val) => (val.length > 0 ? true : 'API 토큰을 입력해주세요.'),
-    });
-    datasource_id = await input({
-      message: 'Notion 데이터소스 ID (API 사용 시 필요):',
-      validate: (val) => (val.length > 0 ? true : '데이터소스 ID를 입력해주세요.'),
-    });
-  }
-   
   const use_notion_template = await confirm({
     message: 'Notion 템플릿을 그대로 사용하시겠습니까? (미사용 시 컬럼명을 직접 입력합니다.)',
     default: true,
@@ -59,6 +43,7 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
   let column_work_branch: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_work_branch;
   let column_prerequisite: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_prerequisite;
   let column_created_time: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_created_time;
+  let column_review_count: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_review_count;
 
   if (!use_notion_template) {
     column_priority = await input({
@@ -101,9 +86,25 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
       message: '작업 일자 컬럼명:',
       default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_created_time,
     });
+    column_review_count = await input({
+      message: '검토 횟수 컬럼명:',
+      default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_review_count,
+    });
   }
+
+  const max_review_count = await number({
+    message: '자동 재검토 최대 횟수 (작업 대기 항목이 없을 때 검토 전 항목을 재검토하는 최대 횟수):',
+    default: DEFAULT_WORKSPACE_NOTION_CONFIG.max_review_count,
+    validate: (val) => {
+      if (val === undefined || val === null) return '숫자를 입력해주세요.';
+      if (val < 0) return '0 이상의 숫자를 입력해주세요.';
+      return true;
+    },
+  });
+
   return {
-    use_api,
+    api_token,
+    database_id,
     column_priority,
     column_status,
     column_status_wait,
@@ -114,8 +115,7 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
     column_work_branch,
     column_prerequisite,
     column_created_time,
-    ...(database_url != null && { database_url }),
-    ...(api_token != null && { api_token }),
-    ...(datasource_id != null && { datasource_id }),
+    column_review_count,
+    max_review_count: max_review_count ?? DEFAULT_WORKSPACE_NOTION_CONFIG.max_review_count,
   };
 }
