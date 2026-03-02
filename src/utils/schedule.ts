@@ -1,22 +1,33 @@
 import os from 'os';
 import { installLaunchdJob, isLaunchdAvailable, isLaunchdJobInstalled, uninstallLaunchdJob } from "../scheduler/launchd.js";
 import { installCronJob, isCronJobInstalled, isCrontabAvailable, uninstallCronJob } from '../scheduler/crontab.js';
+import { installSchtasksJob, isSchtasksAvailable, isSchtasksJobInstalled, uninstallSchtasksJob } from '../scheduler/schtasks.js';
+import { isWindowsNative } from './process.js';
 
-export type SchedulerType = 'launchd' | 'cron';
+export type SchedulerType = 'launchd' | 'cron' | 'schtasks';
 
 /**
  * 스케줄러 이름을 반환합니다.
  */
 export function schedulerName(type: SchedulerType): string {
-  return type === 'launchd' ? 'launchd' : 'crontab';
+  if (type === 'launchd') return 'launchd';
+  if (type === 'schtasks') return 'Windows 작업 스케줄러';
+  return 'crontab';
 }
 
 /**
  * 현재 OS 환경에 따라 사용할 스케줄러를 결정합니다.
+ * Windows 네이티브(Git Bash 등): schtasks
  * macOS: launchd 우선, fallback으로 cron
- * Linux/기타: cron
+ * Linux/WSL/기타: cron
  */
 export function detectScheduler(): SchedulerType | null {
+  // Windows 네이티브 환경 (WSL 제외)
+  if (isWindowsNative()) {
+    if (isSchtasksAvailable()) return 'schtasks';
+    return null;
+  }
+
   const platform = os.platform();
 
   if (platform === 'darwin') {
@@ -25,25 +36,25 @@ export function detectScheduler(): SchedulerType | null {
     return null;
   }
 
-  // Linux 및 기타 OS
+  // Linux, WSL 및 기타 OS
   if (isCrontabAvailable()) return 'cron';
   return null;
 }
 
 export function isJobInstalled(jobName: string): boolean {
   const scheduler = detectScheduler();
-  if (!scheduler) {
-    return false;
-  }
-  return scheduler === 'launchd'
-    ? isLaunchdJobInstalled(jobName)
-    : isCronJobInstalled(jobName);
+  if (!scheduler) return false;
+  if (scheduler === 'launchd') return isLaunchdJobInstalled(jobName);
+  if (scheduler === 'schtasks') return isSchtasksJobInstalled(jobName);
+  return isCronJobInstalled(jobName);
 }
 
 export function installJob(jobName: string, schedule: string): void {
   const scheduler = detectScheduler();
   if (scheduler === 'launchd') {
     installLaunchdJob(jobName, schedule);
+  } else if (scheduler === 'schtasks') {
+    installSchtasksJob(jobName, schedule);
   } else if (scheduler === 'cron') {
     installCronJob(jobName, schedule);
   }
@@ -53,6 +64,8 @@ export function uninstallJob(jobName: string): void {
   const scheduler = detectScheduler();
   if (scheduler === 'launchd') {
     uninstallLaunchdJob(jobName);
+  } else if (scheduler === 'schtasks') {
+    uninstallSchtasksJob(jobName);
   } else if (scheduler === 'cron') {
     uninstallCronJob(jobName);
   }
