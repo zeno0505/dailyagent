@@ -167,8 +167,9 @@ export interface PlanResult {
  * 계획 모드에서 생성되는 개별 작업 항목
  */
 export interface PlanTaskItem {
-  summary: string;
-  priority: string;
+  summary: string;   // 간결한 작업 제목 (1문장, Notion 페이지 제목으로 사용)
+  detail: string;    // 상세 작업 설명 (2-3문장, Notion 페이지 본문으로 사용)
+  priority: string;  // "P1"-"P5"
 }
 
 /**

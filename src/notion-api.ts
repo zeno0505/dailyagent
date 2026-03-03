@@ -543,10 +543,23 @@ export async function createNotionSubPages (
       },
     };
 
+    const children = task.detail
+      ? [
+          {
+            object: 'block' as const,
+            type: 'paragraph' as const,
+            paragraph: {
+              rich_text: [{ type: 'text' as const, text: { content: task.detail } }],
+            },
+          },
+        ]
+      : [];
+
     const newPage = await client.pages.create({
       parent: { database_id: databaseId },
       properties: properties as NonNullable<UpdatePageParameters['properties']>,
-    });
+      children,
+    } as Parameters<typeof client.pages.create>[0]);
     return newPage.id;
   }));
 
