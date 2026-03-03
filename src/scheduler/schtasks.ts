@@ -1,4 +1,5 @@
 import { spawnSync } from 'child_process';
+import { mkdirSync } from 'fs';
 import { homedir } from 'os';
 import path from 'path';
 import { resolveDailyagentCommand } from '../utils/process.js';
@@ -17,7 +18,7 @@ function taskName(jobName: string): string {
 /**
  * schtasks.exe를 실행합니다.
  */
-function runSchtasks(args: string[]): { stdout: string; stderr: string; status: number | null; error?: Error } {
+function runSchtasks(args: string[]): { stdout: string; stderr: string; status: number | null; error: Error | undefined } {
   const result = spawnSync('schtasks.exe', args, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe']
@@ -98,10 +99,13 @@ export function installSchtasksJob(jobName: string, schedule: string): void {
     uninstallSchtasksJob(jobName);
   }
 
+  mkdirSync(LOGS_DIR, { recursive: true });
+
   const scheduleArgs = cronToSchtasksArgs(schedule);
 
   // cmd.exe로 실행하여 로그 파일에 출력 리디렉션
-  const taskRun = `cmd.exe /C "${cmd} run ${jobName} >> "${logFile}" 2>&1"`;
+  // cmd.exe /C "..." 내부에서 큰따옴표는 ""로 이스케이프 필요
+  const taskRun = `cmd.exe /C "${cmd} run ${jobName} >> ""${logFile}"" 2>&1"`;
 
   const args = [
     '/Create',
