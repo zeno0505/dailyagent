@@ -37,7 +37,7 @@ function runSchtasks(args: string[]): { stdout: string; stderr: string; status: 
  * 지원 패턴:
  *   - 매분: * * * * *  → /SC MINUTE /MO 1
  *   - N분마다: *\/N * * * * → /SC MINUTE /MO N
- *   - 매시간: 0 * * * * → /SC HOURLY /MO 1
+ *   - 매시간: M * * * * → /SC HOURLY /MO 1 /ST 00:MM
  *   - 매일 특정 시각: M H * * * → /SC DAILY /MO 1 /ST HH:MM
  *   - 매주 특정 요일: M H * * D → /SC WEEKLY /MO 1 /D DOW /ST HH:MM
  */
@@ -60,10 +60,16 @@ function cronToSchtasksArgs(schedule: string): string[] {
     return ['/SC', 'MINUTE', '/MO', minuteStep[1]!];
   }
 
-  // 매일/매주: M H * * * 또는 M H * * D
   const minuteNum = parseInt(minute!, 10);
   const hourNum = parseInt(hour!, 10);
 
+  // 매시간: M * * * * → /SC HOURLY /MO 1 /ST 00:MM
+  if (!isNaN(minuteNum) && hour === '*') {
+    const startTime = `00:${String(minuteNum).padStart(2, '0')}`;
+    return ['/SC', 'HOURLY', '/MO', '1', '/ST', startTime];
+  }
+
+  // 매일/매주: M H * * * 또는 M H * * D
   if (!isNaN(minuteNum) && !isNaN(hourNum)) {
     const startTime = `${String(hourNum).padStart(2, '0')}:${String(minuteNum).padStart(2, '0')}`;
 
