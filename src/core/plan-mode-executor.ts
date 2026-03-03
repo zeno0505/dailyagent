@@ -6,7 +6,7 @@
  * 2. 생성된 배열을 Notion 하위 페이지(후속 작업)로 생성
  */
 
-import { TaskInfo, WorkModePlanResult } from '../types/core.js';
+import { TaskInfo, WorkModePlanResult, PlanModeResult } from '../types/core.js';
 import { Workspace } from '../types/config.js';
 import { Logger } from '../logger.js';
 import { generateWorkModePlanPrompt } from './prompt-generator.js';
@@ -15,13 +15,6 @@ import { runClaude, runCursor } from './cli-runner.js';
 import chalk from 'chalk';
 
 export const WORK_MODE_PLAN = "계획";
-
-export interface PlanModeResult {
-  success: boolean;
-  created_page_ids: string[];
-  task_count: number;
-  error?: string;
-}
 
 /**
  * 계획 모드 실행

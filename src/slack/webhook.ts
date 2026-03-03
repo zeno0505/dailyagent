@@ -1,9 +1,16 @@
 import { Logger } from '../logger.js';
-import { TaskInfo, WorkResult } from '../types/core.js';
+import { TaskInfo, WorkResult, PlanModeResult } from '../types/core.js';
 
 export interface SlackNotificationParams {
   taskInfo: TaskInfo;
   workResult: WorkResult;
+  webhookUrl: string;
+  logger?: Logger;
+}
+
+export interface PlanSlackNotificationParams {
+  taskInfo: TaskInfo;
+  planResult: PlanModeResult;
   webhookUrl: string;
   logger?: Logger;
 }
@@ -142,6 +149,118 @@ export async function sendSlackNotification(
     const error = err instanceof Error ? err.message : String(err);
     if (logger) {
       await logger.error(`Slack 알림 발송 중 오류: ${error}`);
+    }
+    return false;
+  }
+}
+
+/**
+ * 계획 모드 전용 Slack 알림 발송
+ */
+export async function sendPlanSlackNotification(
+  params: PlanSlackNotificationParams
+): Promise<boolean> {
+  const { taskInfo, planResult, webhookUrl, logger } = params;
+
+  if (!webhookUrl) {
+    if (logger) {
+      await logger.warn('Slack Webhook URL이 설정되지 않았습니다.');
+    }
+    return false;
+  }
+
+  try {
+    const isSuccess = planResult.success !== false;
+    const statusEmoji = isSuccess ? '✅' : '❌';
+    const statusText = isSuccess ? '완료' : '실패';
+
+    const message = {
+      text: `${statusEmoji} DailyAgent 계획 모드 ${statusText}`,
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*${statusEmoji} DailyAgent 계획 모드 ${statusText}*`,
+          },
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: `*제목*\n${taskInfo.task_title || '제목 없음'}`,
+            },
+            {
+              type: 'mrkdwn',
+              text: `*상태*\n${statusText}`,
+            },
+            {
+              type: 'mrkdwn',
+              text: `*생성 작업 수*\n${planResult.task_count}`,
+            },
+            {
+              type: 'mrkdwn',
+              text: `*생성 페이지 수*\n${planResult.created_page_ids.length}`,
+            },
+          ],
+        },
+        ...(!isSuccess
+          ? [
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: `*에러*\n${planResult.error || '알 수 없는 에러'}`,
+                },
+              },
+            ]
+          : []),
+        {
+          type: 'actions',
+          elements: [
+            ...(taskInfo.page_url
+              ? [
+                  {
+                    type: 'button',
+                    text: {
+                      type: 'plain_text',
+                      text: 'Notion 페이지',
+                    },
+                    url: taskInfo.page_url,
+                  },
+                ]
+              : []),
+          ],
+        },
+      ],
+    };
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+
+    if (!response.ok) {
+      if (logger) {
+        await logger.error(
+          `계획 모드 Slack 알림 발송 실패: ${response.status} ${response.statusText}`
+        );
+      }
+      return false;
+    }
+
+    if (logger) {
+      await logger.info('계획 모드 Slack 알림 발송 완료');
+    }
+    return true;
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    if (logger) {
+      await logger.error(`계획 모드 Slack 알림 발송 중 오류: ${error}`);
     }
     return false;
   }
