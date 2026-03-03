@@ -401,14 +401,25 @@ ${ctx.requirements}
 {
   "tasks": [
     {
+      "id": "task-1",
       "summary": "간결한 작업 제목 (한 문장, Notion 페이지 제목으로 사용됨)",
       "detail": "작업의 목적, 범위, 구현 방향을 포함한 상세 설명 (2~3문장, Notion 페이지 본문으로 사용됨)",
-      "priority": "P1"
+      "priority": "P1",
+      "depends_on": []
     },
     {
+      "id": "task-2",
       "summary": "다음 작업 제목",
       "detail": "다음 작업의 상세 설명",
-      "priority": "P2"
+      "priority": "P2",
+      "depends_on": ["task-1"]
+    },
+    {
+      "id": "task-3",
+      "summary": "마지막 작업 제목",
+      "detail": "마지막 작업의 상세 설명",
+      "priority": "P3",
+      "depends_on": ["task-1", "task-2"]
     }
   ]
 }
@@ -420,5 +431,8 @@ ${ctx.requirements}
 3. 각 작업은 독립적으로 실행 가능하도록 작성
 4. priority는 반드시 P1, P2, P3, P4, P5 중 하나로 지정
 5. 작업 수는 요구사항의 복잡도에 따라 결정 (일반적으로 3~10개)
+6. id는 각 작업을 고유하게 식별하는 문자열 (예: "task-1", "task-2")
+7. depends_on은 이 작업을 시작하기 전에 완료되어야 하는 작업의 id 배열 (선행 작업 없으면 빈 배열 [])
+8. 순환 의존성이 발생하지 않도록 주의 (A가 B에 의존하면서 B가 A에 의존하는 구조 금지)
 `;
 }

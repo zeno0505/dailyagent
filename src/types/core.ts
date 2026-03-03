@@ -167,9 +167,11 @@ export interface PlanResult {
  * 계획 모드에서 생성되는 개별 작업 항목
  */
 export interface PlanTaskItem {
-  summary: string;   // 간결한 작업 제목 (1문장, Notion 페이지 제목으로 사용)
-  detail: string;    // 상세 작업 설명 (2-3문장, Notion 페이지 본문으로 사용)
-  priority: string;  // "P1"-"P5"
+  id?: string;         // 작업 식별자 (의존성 참조용, 예: "task-1")
+  summary: string;     // 간결한 작업 제목 (1문장, Notion 페이지 제목으로 사용)
+  detail: string;      // 상세 작업 설명 (2-3문장, Notion 페이지 본문으로 사용)
+  priority: string;    // "P1"-"P5"
+  depends_on?: string[]; // 이 작업이 의존하는 작업의 id 배열 (선행 작업)
 }
 
 /**

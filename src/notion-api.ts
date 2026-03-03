@@ -501,10 +501,77 @@ export async function updateNotionPage (
   }
 }
 
+type NormalizedTask = Omit<PlanTaskItem, 'id' | 'depends_on'> & {
+  id: string;
+  depends_on: string[];
+};
+
+/**
+ * tasks 배열을 의존성 순서대로 정렬 (Kahn's 위상 정렬 알고리즘)
+ * id가 없는 작업에는 인덱스 기반 임시 id를 부여합니다.
+ * 중복 id 또는 순환 의존성 감지 시 오류를 throw합니다.
+ */
+function topologicalSort (tasks: PlanTaskItem[]): NormalizedTask[] {
+  const normalized: NormalizedTask[] = tasks.map((task, i) => ({
+    ...task,
+    id: task.id ?? `task-${i}`,
+    depends_on: task.depends_on ?? [],
+  }));
+
+  // 중복 id 감지
+  const allIds = normalized.map((t) => t.id);
+  const uniqueIds = new Set(allIds);
+  if (uniqueIds.size !== allIds.length) {
+    throw new Error('작업 id가 중복되었습니다. AI 출력에 동일한 id를 가진 작업이 존재합니다.');
+  }
+
+  const inDegree = new Map<string, number>();
+  const adjList = new Map<string, string[]>(); // depId -> 이 dep에 의존하는 task id 목록
+
+  for (const task of normalized) {
+    if (!inDegree.has(task.id)) inDegree.set(task.id, 0);
+    if (!adjList.has(task.id)) adjList.set(task.id, []);
+
+    for (const depId of task.depends_on) {
+      if (!uniqueIds.has(depId)) continue; // 알 수 없는 id 무시
+      inDegree.set(task.id, (inDegree.get(task.id) ?? 0) + 1);
+      if (!adjList.has(depId)) adjList.set(depId, []);
+      adjList.get(depId)!.push(task.id);
+    }
+  }
+
+  const queue: string[] = [];
+  for (const [id, deg] of inDegree) {
+    if (deg === 0) queue.push(id);
+  }
+
+  const sorted: NormalizedTask[] = [];
+  const taskById = new Map(normalized.map((t) => [t.id, t]));
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    sorted.push(taskById.get(current)!);
+
+    for (const neighbor of adjList.get(current) ?? []) {
+      const newDeg = (inDegree.get(neighbor) ?? 0) - 1;
+      inDegree.set(neighbor, newDeg);
+      if (newDeg === 0) queue.push(neighbor);
+    }
+  }
+
+  if (sorted.length !== normalized.length) {
+    throw new Error('작업 간 순환 의존성이 감지되었습니다. depends_on 설정을 확인하세요.');
+  }
+
+  return sorted;
+}
+
 /**
  * 계획 모드: 작업 배열을 기반으로 Notion 하위 페이지 생성
- * 각 신규 페이지는 원본 페이지를 선행 작업(prerequisite)으로 참조하여
- * 원본 페이지의 후속 작업으로 연결됩니다.
+ * 의존성 순서대로 순차 생성하며, 각 작업의 prerequisite에
+ * 부모 페이지와 의존 대상 페이지 ID를 모두 설정합니다.
+ *
+ * @returns 생성된 Notion 페이지 ID 배열 (반환 순서는 위상 정렬 순서이며 입력 순서와 다를 수 있음)
  */
 export async function createNotionSubPages (
   apiToken: string,
@@ -524,10 +591,26 @@ export async function createNotionSubPages (
     columnPrerequisite,
   } = resolveColumns(columns);
 
-  const createdPageIds = await Promise.all(tasks.map(async (task) => {
+  const sortedTasks = topologicalSort(tasks);
+  const createdPageIdMap = new Map<string, string>(); // taskId -> Notion 페이지 ID
+  const createdPageIds: string[] = [];
+
+  for (const task of sortedTasks) {
+    // prerequisite: 부모 페이지 + 의존 대상 페이지들 (중복 제거)
+    const seenDepPageIds = new Set<string>();
+    const prereqRelations: { id: string }[] = [{ id: parentPageId }];
+    for (const depId of task.depends_on) {
+      const depPageId = createdPageIdMap.get(depId);
+      if (depPageId && !seenDepPageIds.has(depPageId)) {
+        seenDepPageIds.add(depPageId);
+        prereqRelations.push({ id: depPageId });
+      }
+    }
+
     const properties: Record<string, unknown> = {
-      '제목': {
+      'title': {
         title: [{ type: 'text', text: { content: task.summary } }],
+        type: 'title',
       },
       [columnStatus]: {
         status: { name: statusWait },
@@ -539,7 +622,7 @@ export async function createNotionSubPages (
         rich_text: [{ type: 'text', text: { content: baseBranch } }],
       },
       [columnPrerequisite]: {
-        relation: [{ id: parentPageId }],
+        relation: prereqRelations,
       },
     };
 
@@ -560,8 +643,10 @@ export async function createNotionSubPages (
       properties: properties as NonNullable<UpdatePageParameters['properties']>,
       children,
     } as Parameters<typeof client.pages.create>[0]);
-    return newPage.id;
-  }));
+
+    createdPageIdMap.set(task.id, newPage.id);
+    createdPageIds.push(newPage.id);
+  }
 
   return createdPageIds;
 }
