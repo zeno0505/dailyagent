@@ -1,12 +1,61 @@
 import { spawnSync } from 'child_process';
-import { mkdirSync } from 'fs';
+import { mkdirSync, writeFileSync, unlinkSync } from 'fs';
 import { homedir } from 'os';
 import path from 'path';
-import { resolveDailyagentCommand } from '../utils/process.js';
 
 const TASK_PREFIX = 'DailyAgent_';
 const DAILYAGENT_HOME = path.join(homedir(), '.dailyagent');
 const LOGS_DIR = path.join(DAILYAGENT_HOME, 'logs');
+const SCRIPTS_DIR = path.join(DAILYAGENT_HOME, 'scripts');
+
+/**
+ * Windows 네이티브 환경에서 dailyagent 실행 파일 경로를 찾습니다.
+ * where.exe를 사용하여 cmd.exe에서 호환되는 Windows 경로를 반환합니다.
+ */
+function resolveWinCommand(): string {
+  const result = spawnSync('where.exe', ['dailyagent'], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore']
+  });
+
+  if (!result.error && result.status === 0) {
+    const lines = result.stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    // cmd.exe에서 직접 실행 가능한 .cmd 래퍼를 우선 선택
+    const cmdLine = lines.find((l) => l.toLowerCase().endsWith('.cmd')) ?? lines[0];
+    if (cmdLine) return cmdLine;
+  }
+
+  return 'dailyagent';
+}
+
+/**
+ * .bat 래퍼 스크립트를 생성합니다.
+ * crontab의 .sh 래퍼와 동일한 방식으로 cmd.exe 인수 인용 문제를 우회합니다.
+ */
+function writeBatScript(jobName: string, cmd: string): string {
+  mkdirSync(SCRIPTS_DIR, { recursive: true });
+  mkdirSync(LOGS_DIR, { recursive: true });
+
+  const scriptPath = path.join(SCRIPTS_DIR, `${jobName}-schtasks.bat`);
+  const logFile = path.join(LOGS_DIR, `${jobName}-schtasks.log`);
+
+  const content = ['@echo off', `"${cmd}" run ${jobName} >> "${logFile}" 2>&1`, ''].join('\r\n');
+  writeFileSync(scriptPath, content, { encoding: 'utf8' });
+
+  return scriptPath;
+}
+
+/**
+ * .bat 래퍼 스크립트를 삭제합니다.
+ */
+function deleteBatScript(jobName: string): void {
+  const scriptPath = path.join(SCRIPTS_DIR, `${jobName}-schtasks.bat`);
+  try {
+    unlinkSync(scriptPath);
+  } catch {
+    // 파일이 없어도 무시
+  }
+}
 
 /**
  * Windows 작업 스케줄러 태스크 이름을 생성합니다.
@@ -97,21 +146,19 @@ function cronToSchtasksArgs(schedule: string): string[] {
  */
 export function installSchtasksJob(jobName: string, schedule: string): void {
   const name = taskName(jobName);
-  const cmd = resolveDailyagentCommand();
-  const logFile = path.join(LOGS_DIR, `${jobName}-schtasks.log`);
 
-  // 기존 태스크가 있으면 먼저 삭제
+  // 기존 태스크가 있으면 먼저 삭제 (.bat 스크립트 포함)
   if (isSchtasksJobInstalled(jobName)) {
     uninstallSchtasksJob(jobName);
   }
 
-  mkdirSync(LOGS_DIR, { recursive: true });
-
+  const cmd = resolveWinCommand();
+  const scriptPath = writeBatScript(jobName, cmd);
   const scheduleArgs = cronToSchtasksArgs(schedule);
 
-  // cmd.exe로 실행하여 로그 파일에 출력 리디렉션
-  // cmd.exe /C "..." 내부에서 큰따옴표는 ""로 이스케이프 필요
-  const taskRun = `cmd.exe /C "${cmd} run ${jobName} >> ""${logFile}"" 2>&1"`;
+  // .bat 래퍼 스크립트를 cmd.exe로 실행
+  // cmd.exe /C ""path"" 형식으로 공백이 포함된 경로도 올바르게 처리
+  const taskRun = `cmd.exe /C ""${scriptPath}""`;
 
   const args = [
     '/Create',
@@ -149,6 +196,8 @@ export function uninstallSchtasksJob(jobName: string): void {
     const detail = result.stderr.trim() || result.stdout.trim() || `exit ${result.status ?? 'unknown'}`;
     throw new Error(`작업 "${jobName}"의 schtasks 항목을 찾을 수 없습니다: ${detail}`);
   }
+
+  deleteBatScript(jobName);
 }
 
 /**
