@@ -589,11 +589,17 @@ export async function createNotionSubPages (
     columnPriority,
     columnBaseBranch,
     columnPrerequisite,
+    columnCreatedTime,
   } = resolveColumns(columns);
 
   const sortedTasks = topologicalSort(tasks);
   const createdPageIdMap = new Map<string, string>(); // taskId -> Notion 페이지 ID
   const createdPageIds: string[] = [];
+  const today = new Date();
+  const sevenDaysLater = new Date(today);
+  sevenDaysLater.setDate(today.getDate() + 7);
+  const startDate = today.toISOString().slice(0, 10);
+  const endDate = sevenDaysLater.toISOString().slice(0, 10);
 
   for (const task of sortedTasks) {
     // prerequisite: 부모 페이지 + 의존 대상 페이지들 (중복 제거)
@@ -623,6 +629,9 @@ export async function createNotionSubPages (
       },
       [columnPrerequisite]: {
         relation: prereqRelations,
+      },
+      [columnCreatedTime]: {
+        date: { start: startDate, end: endDate },
       },
     };
 
