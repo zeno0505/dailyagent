@@ -61,6 +61,10 @@ export interface TaskInfo {
    * 검토 모드 여부
    */
   is_review?: boolean;
+  /**
+   * 작업 모드 ('실행' | '계획' | '')
+   */
+  work_mode?: string;
 }
 
 
@@ -157,6 +161,21 @@ export interface PlanResult {
   files_to_modify: string[];
   files_to_create: string[];
   implementation_steps: string[];
+}
+
+/**
+ * 계획 모드에서 생성되는 개별 작업 항목
+ */
+export interface PlanTaskItem {
+  summary: string;
+  priority: string;
+}
+
+/**
+ * 계획 모드 AI 결과 타입
+ */
+export interface WorkModePlanResult {
+  tasks: PlanTaskItem[];
 }
 
 /**

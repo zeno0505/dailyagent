@@ -10,6 +10,7 @@ export interface ColumnConfig {
   column_prerequisite?: string;
   column_created_time?: string;
   column_review_count?: string;
+  column_work_mode?: string;
 }
 
 export interface NotionConfig extends ColumnConfig {
