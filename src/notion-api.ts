@@ -21,7 +21,7 @@ import {
   parseRichTextProperty,
 } from './utils/notion-api.js';
 import { ColumnConfig } from './types/config.js';
-import { TaskInfo } from './types/core.js';
+import { TaskInfo, PlanTaskItem } from './types/core.js';
 
 let _cachedToken: string | undefined;
 let _cachedClient: Client | undefined;
@@ -116,6 +116,7 @@ export async function fetchPendingTask(
     columnPriority,
     columnPrerequisite,
     columnCreatedTime,
+    columnWorkMode,
   } = resolveColumns(columns);
 
   // 데이터베이스 쿼리
@@ -222,6 +223,7 @@ export async function fetchPendingTask(
   const properties = page.properties;
   const titleProp = properties['제목'] || properties['Name'] || properties['Title'];
   const baseBranchProp = properties[columnBaseBranch];
+  const workModeProp = properties[columnWorkMode];
 
   let taskTitle = '';
   if (titleProp?.type === 'title') {
@@ -233,12 +235,15 @@ export async function fetchPendingTask(
     baseBranch = baseBranchProp.rich_text.map((t) => t.plain_text).join('');
   }
 
+  const workMode = parseSelectProperty(workModeProp) || '';
+
   return {
     task_id: page.id,
     task_title: taskTitle,
     base_branch: baseBranch,
     requirements,
     page_url: page.url,
+    work_mode: workMode,
   };
 }
 
@@ -494,4 +499,59 @@ export async function updateNotionPage(
       children: blocks as AppendBlockChildrenParameters['children'],
     });
   }
+}
+
+/**
+ * 계획 모드: 작업 배열을 기반으로 Notion 하위 페이지 생성
+ * 각 신규 페이지는 원본 페이지를 선행 작업(prerequisite)으로 참조하여
+ * 원본 페이지의 후속 작업으로 연결됩니다.
+ */
+export async function createNotionSubPages(
+  apiToken: string,
+  databaseId: string,
+  parentPageId: string,
+  baseBranch: string,
+  tasks: PlanTaskItem[],
+  columns: ColumnConfig
+): Promise<string[]> {
+  const { client } = createClient(apiToken);
+
+  const {
+    columnStatus,
+    statusWait,
+    columnPriority,
+    columnBaseBranch,
+    columnPrerequisite,
+  } = resolveColumns(columns);
+
+  const createdPageIds: string[] = [];
+
+  for (const task of tasks) {
+    const properties: Record<string, unknown> = {
+      '제목': {
+        title: [{ type: 'text', text: { content: task.summary } }],
+      },
+      [columnStatus]: {
+        status: { name: statusWait },
+      },
+      [columnPriority]: {
+        select: { name: task.priority },
+      },
+      [columnBaseBranch]: {
+        rich_text: [{ type: 'text', text: { content: baseBranch } }],
+      },
+      [columnPrerequisite]: {
+        relation: [{ id: parentPageId }],
+      },
+    };
+
+    const newPage = await client.pages.create({
+      parent: { database_id: databaseId },
+      properties: properties as NonNullable<UpdatePageParameters['properties']>,
+    });
+
+    createdPageIds.push(newPage.id);
+  }
+
+  return createdPageIds;
 }
