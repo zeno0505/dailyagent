@@ -61,6 +61,10 @@ export interface TaskInfo {
    * 검토 모드 여부
    */
   is_review?: boolean;
+  /**
+   * 작업 모드 ('실행' | '계획' | '')
+   */
+  work_mode?: string;
 }
 
 
@@ -158,6 +162,72 @@ export interface PlanResult {
   files_to_create: string[];
   implementation_steps: string[];
 }
+
+/**
+ * 계획 모드에서 생성되는 개별 작업 항목
+ */
+export interface PlanTaskItem {
+  id?: string;         // 작업 식별자 (의존성 참조용, 예: "task-1")
+  summary: string;     // 간결한 작업 제목 (1문장, Notion 페이지 제목으로 사용)
+  detail: string;      // 상세 작업 설명 (2-3문장, Notion 페이지 본문으로 사용)
+  priority: string;    // "P1"-"P5"
+  depends_on?: string[]; // 이 작업이 의존하는 작업의 id 배열 (선행 작업)
+}
+
+/**
+ * 계획 모드 AI 결과 타입
+ */
+export interface WorkModePlanResult {
+  tasks: PlanTaskItem[];
+}
+
+/**
+ * 계획 모드 실행 결과 타입
+ */
+export interface PlanModeResult {
+  success: boolean;
+  created_page_ids: string[];
+  task_count: number;
+  error?: string;
+}
+
+/**
+ * 계획 모드 Phase 3(Notion) 반영 결과 타입
+ */
+export interface PlanFinishResult {
+  success: boolean;
+  task_id: string;
+  task_title: string;
+  task_count: number;
+  created_page_ids: string[];
+  summary: string;
+  notion_updated: boolean;
+}
+
+/**
+ * 실행 조기 종료(중지) 결과 타입
+ */
+export interface JobSkippedResult {
+  skipped: true;
+  reason: 'paused';
+}
+
+/**
+ * 실행 가능 작업 없음 결과 타입
+ */
+export interface NoTasksResult {
+  no_tasks: true;
+}
+
+/**
+ * executeJob 최종 반환 타입
+ */
+export type ExecuteJobResult =
+  | FinishResult
+  | PlanFinishResult
+  | WorkResult
+  | JobSkippedResult
+  | NoTasksResult;
 
 /**
  * Phase 2-2 결과 타입: 구현 결과

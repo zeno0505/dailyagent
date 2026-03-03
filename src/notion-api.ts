@@ -21,13 +21,13 @@ import {
   parseRichTextProperty,
 } from './utils/notion-api.js';
 import { ColumnConfig } from './types/config.js';
-import { TaskInfo } from './types/core.js';
+import { TaskInfo, PlanTaskItem } from './types/core.js';
 
 let _cachedToken: string | undefined;
 let _cachedClient: Client | undefined;
 let _cachedN2m: NotionToMarkdown | undefined;
 
-function createClient(apiToken: string): { client: Client; n2m: NotionToMarkdown } {
+function createClient (apiToken: string): { client: Client; n2m: NotionToMarkdown } {
   if (_cachedToken !== apiToken || !_cachedClient || !_cachedN2m) {
     _cachedClient = new Client({ auth: apiToken });
     _cachedN2m = new NotionToMarkdown({ notionClient: _cachedClient });
@@ -40,7 +40,7 @@ function createClient(apiToken: string): { client: Client; n2m: NotionToMarkdown
  * Notion 페이지의 블록 내용을 마크다운 문자열로 변환
  * notion-to-md 라이브러리를 사용하여 페이지네이션과 블록 변환을 처리
  */
-async function fetchPageContent(n2m: NotionToMarkdown, pageId: string): Promise<string> {
+async function fetchPageContent (n2m: NotionToMarkdown, pageId: string): Promise<string> {
   const mdBlocks = await n2m.pageToMarkdown(pageId);
   const mdStringObj = n2m.toMarkdownString(mdBlocks);
   return (mdStringObj['parent'] ?? '').trim();
@@ -56,7 +56,7 @@ interface TaskCandidate {
 /**
  * 선행 작업이 완료되었는지 확인
  */
-async function checkPrerequisiteCompleted(
+async function checkPrerequisiteCompleted (
   client: Client,
   prerequisitePageId: string,
   columns: ColumnConfig
@@ -93,7 +93,7 @@ async function checkPrerequisiteCompleted(
 /**
  * 우선도 계산: 우선순위가 높을수록, 작업 일자가 오래될수록 높은 점수
  */
-function calculatePriority({ createdTime, priority }: TaskCandidate): number {
+function calculatePriority ({ createdTime, priority }: TaskCandidate): number {
   const daysSinceCreation = (Date.now() - createdTime.getTime()) / (1000 * 60 * 60 * 24);
   // 우선순위는 가중치 100, 경과 일수는 가중치 1
   return priority * 100 + daysSinceCreation;
@@ -102,7 +102,7 @@ function calculatePriority({ createdTime, priority }: TaskCandidate): number {
 /**
  * Notion SDK를 사용하여 작업 대기 항목 조회
  */
-export async function fetchPendingTask(
+export async function fetchPendingTask (
   apiToken: string,
   databaseId: string,
   columns: ColumnConfig
@@ -116,6 +116,7 @@ export async function fetchPendingTask(
     columnPriority,
     columnPrerequisite,
     columnCreatedTime,
+    columnWorkMode,
   } = resolveColumns(columns);
 
   // 데이터베이스 쿼리
@@ -222,6 +223,7 @@ export async function fetchPendingTask(
   const properties = page.properties;
   const titleProp = properties['제목'] || properties['Name'] || properties['Title'];
   const baseBranchProp = properties[columnBaseBranch];
+  const workModeProp = properties[columnWorkMode];
 
   let taskTitle = '';
   if (titleProp?.type === 'title') {
@@ -233,12 +235,15 @@ export async function fetchPendingTask(
     baseBranch = baseBranchProp.rich_text.map((t) => t.plain_text).join('');
   }
 
+  const workMode = parseSelectProperty(workModeProp) || '';
+
   return {
     task_id: page.id,
     task_title: taskTitle,
     base_branch: baseBranch,
     requirements,
     page_url: page.url,
+    work_mode: workMode,
   };
 }
 
@@ -246,7 +251,7 @@ export async function fetchPendingTask(
  * Notion SDK를 사용하여 검토 전 태스크 조회
  * 상태가 '검토 전'이면서 검토 횟수가 maxReviewCount 미만인 항목 반환
  */
-export async function fetchReviewTask(
+export async function fetchReviewTask (
   apiToken: string,
   databaseId: string,
   columns: ColumnConfig,
@@ -405,7 +410,7 @@ export async function fetchReviewTask(
 /**
  * Notion 페이지의 검토 횟수를 1 증가시킴
  */
-export async function incrementReviewCount(
+export async function incrementReviewCount (
   apiToken: string,
   pageId: string,
   columnReviewCount: string,
@@ -426,7 +431,7 @@ export async function incrementReviewCount(
 /**
  * Notion SDK를 사용하여 페이지 업데이트
  */
-export async function updateNotionPage(
+export async function updateNotionPage (
   apiToken: string,
   pageId: string,
   properties: Record<string, unknown>,
@@ -494,4 +499,163 @@ export async function updateNotionPage(
       children: blocks as AppendBlockChildrenParameters['children'],
     });
   }
+}
+
+type NormalizedTask = Omit<PlanTaskItem, 'id' | 'depends_on'> & {
+  id: string;
+  depends_on: string[];
+};
+
+/**
+ * tasks 배열을 의존성 순서대로 정렬 (Kahn's 위상 정렬 알고리즘)
+ * id가 없는 작업에는 인덱스 기반 임시 id를 부여합니다.
+ * 중복 id 또는 순환 의존성 감지 시 오류를 throw합니다.
+ */
+function topologicalSort (tasks: PlanTaskItem[]): NormalizedTask[] {
+  const normalized: NormalizedTask[] = tasks.map((task, i) => ({
+    ...task,
+    id: task.id ?? `task-${i}`,
+    depends_on: task.depends_on ?? [],
+  }));
+
+  // 중복 id 감지
+  const allIds = normalized.map((t) => t.id);
+  const uniqueIds = new Set(allIds);
+  if (uniqueIds.size !== allIds.length) {
+    throw new Error('작업 id가 중복되었습니다. AI 출력에 동일한 id를 가진 작업이 존재합니다.');
+  }
+
+  const inDegree = new Map<string, number>();
+  const adjList = new Map<string, string[]>(); // depId -> 이 dep에 의존하는 task id 목록
+
+  for (const task of normalized) {
+    if (!inDegree.has(task.id)) inDegree.set(task.id, 0);
+    if (!adjList.has(task.id)) adjList.set(task.id, []);
+
+    for (const depId of task.depends_on) {
+      if (!uniqueIds.has(depId)) continue; // 알 수 없는 id 무시
+      inDegree.set(task.id, (inDegree.get(task.id) ?? 0) + 1);
+      if (!adjList.has(depId)) adjList.set(depId, []);
+      adjList.get(depId)!.push(task.id);
+    }
+  }
+
+  const queue: string[] = [];
+  for (const [id, deg] of inDegree) {
+    if (deg === 0) queue.push(id);
+  }
+
+  const sorted: NormalizedTask[] = [];
+  const taskById = new Map(normalized.map((t) => [t.id, t]));
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    sorted.push(taskById.get(current)!);
+
+    for (const neighbor of adjList.get(current) ?? []) {
+      const newDeg = (inDegree.get(neighbor) ?? 0) - 1;
+      inDegree.set(neighbor, newDeg);
+      if (newDeg === 0) queue.push(neighbor);
+    }
+  }
+
+  if (sorted.length !== normalized.length) {
+    throw new Error('작업 간 순환 의존성이 감지되었습니다. depends_on 설정을 확인하세요.');
+  }
+
+  return sorted;
+}
+
+/**
+ * 계획 모드: 작업 배열을 기반으로 Notion 하위 페이지 생성
+ * 의존성 순서대로 순차 생성하며, 각 작업의 prerequisite에
+ * 부모 페이지와 의존 대상 페이지 ID를 모두 설정합니다.
+ *
+ * @returns 생성된 Notion 페이지 ID 배열 (반환 순서는 위상 정렬 순서이며 입력 순서와 다를 수 있음)
+ */
+export async function createNotionSubPages (
+  apiToken: string,
+  databaseId: string,
+  parentPageId: string,
+  baseBranch: string,
+  tasks: PlanTaskItem[],
+  columns: ColumnConfig
+): Promise<string[]> {
+  const { client } = createClient(apiToken);
+
+  const {
+    columnStatus,
+    statusWait,
+    columnPriority,
+    columnBaseBranch,
+    columnPrerequisite,
+    columnCreatedTime,
+  } = resolveColumns(columns);
+
+  const sortedTasks = topologicalSort(tasks);
+  const createdPageIdMap = new Map<string, string>(); // taskId -> Notion 페이지 ID
+  const createdPageIds: string[] = [];
+  const today = new Date();
+  const sevenDaysLater = new Date(today);
+  sevenDaysLater.setDate(today.getDate() + 7);
+  const startDate = today.toISOString().slice(0, 10);
+  const endDate = sevenDaysLater.toISOString().slice(0, 10);
+
+  for (const task of sortedTasks) {
+    // prerequisite: 부모 페이지 + 의존 대상 페이지들 (중복 제거)
+    const seenDepPageIds = new Set<string>();
+    const prereqRelations: { id: string }[] = [{ id: parentPageId }];
+    for (const depId of task.depends_on) {
+      const depPageId = createdPageIdMap.get(depId);
+      if (depPageId && !seenDepPageIds.has(depPageId)) {
+        seenDepPageIds.add(depPageId);
+        prereqRelations.push({ id: depPageId });
+      }
+    }
+
+    const properties: Record<string, unknown> = {
+      'title': {
+        title: [{ type: 'text', text: { content: task.summary } }],
+        type: 'title',
+      },
+      [columnStatus]: {
+        status: { name: statusWait },
+      },
+      [columnPriority]: {
+        select: { name: task.priority },
+      },
+      [columnBaseBranch]: {
+        rich_text: [{ type: 'text', text: { content: baseBranch } }],
+      },
+      [columnPrerequisite]: {
+        relation: prereqRelations,
+      },
+      [columnCreatedTime]: {
+        date: { start: startDate, end: endDate },
+      },
+    };
+
+    const children = task.detail
+      ? [
+          {
+            object: 'block' as const,
+            type: 'paragraph' as const,
+            paragraph: {
+              rich_text: [{ type: 'text' as const, text: { content: task.detail } }],
+            },
+          },
+        ]
+      : [];
+
+    const newPage = await client.pages.create({
+      parent: { database_id: databaseId },
+      properties: properties as NonNullable<UpdatePageParameters['properties']>,
+      children,
+    } as Parameters<typeof client.pages.create>[0]);
+
+    createdPageIdMap.set(task.id, newPage.id);
+    createdPageIds.push(newPage.id);
+  }
+
+  return createdPageIds;
 }

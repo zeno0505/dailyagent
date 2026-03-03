@@ -7,7 +7,7 @@
  * - Notion SDK를 통해 업데이트 수행
  */
 
-import { TaskInfo, WorkResult, FinishResult } from '../types/core.js';
+import { TaskInfo, WorkResult, FinishResult, PlanModeResult, PlanFinishResult } from '../types/core.js';
 import { NotionConfig, Workspace } from '../types/config.js';
 import { DEFAULT_WORKSPACE_NOTION_CONFIG } from '../config.js';
 import { incrementReviewCount, updateNotionPage } from '../notion-api.js';
@@ -35,6 +35,30 @@ export function buildNotionResult(
     pr_url: isSuccess ? (workResult.pr_url || '') : '',
     pr_skipped_reason: isSuccess ? (workResult.pr_skipped_reason || '') : '',
     summary: isSuccess ? (workResult.summary || '') : (workResult.error || ''),
+    notion_updated: notionUpdated,
+  };
+}
+
+/**
+ * 계획 모드 Notion 업데이트 결과를 생성합니다.
+ */
+export function buildPlanNotionResult(
+  taskInfo: TaskInfo,
+  planResult: PlanModeResult,
+  notionUpdated: boolean
+): PlanFinishResult {
+  const isSuccess = planResult.success !== false;
+  const summary = isSuccess
+    ? `계획 모드 완료: ${planResult.task_count}개 세부 작업 생성 (${planResult.created_page_ids.length}개 페이지)`
+    : `계획 모드 실패: ${planResult.error || 'Unknown error'}`;
+
+  return {
+    success: isSuccess,
+    task_id: taskInfo.task_id || '',
+    task_title: taskInfo.task_title || '',
+    task_count: planResult.task_count || 0,
+    created_page_ids: planResult.created_page_ids || [],
+    summary,
     notion_updated: notionUpdated,
   };
 }
@@ -147,7 +171,7 @@ export async function executePhase3(
   workResult: WorkResult,
   workspace: Workspace,
   logger: Logger
-): Promise<unknown> {
+): Promise<FinishResult> {
   const apiToken = workspace.notion.api_token;
   if (!apiToken) {
     throw new Error('Notion API 토큰이 설정되지 않았습니다.');
@@ -158,4 +182,46 @@ export async function executePhase3(
   } else {
     return updateNotionForNormal(apiToken, taskInfo, workResult, workspace.notion, logger);
   }
+}
+
+/**
+ * 계획 모드 Phase 3(Notion) 업데이트
+ *
+ * - 성공 시: 상태를 '완료'로 업데이트하고 생성 결과를 기록합니다.
+ * - 실패 시: 상태를 '작업 실패'로 업데이트하고 실패 사유를 기록합니다.
+ */
+export async function executePhase3ForPlan(
+  taskInfo: TaskInfo,
+  planResult: PlanModeResult,
+  workspace: Workspace,
+  logger: Logger
+): Promise<PlanFinishResult> {
+  const apiToken = workspace.notion.api_token;
+  if (!apiToken) {
+    throw new Error('Notion API 토큰이 설정되지 않았습니다.');
+  }
+  if (!taskInfo.task_id) {
+    throw new Error('task_id가 없습니다. Notion 업데이트를 수행할 수 없습니다.');
+  }
+
+  const isSuccess = planResult.success !== false;
+  const statusColumn = workspace.notion.column_status || DEFAULT_WORKSPACE_NOTION_CONFIG.column_status;
+  const statusValue = isSuccess
+    ? workspace.notion.column_status_complete || DEFAULT_WORKSPACE_NOTION_CONFIG.column_status_complete
+    : workspace.notion.column_status_error || DEFAULT_WORKSPACE_NOTION_CONFIG.column_status_error;
+
+  const properties: Record<string, unknown> = {
+    [statusColumn]: {
+      status: { name: statusValue },
+    },
+  };
+
+  const content = isSuccess
+    ? `\n---\n\n## 계획 모드 완료\n\n완료 시간: ${new Date().toISOString()}\n\n생성 작업 수: ${planResult.task_count}\n생성 페이지 수: ${planResult.created_page_ids.length}\n`
+    : `\n---\n\n## 계획 모드 실패\n\n실패 시간: ${new Date().toISOString()}\n\n에러 내용:\n${planResult.error || 'Unknown error'}\n`;
+
+  await updateNotionPage(apiToken, taskInfo.task_id, properties, content);
+  await logger.info('계획 모드 Phase 3 완료');
+
+  return buildPlanNotionResult(taskInfo, planResult, true);
 }

@@ -5,19 +5,20 @@ import { getJob, updateJob, acquireLock, releaseLock } from '../jobs.js';
 import { getWorkspace } from '../workspace.js';
 import { Logger } from '../logger.js';
 import { generateWorkPrompt, generatePlanPrompt, generateImplementPrompt, generateReviewPrompt, generateReviewTaskPrompt } from './prompt-generator.js';
-import { executePhase3 } from './notion-updater.js';
+import { executePhase3, executePhase3ForPlan } from './notion-updater.js';
 import chalk from 'chalk';
-import { TaskInfo, WorkResult, PlanResult, ImplResult } from '../types/core.js';
+import { TaskInfo, WorkResult, PlanResult, ImplResult, ExecuteJobResult, PlanModeResult, PlanFinishResult, FinishResult } from '../types/core.js';
 import { fetchPendingTask, fetchReviewTask } from '../notion-api.js';
 import { runClaude, runCursor } from './cli-runner.js';
 import { resolveSettingsFile, validateEnvironment } from '../utils/executor.js';
-import { sendSlackNotification } from '../slack/webhook.js';
+import { sendSlackNotification, sendPlanSlackNotification } from '../slack/webhook.js';
+import { executePlanMode, WORK_MODE_PLAN } from './plan-mode-executor.js';
 
 /**
  * 작업 실행 오케스트레이터
  * 3단계 분리: Phase 1 (Notion 조회) → Phase 2 (코드 작업) → Phase 3 (Notion 업데이트)
  */
-export async function executeJob (jobName: string): Promise<unknown> {
+export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
   const logger = new Logger(jobName);
   await logger.init();
 
@@ -127,21 +128,39 @@ export async function executeJob (jobName: string): Promise<unknown> {
       await logger.info(`Phase 1 완료: ${JSON.stringify(logSafeTaskInfo)}`);
     }
 
+    if (!taskInfo) {
+      throw new Error('작업 정보를 확인할 수 없습니다.');
+    }
+
+    const isPlanMode = !isCustomMode && taskInfo.work_mode === WORK_MODE_PLAN;
+    let workResult: WorkResult | undefined;
+    let planResult: PlanModeResult | undefined;
+
     // ========================================
     // Phase 2: 코드 작업 + Git Push
     // ========================================
-    const phase2Mode = job.execution?.phase2_mode || 'single';
-    await logger.info(`--- Phase 2: 코드 작업 시작 (mode: ${taskInfo.is_review ? 'review' : phase2Mode}) ---`);
+    if (isPlanMode) {
+      await logger.info('--- 작업 모드: 계획 --- Phase 2 대신 계획 실행');
+      planResult = await executePlanMode(runAgent, {
+        workDir,
+        taskInfo,
+        settingsFile,
+        job,
+        workspace,
+        logger,
+      });
+      await logger.info(`계획 모드 완료: ${JSON.stringify(planResult)}`);
+    } else {
+      const phase2Mode = job.execution?.phase2_mode || 'single';
+      await logger.info(`--- Phase 2: 코드 작업 시작 (mode: ${taskInfo.is_review ? 'review' : phase2Mode}) ---`);
 
-    let workResult: WorkResult;
-
-    if (taskInfo.is_review) {
+      if (taskInfo.is_review) {
       // ========================================
       // Review Mode: 재검토
       // ========================================
       await logger.info('--- Phase 2: 재검토 모드 ---');
       workResult = await executeReviewPhase(runAgent, { workDir, taskInfo, settingsFile, job, logger });
-    } else if (phase2Mode === 'session' && job.prompt_mode !== 'custom') {
+      } else if (phase2Mode === 'session' && job.prompt_mode !== 'custom') {
       // ========================================
       // Session Mode: Phase 2-1 → 2-2 → 2-3
       // ========================================
@@ -253,30 +272,46 @@ export async function executeJob (jobName: string): Promise<unknown> {
           workResult = { success: false, error: error.message };
         }
       }
-    } else {
+      } else {
       // ========================================
       // Single Mode: 기존 방식 (Phase 2 단일 실행)
       // ========================================
       workResult = await executePhase2Single(runAgent, { workDir, taskInfo, settingsFile, job, jobName, logger });
+      }
     }
 
     // ========================================
     // Phase 3: Notion 업데이트
     // ========================================
-    let result: unknown;
+    let result: FinishResult | PlanFinishResult | WorkResult;
 
     if (isCustomMode) {
       await logger.info('커스텀 모드: Phase 3 (Notion 업데이트) 스킵');
+      result = workResult || { success: false, error: 'Phase 2 결과가 없습니다.' };
+    } else if (isPlanMode) {
+      await logger.info('--- Phase 3: Notion 업데이트 시작 (계획 모드) ---');
+      if (!planResult) {
+        throw new Error('계획 모드 결과가 없습니다.');
+      }
+      result = await executePhase3ForPlan(taskInfo, planResult, workspace, logger);
+      await logger.info(`Phase 3 완료(계획 모드): ${JSON.stringify(result)}`);
     } else {
       await logger.info('--- Phase 3: Notion 업데이트 시작 ---');
+      if (!workResult) {
+        throw new Error('작업 결과가 없습니다.');
+      }
       result = await executePhase3(taskInfo, workResult, workspace, logger);
       await logger.info(`Phase 3 완료: ${JSON.stringify(result)}`);
     }
 
     // 7. Update job metadata
+    const executionSuccess = isPlanMode
+      ? (planResult?.success !== false)
+      : (workResult?.success !== false);
+
     await updateJob(jobName, {
       last_run: new Date().toISOString(),
-      last_status: workResult.success === false ? 'error' : 'success',
+      last_status: executionSuccess ? 'success' : 'error',
     });
 
     // ========================================
@@ -284,12 +319,24 @@ export async function executeJob (jobName: string): Promise<unknown> {
     // ========================================
     if (config.slack?.enabled && config.slack?.webhook_url) {
       await logger.info('--- Phase 4: Slack 알림 발송 ---');
-      await sendSlackNotification({
-        taskInfo,
-        workResult,
-        webhookUrl: config.slack.webhook_url,
-        logger,
-      });
+      if (isPlanMode) {
+        if (!planResult) {
+          throw new Error('계획 모드 Slack 발송에 필요한 결과가 없습니다.');
+        }
+        await sendPlanSlackNotification({
+          taskInfo,
+          planResult,
+          webhookUrl: config.slack.webhook_url,
+          logger,
+        });
+      } else {
+        await sendSlackNotification({
+          taskInfo,
+          workResult: workResult || { success: false, error: 'Phase 2 결과가 없습니다.' },
+          webhookUrl: config.slack.webhook_url,
+          logger,
+        });
+      }
     }
 
     await logger.info('작업 완료');

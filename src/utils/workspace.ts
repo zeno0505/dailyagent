@@ -44,6 +44,7 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
   let column_prerequisite: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_prerequisite;
   let column_created_time: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_created_time;
   let column_review_count: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_review_count;
+  let column_work_mode: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_work_mode;
 
   if (!use_notion_template) {
     column_priority = await input({
@@ -90,6 +91,10 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
       message: '검토 횟수 컬럼명:',
       default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_review_count,
     });
+    column_work_mode = await input({
+      message: '작업 모드 컬럼명:',
+      default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_work_mode,
+    });
   }
 
   const max_review_count = await number({
@@ -116,6 +121,7 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
     column_prerequisite,
     column_created_time,
     column_review_count,
+    column_work_mode,
     max_review_count: max_review_count ?? DEFAULT_WORKSPACE_NOTION_CONFIG.max_review_count,
   };
 }
