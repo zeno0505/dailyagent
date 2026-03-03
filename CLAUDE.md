@@ -38,9 +38,9 @@ legacy/                     # Original bash scripts (preserved for reference)
 ## Workflow
 
 1. `dailyagent init` — Configure Notion DB URL and column mappings
-2. `dailyagent register` — Register a job (name, working dir, schedule, timeout)
-3. `dailyagent run <name>` — Execute: query Notion → Claude Code → Git push → Notion update
-4. `dailyagent list` — View registered jobs and their status
+2. `dailyagent job register` — Register a job (name, working dir, schedule, timeout)
+3. `dailyagent job run <name>` — Execute: query Notion → Claude Code → Git push → Notion update
+4. `dailyagent job list` — View registered jobs and their status
 
 ## Commands
 
@@ -52,13 +52,13 @@ npm install -g dailyagent
 dailyagent init
 
 # Register a new job
-dailyagent register
+dailyagent job register
 
 # List registered jobs
-dailyagent list
+dailyagent job list
 
 # Run a job manually
-dailyagent run <job-name>
+dailyagent job run <job-name>
 ```
 
 ## Conventions

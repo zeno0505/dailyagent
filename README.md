@@ -129,11 +129,11 @@ https://www.notion.so/profile/integrations/internal
 ### 기본 워크플로우
 
 ```
-dailyagent init       # 최초 1회: 설정 초기화
+dailyagent init            # 최초 1회: 설정 초기화
     ↓
-dailyagent register   # 작업 등록
+dailyagent job register    # 작업 등록
     ↓
-dailyagent run <name> # 수동 실행 (또는 스케줄로 자동 실행)
+dailyagent job run <name>  # 수동 실행 (또는 스케줄로 자동 실행)
 ```
 
 ---
@@ -156,12 +156,12 @@ dailyagent init
 
 ---
 
-### `dailyagent register` — 작업 등록
+### `dailyagent job register` — 작업 등록
 
 자동화할 작업(Job)을 등록합니다.
 
 ```bash
-dailyagent register
+dailyagent job register
 ```
 
 등록 과정에서 설정하는 항목:
@@ -183,12 +183,12 @@ dailyagent register
 
 ---
 
-### `dailyagent run <name>` — 작업 실행
+### `dailyagent job run <name>` — 작업 실행
 
 등록된 작업을 수동으로 실행합니다.
 
 ```bash
-dailyagent run my-project
+dailyagent job run my-project
 ```
 
 실행 흐름:
@@ -198,30 +198,30 @@ dailyagent run my-project
 
 ---
 
-### `dailyagent list` — 작업 목록 조회
+### `dailyagent job list` — 작업 목록 조회
 
 등록된 모든 작업과 상태를 확인합니다.
 
 ```bash
-dailyagent list
+dailyagent job list
 ```
 
 ---
 
-### `dailyagent status <name>` — 작업 상태 조회
+### `dailyagent job status <name>` — 작업 상태 조회
 
 특정 작업의 상세 상태와 최근 실행 이력을 확인합니다.
 
 ```bash
-dailyagent status my-project
+dailyagent job status my-project
 
 # 최근 20회 이력 조회
-dailyagent status my-project --count 20
+dailyagent job status my-project --count 20
 ```
 
 ---
 
-### `dailyagent schedule` — 자동 스케줄 관리
+### `dailyagent job schedule` — 자동 스케줄 관리
 
 등록된 Cron 스케줄에 따라 작업을 자동으로 실행하도록 시스템 스케줄러에 등록합니다.
 
@@ -230,44 +230,44 @@ dailyagent status my-project --count 20
 
 ```bash
 # 스케줄 활성화
-dailyagent schedule on my-project
+dailyagent job schedule on my-project
 
 # 스케줄 비활성화
-dailyagent schedule off my-project
+dailyagent job schedule off my-project
 
 # 스케줄 상태 확인
-dailyagent schedule status
+dailyagent job schedule status
 ```
 
 ---
 
-### `dailyagent pause <name>` / `dailyagent resume <name>` — 일시 중지 / 재개
+### `dailyagent job pause <name>` / `dailyagent job resume <name>` — 일시 중지 / 재개
 
 작업의 자동 실행을 일시적으로 중지하거나 재개합니다.
 
 ```bash
-dailyagent pause my-project
-dailyagent resume my-project
+dailyagent job pause my-project
+dailyagent job resume my-project
 ```
 
 ---
 
-### `dailyagent unregister <name>` — 작업 삭제
+### `dailyagent job unregister <name>` — 작업 삭제
 
 등록된 작업을 삭제합니다.
 
 ```bash
-dailyagent unregister my-project
+dailyagent job unregister my-project
 ```
 
 ---
 
-### `dailyagent logs <name>` — 실행 로그 조회
+### `dailyagent job logs <name>` — 실행 로그 조회
 
 작업의 실행 로그를 확인합니다.
 
 ```bash
-dailyagent logs my-project
+dailyagent job logs my-project
 ```
 
 로그 파일 위치: `~/.dailyagent/logs/`

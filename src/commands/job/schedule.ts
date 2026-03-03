@@ -57,8 +57,7 @@ async function scheduleOn(name: string | undefined, scheduler: SchedulerType): P
 
   const job = await getJob(name);
   if (!job) {
-    console.log(chalk.red(`\n  작업 "${name}"을(를) 찾을 수 없습니다.`));
-    console.log(`  ${chalk.cyan('dailyagent job list')} 명령으로 작업 목록을 확인하세요.\n`);
+    console.log(chalk.red(`\n  작업 "${name}"을(를) 찾을 수 없습니다.\n`));
     process.exit(1);
   }
 
