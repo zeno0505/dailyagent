@@ -16,7 +16,7 @@ export async function logsCommand(name: string, options: {
 
   const job = await getJob(name);
   if (!job) {
-    console.log(chalk.red(`작업 "${name}"을(를) 찾을 수 없습니다.`));
+    console.log(chalk.red(`\n  작업 "${name}"을(를) 찾을 수 없습니다.\n`));
     process.exit(1);
   }
 
