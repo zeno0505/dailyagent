@@ -12,7 +12,7 @@ import { fetchPendingTask, fetchReviewTask } from '../notion-api.js';
 import { runClaude, runCursor } from './cli-runner.js';
 import { resolveSettingsFile, validateEnvironment } from '../utils/executor.js';
 import { sendSlackNotification } from '../slack/webhook.js';
-import { executePlanMode } from './plan-mode-executor.js';
+import { executePlanMode, WORK_MODE_PLAN } from './plan-mode-executor.js';
 
 /**
  * 작업 실행 오케스트레이터
@@ -131,7 +131,7 @@ export async function executeJob (jobName: string): Promise<unknown> {
     // ========================================
     // 작업 모드 확인: "계획"이면 계획 모드 실행 후 종료
     // ========================================
-    if (!isCustomMode && taskInfo.work_mode === '계획') {
+    if (!isCustomMode && taskInfo.work_mode === WORK_MODE_PLAN) {
       await logger.info('--- 작업 모드: 계획 --- Phase 2/3 건너뜀');
       const planResult = await executePlanMode(runAgent, {
         workDir,

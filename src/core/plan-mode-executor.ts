@@ -14,6 +14,8 @@ import { createNotionSubPages } from '../notion-api.js';
 import { runClaude, runCursor } from './cli-runner.js';
 import chalk from 'chalk';
 
+export const WORK_MODE_PLAN = "계획";
+
 export interface PlanModeResult {
   success: boolean;
   created_page_ids: string[];
@@ -74,7 +76,7 @@ export async function executePlanMode(
     const { tasks } = planRunnerResult.result;
     if (!Array.isArray(tasks) || tasks.length === 0) {
       const errorMsg = '계획 모드: 생성된 작업 배열이 비어있습니다.';
-      await logger.warn(errorMsg);
+      await logger.error(errorMsg);
       return { success: false, created_page_ids: [], task_count: 0, error: errorMsg };
     }
 

@@ -27,7 +27,7 @@ let _cachedToken: string | undefined;
 let _cachedClient: Client | undefined;
 let _cachedN2m: NotionToMarkdown | undefined;
 
-function createClient(apiToken: string): { client: Client; n2m: NotionToMarkdown } {
+function createClient (apiToken: string): { client: Client; n2m: NotionToMarkdown } {
   if (_cachedToken !== apiToken || !_cachedClient || !_cachedN2m) {
     _cachedClient = new Client({ auth: apiToken });
     _cachedN2m = new NotionToMarkdown({ notionClient: _cachedClient });
@@ -40,7 +40,7 @@ function createClient(apiToken: string): { client: Client; n2m: NotionToMarkdown
  * Notion 페이지의 블록 내용을 마크다운 문자열로 변환
  * notion-to-md 라이브러리를 사용하여 페이지네이션과 블록 변환을 처리
  */
-async function fetchPageContent(n2m: NotionToMarkdown, pageId: string): Promise<string> {
+async function fetchPageContent (n2m: NotionToMarkdown, pageId: string): Promise<string> {
   const mdBlocks = await n2m.pageToMarkdown(pageId);
   const mdStringObj = n2m.toMarkdownString(mdBlocks);
   return (mdStringObj['parent'] ?? '').trim();
@@ -56,7 +56,7 @@ interface TaskCandidate {
 /**
  * 선행 작업이 완료되었는지 확인
  */
-async function checkPrerequisiteCompleted(
+async function checkPrerequisiteCompleted (
   client: Client,
   prerequisitePageId: string,
   columns: ColumnConfig
@@ -93,7 +93,7 @@ async function checkPrerequisiteCompleted(
 /**
  * 우선도 계산: 우선순위가 높을수록, 작업 일자가 오래될수록 높은 점수
  */
-function calculatePriority({ createdTime, priority }: TaskCandidate): number {
+function calculatePriority ({ createdTime, priority }: TaskCandidate): number {
   const daysSinceCreation = (Date.now() - createdTime.getTime()) / (1000 * 60 * 60 * 24);
   // 우선순위는 가중치 100, 경과 일수는 가중치 1
   return priority * 100 + daysSinceCreation;
@@ -102,7 +102,7 @@ function calculatePriority({ createdTime, priority }: TaskCandidate): number {
 /**
  * Notion SDK를 사용하여 작업 대기 항목 조회
  */
-export async function fetchPendingTask(
+export async function fetchPendingTask (
   apiToken: string,
   databaseId: string,
   columns: ColumnConfig
@@ -251,7 +251,7 @@ export async function fetchPendingTask(
  * Notion SDK를 사용하여 검토 전 태스크 조회
  * 상태가 '검토 전'이면서 검토 횟수가 maxReviewCount 미만인 항목 반환
  */
-export async function fetchReviewTask(
+export async function fetchReviewTask (
   apiToken: string,
   databaseId: string,
   columns: ColumnConfig,
@@ -410,7 +410,7 @@ export async function fetchReviewTask(
 /**
  * Notion 페이지의 검토 횟수를 1 증가시킴
  */
-export async function incrementReviewCount(
+export async function incrementReviewCount (
   apiToken: string,
   pageId: string,
   columnReviewCount: string,
@@ -431,7 +431,7 @@ export async function incrementReviewCount(
 /**
  * Notion SDK를 사용하여 페이지 업데이트
  */
-export async function updateNotionPage(
+export async function updateNotionPage (
   apiToken: string,
   pageId: string,
   properties: Record<string, unknown>,
@@ -506,7 +506,7 @@ export async function updateNotionPage(
  * 각 신규 페이지는 원본 페이지를 선행 작업(prerequisite)으로 참조하여
  * 원본 페이지의 후속 작업으로 연결됩니다.
  */
-export async function createNotionSubPages(
+export async function createNotionSubPages (
   apiToken: string,
   databaseId: string,
   parentPageId: string,
@@ -524,9 +524,7 @@ export async function createNotionSubPages(
     columnPrerequisite,
   } = resolveColumns(columns);
 
-  const createdPageIds: string[] = [];
-
-  for (const task of tasks) {
+  const createdPageIds = await Promise.all(tasks.map(async (task) => {
     const properties: Record<string, unknown> = {
       '제목': {
         title: [{ type: 'text', text: { content: task.summary } }],
@@ -549,9 +547,8 @@ export async function createNotionSubPages(
       parent: { database_id: databaseId },
       properties: properties as NonNullable<UpdatePageParameters['properties']>,
     });
-
-    createdPageIds.push(newPage.id);
-  }
+    return newPage.id;
+  }));
 
   return createdPageIds;
 }
