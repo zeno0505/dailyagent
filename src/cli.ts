@@ -25,78 +25,82 @@ program
     await initCommand();
   });
 
-program
+const jobCommand = program
+  .command('job')
+  .description('작업 관리 (등록, 실행, 일시 중지 등)');
+
+jobCommand
   .command('register')
   .description('새 작업 등록')
   .action(async () => {
-    const { registerCommand } = await import('./commands/register.js');
+    const { registerCommand } = await import('./commands/job/register.js');
     await registerCommand();
   });
 
-program
+jobCommand
   .command('list')
   .description('등록된 작업 목록 조회')
   .action(async () => {
-    const { listCommand } = await import('./commands/list.js');
+    const { listCommand } = await import('./commands/job/list.js');
     await listCommand();
   });
 
-program
+jobCommand
   .command('unregister <name>')
   .description('등록된 작업 삭제')
   .action(async (name: string) => {
-    const { unregisterCommand } = await import('./commands/unregister.js');
+    const { unregisterCommand } = await import('./commands/job/unregister.js');
     await unregisterCommand(name);
   });
 
-program
+jobCommand
   .command('run <name>')
   .description('지정된 작업 즉시 실행')
   .action(async (name: string) => {
-    const { runCommand } = await import('./commands/run.js');
+    const { runCommand } = await import('./commands/job/run.js');
     await runCommand(name);
   });
 
-program
+jobCommand
   .command('pause <name>')
   .description('작업 일시 중지')
   .action(async (name: string) => {
-    const { pauseCommand } = await import('./commands/pause.js');
+    const { pauseCommand } = await import('./commands/job/pause.js');
     await pauseCommand(name);
   });
 
-program
+jobCommand
   .command('resume <name>')
   .description('일시 중지된 작업 재개')
   .action(async (name: string) => {
-    const { resumeCommand } = await import('./commands/resume.js');
+    const { resumeCommand } = await import('./commands/job/resume.js');
     await resumeCommand(name);
   });
 
-program
+jobCommand
   .command('status <name>')
   .description('작업 상태 및 실행 이력 조회')
   .option('-n, --count <number>', '표시할 실행 이력 수', parseInt)
   .action(async (name: string, options: { count?: number }) => {
-    const { statusCommand } = await import('./commands/status.js');
+    const { statusCommand } = await import('./commands/job/status.js');
     await statusCommand(name, options);
   });
 
-program
+jobCommand
   .command('logs <name>')
   .description('작업의 로그 파일 조회')
   .option('-f, --follow', '실시간 로그 모니터링 (최신 로그 표시)')
   .option('-n, --lines <number>', '표시할 로그 줄 수', parseInt)
   .action(async (name: string, options: { follow?: boolean; lines?: number }) => {
-    const { logsCommand } = await import('./commands/logs.js');
+    const { logsCommand } = await import('./commands/job/logs.js');
     await logsCommand(name, options);
   });
 
-program
+jobCommand
   .command('schedule <action> [name]')
   .description('OS 스케줄러(crontab/launchd) 연동 관리 (on|off|status)')
   .action(async (action: string, name?: string) => {
-    const { scheduleCommand } = await import('./commands/schedule.js');
+    const { scheduleCommand } = await import('./commands/job/schedule.js');
     await scheduleCommand(action, name);
   });
 

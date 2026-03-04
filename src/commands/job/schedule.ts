@@ -1,15 +1,15 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import os from 'os';
-import { isInitialized } from '../config.js';
-import { getJob, listJobs } from '../jobs.js';
+import { isInitialized } from '../../config.js';
+import { getJob, listJobs } from '../../jobs.js';
 import {
   listCronJobs,
-} from '../scheduler/crontab.js';
+} from '../../scheduler/crontab.js';
 import {
   listLaunchdJobs,
-} from '../scheduler/launchd.js';
-import { detectScheduler, installJob, isJobInstalled, schedulerName, SchedulerType, uninstallJob } from '../utils/schedule.js';
+} from '../../scheduler/launchd.js';
+import { detectScheduler, installJob, isJobInstalled, schedulerName, SchedulerType, uninstallJob } from '../../utils/schedule.js';
 
 
 
@@ -42,7 +42,7 @@ export async function scheduleCommand(action: string, name?: string): Promise<vo
       break;
     default:
       console.log(chalk.red(`\n  알 수 없는 동작: ${action}`));
-      console.log(chalk.gray('  사용법: dailyagent schedule <on|off|status> [job-name]\n'));
+      console.log(chalk.gray('  사용법: dailyagent job schedule <on|off|status> [job-name]\n'));
       process.exit(1);
   }
 }
@@ -51,20 +51,19 @@ export async function scheduleCommand(action: string, name?: string): Promise<vo
 async function scheduleOn(name: string | undefined, scheduler: SchedulerType): Promise<void> {
   if (!name) {
     console.log(chalk.red('\n  작업 이름을 지정해주세요.'));
-    console.log(chalk.gray('  사용법: dailyagent schedule on <job-name>\n'));
+    console.log(chalk.gray('  사용법: dailyagent job schedule on <job-name>\n'));
     process.exit(1);
   }
 
   const job = await getJob(name);
   if (!job) {
-    console.log(chalk.red(`\n  작업 "${name}"을(를) 찾을 수 없습니다.`));
-    console.log(`  ${chalk.cyan('dailyagent list')} 명령으로 작업 목록을 확인하세요.\n`);
+    console.log(chalk.red(`\n  작업 "${name}"을(를) 찾을 수 없습니다.\n`));
     process.exit(1);
   }
 
   if (isJobInstalled(name)) {
     console.log(chalk.yellow(`\n  작업 "${name}"은(는) 이미 스케줄이 등록되어 있습니다.`));
-    console.log(chalk.gray(`  해제 후 재등록하려면: dailyagent schedule off ${name}\n`));
+    console.log(chalk.gray(`  해제 후 재등록하려면: dailyagent job schedule off ${name}\n`));
     return;
   }
 
@@ -72,7 +71,7 @@ async function scheduleOn(name: string | undefined, scheduler: SchedulerType): P
     installJob(name, job.schedule);
     console.log(chalk.green(`\n  작업 "${name}" 스케줄이 등록되었습니다. (${schedulerName(scheduler)})`));
     console.log(chalk.gray(`  스케줄: ${job.schedule}`));
-    console.log(chalk.gray(`  확인: dailyagent schedule status\n`));
+    console.log(chalk.gray(`  확인: dailyagent job schedule status\n`));
   } catch (err) {
     const error = err as Error;
     console.log(chalk.red(`\n  스케줄 등록 실패: ${error.message}\n`));
@@ -83,7 +82,7 @@ async function scheduleOn(name: string | undefined, scheduler: SchedulerType): P
 async function scheduleOff(name: string | undefined, scheduler: SchedulerType): Promise<void> {
   if (!name) {
     console.log(chalk.red('\n  작업 이름을 지정해주세요.'));
-    console.log(chalk.gray('  사용법: dailyagent schedule off <job-name>\n'));
+    console.log(chalk.gray('  사용법: dailyagent job schedule off <job-name>\n'));
     process.exit(1);
   }
 

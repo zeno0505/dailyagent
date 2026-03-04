@@ -2,12 +2,12 @@ import { input, select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs-extra';
-import { isInitialized, PROMPTS_DIR } from '../config.js';
-import { addJob } from '../jobs.js';
-import { listWorkspaces } from '../workspace.js';
-import type { ExecutionConfig, Phase2Mode, PromptMode } from '../types/jobs.js';
-import { Agent } from '../utils/cli-runner.js';
-import { validateAgentModel } from '../utils/register.js';
+import { isInitialized, PROMPTS_DIR } from '../../config.js';
+import { addJob } from '../../jobs.js';
+import { listWorkspaces } from '../../workspace.js';
+import type { ExecutionConfig, Phase2Mode, PromptMode } from '../../types/jobs.js';
+import { Agent } from '../../utils/cli-runner.js';
+import { validateAgentModel } from '../../utils/register.js';
 
 export async function registerCommand (): Promise<void> {
   if (!isInitialized()) {
@@ -55,7 +55,7 @@ export async function registerCommand (): Promise<void> {
     message: '모델 (선택사항, 비용 최적화용 - 비워두면 기본값 사용):',
     default: '',
     validate: (model) => validateAgentModel(agent, model),
-  });  
+  });
 
   const schedule = await input({
     message: 'Cron 스케줄 (후속 작업용, 예: 0 */5 * * *):',
@@ -189,7 +189,7 @@ export async function registerCommand (): Promise<void> {
     console.log('');
     console.log(chalk.green(`  작업 "${name}"이(가) 등록되었습니다!`));
     console.log('');
-    console.log(`  실행: ${chalk.cyan(`dailyagent run ${name}`)}`);
+    console.log(`  실행: ${chalk.cyan(`dailyagent job run ${name}`)}`);
     if (prompt_mode === 'custom') {
       const promptFile = path.join(PROMPTS_DIR, `${name}.md`);
       console.log(`  프롬프트: ${chalk.cyan(promptFile)}`);

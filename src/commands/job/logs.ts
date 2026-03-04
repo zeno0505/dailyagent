@@ -1,9 +1,9 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
 
-import { isInitialized } from '../config.js';
-import { getJob } from '../jobs.js';
-import { formatFileSize, getJobLogFiles, tailLogFile } from '../utils/logs.js';
+import { isInitialized } from '../../config.js';
+import { getJob } from '../../jobs.js';
+import { formatFileSize, getJobLogFiles, tailLogFile } from '../../utils/logs.js';
 
 export async function logsCommand(name: string, options: {
   follow?: boolean;
@@ -16,7 +16,7 @@ export async function logsCommand(name: string, options: {
 
   const job = await getJob(name);
   if (!job) {
-    console.log(chalk.red(`작업 "${name}"을(를) 찾을 수 없습니다.`));
+    console.log(chalk.red(`\n  작업 "${name}"을(를) 찾을 수 없습니다.\n`));
     process.exit(1);
   }
 
@@ -59,9 +59,8 @@ export async function logsCommand(name: string, options: {
 
     console.log(table.toString());
     console.log('');
-    console.log(chalk.gray(`  팁: ${chalk.cyan(`dailyagent logs ${name} --lines 50`)} 으로 최신 로그 상위 50줄 표시`));
-    console.log(chalk.gray(`  팁: ${chalk.cyan(`dailyagent logs ${name} --follow`)} 으로 실시간 로그 모니터링`));
+    console.log(chalk.gray(`  팁: ${chalk.cyan(`dailyagent job logs ${name} --lines 50`)} 으로 최신 로그 상위 50줄 표시`));
+    console.log(chalk.gray(`  팁: ${chalk.cyan(`dailyagent job logs ${name} --follow`)} 으로 실시간 로그 모니터링`));
     console.log('');
   }
 }
-

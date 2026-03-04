@@ -1,9 +1,9 @@
 import chalk from 'chalk';
 import ora from 'ora';
-import { isInitialized, loadConfig } from '../config.js';
-import { getJob } from '../jobs.js';
-import { executeJob } from '../core/executor.js';
-import { getWorkspace } from '../workspace.js';
+import { isInitialized, loadConfig } from '../../config.js';
+import { getJob } from '../../jobs.js';
+import { executeJob } from '../../core/executor.js';
+import { getWorkspace } from '../../workspace.js';
 
 export async function runCommand(name: string): Promise<void> {
   const config = await loadConfig();
@@ -14,11 +14,10 @@ export async function runCommand(name: string): Promise<void> {
 
   const job = await getJob(name);
   if (!job) {
-    console.log(chalk.red(`\n  작업 "${name}"을(를) 찾을 수 없습니다.`));
-    console.log(`  ${chalk.cyan('dailyagent list')} 명령으로 작업 목록을 확인하세요.\n`);
+    console.log(chalk.red(`\n  작업 "${name}"을(를) 찾을 수 없습니다.\n`));
     process.exit(1);
   }
-  
+
   const workspace = await getWorkspace(job.workspace || config.active_workspace || 'default');
   if (!workspace) {
     console.log(chalk.red(`\n  Workspace "${job.workspace}"을(를) 찾을 수 없습니다.`));
