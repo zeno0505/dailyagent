@@ -7,7 +7,7 @@ import { Logger } from '../logger.js';
 import { generateWorkPrompt, generatePlanPrompt, generateImplementPrompt, generateReviewPrompt, generateReviewTaskPrompt } from './prompt-generator.js';
 import { executePhase3, executePhase3ForPlan } from './notion-updater.js';
 import chalk from 'chalk';
-import { TaskInfo, WorkResult, PlanResult, ImplResult, ExecuteJobResult, PlanModeResult, PlanFinishResult, FinishResult } from '../types/core.js';
+import { TaskInfo, WorkResult, PlanResult, ImplResult, ExecuteJobResult, PlanModeResult, PlanFinishResult, FinishResult, TokenInsufficientResult } from '../types/core.js';
 import { fetchPendingTask, fetchReviewTask } from '../notion-api.js';
 import { runClaude, runCursor } from './cli-runner.js';
 import { resolveSettingsFile, validateEnvironment } from '../utils/executor.js';
@@ -143,7 +143,7 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
     const agentType: Agent = job.agent === 'cursor' ? 'cursor' : 'claude-code';
     await logger.info(`--- 토큰 체크: ${agentType} 토큰 사용량 확인 ---`);
     
-    const tokenCheck = await checkTokenSufficiency(agentType);
+    const tokenCheck = checkTokenSufficiency(agentType);
     
     if (!tokenCheck.sufficient) {
       await logger.warn(`토큰 부족으로 작업 패스: ${tokenCheck.error}`);
@@ -161,7 +161,7 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
     }
     
     if (tokenCheck.usage) {
-      await logger.info(`토큰 충분: 남은 토큰 ${tokenCheck.usage.remaining.toLocaleString()} (${(100 - tokenCheck.usage.percentage).toFixed(1)}%)`);
+      await logger.info(`토큰 충분: 남은 토큰 ${tokenCheck.usage.remaining.toLocaleString()} (${(100 - tokenCheck.usage.usedPercentage).toFixed(1)}%)`);
     } else {
       await logger.info('토큰 사용량 조회 실패 - 작업 계속 진행');
     }

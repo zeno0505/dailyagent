@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { CliAgentConfig, RunnerOptions } from "../types/core.js";
 
 export type Agent = 'claude-code' | 'cursor';
@@ -11,7 +11,8 @@ export interface TokenUsage {
   used: number;
   total: number;
   remaining: number;
-  percentage: number;
+  /** 사용된 토큰 비율 (0-100). 남은 비율은 `100 - usedPercentage` */
+  usedPercentage: number;
 }
 
 /**
@@ -156,19 +157,21 @@ export async function getAgentArgs(config: CliAgentConfig, options: RunnerOption
 
 /**
  * 에이전트 토큰 사용량 조회
+ * claude: "Used: 1000000 / 5000000 (20%)" 형식 파싱
+ * cursor(agent CLI): --usage 미지원 시 null 반환 (안전한 폴백)
  */
-export async function getTokenUsage(agent: Agent): Promise<TokenUsage | null> {
+export function getTokenUsage(agent: Agent): TokenUsage | null {
   try {
     const command = agent === 'claude-code' ? 'claude' : 'agent';
-    
-    // Verify CLI exists
+
+    // Verify CLI exists (args array prevents shell injection)
     try {
-      execSync(`which ${command}`, { stdio: 'ignore' });
+      execFileSync('which', [command], { stdio: 'ignore' });
     } catch {
       return null;
     }
 
-    const output = execSync(`${command} --usage`, { 
+    const output = execFileSync(command, ['--usage'], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
     });
@@ -182,10 +185,10 @@ export async function getTokenUsage(agent: Agent): Promise<TokenUsage | null> {
 
     const used = parseInt(match[1]!, 10);
     const total = parseInt(match[2]!, 10);
-    const percentage = parseFloat(match[3]!);
+    const usedPercentage = parseFloat(match[3]!);
     const remaining = total - used;
 
-    return { used, total, remaining, percentage };
+    return { used, total, remaining, usedPercentage };
   } catch {
     return null;
   }
@@ -197,21 +200,21 @@ export async function getTokenUsage(agent: Agent): Promise<TokenUsage | null> {
  * @param minRemainingPercentage 최소 남은 토큰 비율 (기본값: 5%)
  * @param minRemainingTokens 최소 남은 토큰 수 (기본값: 100000)
  */
-export async function checkTokenSufficiency(
+export function checkTokenSufficiency(
   agent: Agent,
   minRemainingPercentage: number = 5,
   minRemainingTokens: number = 100000
-): Promise<TokenCheckResult> {
-  const usage = await getTokenUsage(agent);
-  
+): TokenCheckResult {
+  const usage = getTokenUsage(agent);
+
   if (!usage) {
     // 토큰 사용량 조회 실패 시 진행 허용 (안전한 폴백)
     return { sufficient: true };
   }
 
-  const remainingPercentage = 100 - usage.percentage;
-  const sufficient = 
-    remainingPercentage >= minRemainingPercentage && 
+  const remainingPercentage = 100 - usage.usedPercentage;
+  const sufficient =
+    remainingPercentage >= minRemainingPercentage &&
     usage.remaining >= minRemainingTokens;
 
   if (!sufficient) {

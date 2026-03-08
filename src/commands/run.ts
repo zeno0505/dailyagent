@@ -40,6 +40,15 @@ export async function runCommand(name: string): Promise<void> {
   try {
     const result = await executeJob(name);
 
+    if (result && typeof result === 'object' && 'token_insufficient' in result) {
+      spinner.warn('토큰 부족으로 작업이 패스되었습니다.');
+      console.log('');
+      console.log(chalk.yellow(`  사유: ${(result as { reason: string }).reason}`));
+      console.log(chalk.gray('  Notion 업데이트 및 Slack 알림이 생략되었습니다.'));
+      console.log('');
+      return;
+    }
+
     spinner.succeed('작업이 완료되었습니다!');
     console.log('');
 
