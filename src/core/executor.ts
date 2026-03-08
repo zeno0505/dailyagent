@@ -161,7 +161,8 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
     }
     
     if (tokenCheck.usage) {
-      await logger.info(`토큰 충분: 남은 토큰 ${tokenCheck.usage.remaining.toLocaleString()} (${(100 - tokenCheck.usage.usedPercentage).toFixed(1)}%)`);
+      const remainingPercentage = (100 - tokenCheck.usage.usedPercentage).toFixed(1);
+      await logger.info(`토큰 충분: 남은 토큰 ${tokenCheck.usage.remaining.toLocaleString()} (${remainingPercentage}%)`);
     } else {
       await logger.info('토큰 사용량 조회 실패 - 작업 계속 진행');
     }
