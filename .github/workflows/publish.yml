@@ -47,8 +47,10 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Bump version
+        id: version
         run: |
           npm version ${{ inputs.version-type }} -m 'chore: bump version to %s'
+          echo "tag=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
 
       - name: Build
         run: npm run build
@@ -62,3 +64,56 @@ jobs:
         run: |
           git push
           git push --tags
+
+      - name: Generate release notes
+        id: release-notes
+        run: |
+          CURRENT_TAG="${{ steps.version.outputs.tag }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 "${CURRENT_TAG}^" 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            COMMITS=$(git log "${CURRENT_TAG}" --pretty=format:'%s' --no-merges)
+          else
+            COMMITS=$(git log "${PREV_TAG}..${CURRENT_TAG}" --pretty=format:'%s' --no-merges)
+          fi
+
+          FEATURES=""
+          FIXES=""
+          DOCS=""
+          OTHERS=""
+
+          while IFS= read -r msg; do
+            [ -z "$msg" ] && continue
+            if echo "$msg" | grep -qE '^feat(\(.+\))?!?:'; then
+              FEATURES="${FEATURES}- ${msg}\n"
+            elif echo "$msg" | grep -qE '^fix(\(.+\))?!?:'; then
+              FIXES="${FIXES}- ${msg}\n"
+            elif echo "$msg" | grep -qE '^docs(\(.+\))?!?:'; then
+              DOCS="${DOCS}- ${msg}\n"
+            elif echo "$msg" | grep -qE '^(chore|refactor|perf|test|build|ci|style)(\(.+\))?!?:'; then
+              OTHERS="${OTHERS}- ${msg}\n"
+            fi
+          done <<< "$COMMITS"
+
+          BODY=""
+          [ -n "$FEATURES" ] && BODY="${BODY}## ✨ Features\n${FEATURES}\n"
+          [ -n "$FIXES" ]    && BODY="${BODY}## 🐛 Bug Fixes\n${FIXES}\n"
+          [ -n "$DOCS" ]     && BODY="${BODY}## 📚 Documentation\n${DOCS}\n"
+          [ -n "$OTHERS" ]   && BODY="${BODY}## 🔧 Other Changes\n${OTHERS}\n"
+
+          if [ -z "$BODY" ]; then
+            BODY="No notable changes.\n"
+          fi
+
+          printf '%b' "$BODY" > release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
