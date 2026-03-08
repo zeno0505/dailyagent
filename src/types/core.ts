@@ -220,6 +220,14 @@ export interface NoTasksResult {
 }
 
 /**
+ * 토큰 부족으로 작업 패스 결과 타입
+ */
+export interface TokenInsufficientResult {
+  token_insufficient: true;
+  reason: string;
+}
+
+/**
  * executeJob 최종 반환 타입
  */
 export type ExecuteJobResult =
@@ -227,7 +235,8 @@ export type ExecuteJobResult =
   | PlanFinishResult
   | WorkResult
   | JobSkippedResult
-  | NoTasksResult;
+  | NoTasksResult
+  | TokenInsufficientResult;
 
 /**
  * Phase 2-2 결과 타입: 구현 결과

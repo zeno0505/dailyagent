@@ -1,7 +1,27 @@
 import fs from 'fs-extra';
+import { execSync } from 'child_process';
 import { CliAgentConfig, RunnerOptions } from "../types/core.js";
 
 export type Agent = 'claude-code' | 'cursor';
+
+/**
+ * 에이전트 토큰 사용량 조회 결과
+ */
+export interface TokenUsage {
+  used: number;
+  total: number;
+  remaining: number;
+  percentage: number;
+}
+
+/**
+ * 토큰 체크 결과
+ */
+export interface TokenCheckResult {
+  sufficient: boolean;
+  usage?: TokenUsage;
+  error?: string;
+}
 
 /**
  * Cursor CLI 로 실행하는데, Claude 모델이 설정되어있는 경우 임시 파싱
@@ -132,4 +152,72 @@ export async function getAgentArgs(config: CliAgentConfig, options: RunnerOption
   }
 
   return args;
+}
+
+/**
+ * 에이전트 토큰 사용량 조회
+ */
+export async function getTokenUsage(agent: Agent): Promise<TokenUsage | null> {
+  try {
+    const command = agent === 'claude-code' ? 'claude' : 'agent';
+    
+    // Verify CLI exists
+    try {
+      execSync(`which ${command}`, { stdio: 'ignore' });
+    } catch {
+      return null;
+    }
+
+    const output = execSync(`${command} --usage`, { 
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+
+    // Parse usage output
+    // Expected format: "Used: 1000000 / 5000000 (20%)"
+    const match = output.match(/Used:\s*(\d+)\s*\/\s*(\d+)\s*\((\d+(?:\.\d+)?)%\)/);
+    if (!match) {
+      return null;
+    }
+
+    const used = parseInt(match[1]!, 10);
+    const total = parseInt(match[2]!, 10);
+    const percentage = parseFloat(match[3]!);
+    const remaining = total - used;
+
+    return { used, total, remaining, percentage };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 토큰 충분 여부 체크
+ * @param agent 에이전트 타입
+ * @param minRemainingPercentage 최소 남은 토큰 비율 (기본값: 5%)
+ * @param minRemainingTokens 최소 남은 토큰 수 (기본값: 100000)
+ */
+export async function checkTokenSufficiency(
+  agent: Agent,
+  minRemainingPercentage: number = 5,
+  minRemainingTokens: number = 100000
+): Promise<TokenCheckResult> {
+  const usage = await getTokenUsage(agent);
+  
+  if (!usage) {
+    // 토큰 사용량 조회 실패 시 진행 허용 (안전한 폴백)
+    return { sufficient: true };
+  }
+
+  const remainingPercentage = 100 - usage.percentage;
+  const sufficient = 
+    remainingPercentage >= minRemainingPercentage && 
+    usage.remaining >= minRemainingTokens;
+
+  if (!sufficient) {
+    const error = `토큰 부족: 남은 토큰 ${usage.remaining.toLocaleString()} (${remainingPercentage.toFixed(1)}%), 최소 요구: ${minRemainingTokens.toLocaleString()} (${minRemainingPercentage}%)`;
+    return { sufficient: false, usage, error };
+  }
+
+  return { sufficient: true, usage };
 }
