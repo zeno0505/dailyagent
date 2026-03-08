@@ -47,7 +47,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Bump version
-        run: npm version ${{ inputs.version-type }} -m "chore: bump version to %s"
+        run: |
+          npm version ${{ inputs.version-type }} -m 'chore: bump version to %s'
 
       - name: Build
         run: npm run build
