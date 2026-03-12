@@ -45,6 +45,7 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
   let column_created_time: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_created_time;
   let column_review_count: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_review_count;
   let column_work_mode: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_work_mode;
+  let column_pr_number: string = DEFAULT_WORKSPACE_NOTION_CONFIG.column_pr_number;
 
   if (!use_notion_template) {
     column_priority = await input({
@@ -95,6 +96,10 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
       message: '작업 모드 컬럼명:',
       default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_work_mode,
     });
+    column_pr_number = await input({
+      message: 'PR 번호 컬럼명:',
+      default: DEFAULT_WORKSPACE_NOTION_CONFIG.column_pr_number,
+    });
   }
 
   const max_review_count = await number({
@@ -122,6 +127,7 @@ export async function promptWorkspaceNotionConfig(): Promise<NotionConfig> {
     column_created_time,
     column_review_count,
     column_work_mode,
+    column_pr_number,
     max_review_count: max_review_count ?? DEFAULT_WORKSPACE_NOTION_CONFIG.max_review_count,
   };
 }
