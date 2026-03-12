@@ -131,11 +131,11 @@ export async function getAgentArgs(config: CliAgentConfig, options: RunnerOption
   const { model, logger, settingsFile, sessionId } = options;
   const args: string[] = [];
 
-  const agnet: Agent = config.command === "claude" ? "claude-code" : "cursor";
+  const agent: Agent = config.command === "claude" ? "claude-code" : "cursor";
 
   // Common: Add model parameter if specified
   if (model) {
-    args.push('--model', parseValidModel(agnet, model));
+    args.push('--model', parseValidModel(agent, model));
   }
 
   // Session continuation support
