@@ -68,8 +68,11 @@ jobs:
       - name: Generate release notes
         id: release-notes
         run: |
+          set -e
+          
           CURRENT_TAG="${{ steps.version.outputs.tag }}"
-          PREV_TAG=$(git describe --tags --abbrev=0 "${CURRENT_TAG}^" 2>/dev/null || echo "")
+          
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -1 || echo "")
 
           if [ -z "$PREV_TAG" ]; then
             COMMITS=$(git log "${CURRENT_TAG}" --pretty=format:'%s' --no-merges)
