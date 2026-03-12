@@ -12,13 +12,12 @@ on:
           - minor
           - major
 
-permissions:
-  contents: write
-
 jobs:
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     timeout-minutes: 15
 
@@ -26,6 +25,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
@@ -49,8 +49,10 @@ jobs:
       - name: Bump version
         id: version
         run: |
-          npm version ${{ inputs.version-type }} -m 'chore: bump version to %s'
-          echo "tag=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
+          npm version "${VERSION_TYPE}" -m 'chore: bump version to %s'
+          echo "tag=$(git describe --tags --abbrev=0)" >> "$GITHUB_OUTPUT"
+        env:
+          VERSION_TYPE: ${{ inputs.version-type }}
 
       - name: Build
         run: npm run build
@@ -69,13 +71,13 @@ jobs:
         id: release-notes
         run: |
           set -e
-          
-          CURRENT_TAG="${{ steps.version.outputs.tag }}"
-          
+
+          CURRENT_TAG="${RELEASE_TAG}"
+
           PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -1 || echo "")
 
           if [ -z "$PREV_TAG" ]; then
-            COMMITS=$(git log "${CURRENT_TAG}" --pretty=format:'%s' --no-merges)
+            COMMITS=$(git log "${CURRENT_TAG}" --pretty=format:'%s' --no-merges --max-count=50)
           else
             COMMITS=$(git log "${PREV_TAG}..${CURRENT_TAG}" --pretty=format:'%s' --no-merges)
           fi
@@ -109,9 +111,11 @@ jobs:
           fi
 
           printf '%b' "$BODY" > release-notes.md
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631  # v2.2.2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }}
