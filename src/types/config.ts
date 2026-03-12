@@ -11,6 +11,7 @@ export interface ColumnConfig {
   column_created_time?: string;
   column_review_count?: string;
   column_work_mode?: string;
+  column_pr_number?: string;
 }
 
 export interface NotionConfig extends ColumnConfig {

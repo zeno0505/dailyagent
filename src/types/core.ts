@@ -65,6 +65,10 @@ export interface TaskInfo {
    * 작업 모드 ('실행' | '계획' | '')
    */
   work_mode?: string;
+  /**
+   * PR 번호 (재검토 시 PR 리뷰 확인에 사용)
+   */
+  pr_number?: string;
 }
 
 

@@ -117,6 +117,7 @@ export async function fetchPendingTask (
     columnPrerequisite,
     columnCreatedTime,
     columnWorkMode,
+    columnPrNumber,
   } = resolveColumns(columns);
 
   // 데이터베이스 쿼리
@@ -224,6 +225,7 @@ export async function fetchPendingTask (
   const titleProp = properties['제목'] || properties['Name'] || properties['Title'];
   const baseBranchProp = properties[columnBaseBranch];
   const workModeProp = properties[columnWorkMode];
+  const prNumberProp = properties[columnPrNumber];
 
   let taskTitle = '';
   if (titleProp?.type === 'title') {
@@ -236,6 +238,7 @@ export async function fetchPendingTask (
   }
 
   const workMode = parseSelectProperty(workModeProp) || '';
+  const prNumber = parseRichTextProperty(prNumberProp) || undefined;
 
   return {
     task_id: page.id,
@@ -244,6 +247,7 @@ export async function fetchPendingTask (
     requirements,
     page_url: page.url,
     work_mode: workMode,
+    ...(prNumber !== undefined && { pr_number: prNumber }),
   };
 }
 
@@ -268,6 +272,7 @@ export async function fetchReviewTask (
     columnCreatedTime,
     columnWorkBranch,
     columnReviewCount,
+    columnPrNumber,
   } = resolveColumns(columns);
 
   // 검토 전 상태이면서 검토 횟수가 maxReviewCount 미만인 항목 조회
@@ -381,6 +386,7 @@ export async function fetchReviewTask (
   const baseBranchProp = properties[columnBaseBranch];
   const workBranchProp = properties[columnWorkBranch];
   const reviewCountProp = properties[columnReviewCount];
+  const prNumberProp = properties[columnPrNumber];
 
   let taskTitle = '';
   if (titleProp?.type === 'title') {
@@ -394,6 +400,7 @@ export async function fetchReviewTask (
 
   const workBranch = parseRichTextProperty(workBranchProp) || '';
   const reviewCount = parseNumberProperty(reviewCountProp) ?? 0;
+  const prNumber = parseRichTextProperty(prNumberProp) || undefined;
 
   return {
     task_id: page.id,
@@ -404,6 +411,7 @@ export async function fetchReviewTask (
     page_url: page.url,
     review_count: reviewCount,
     is_review: true,
+    ...(prNumber !== undefined && { pr_number: prNumber }),
   };
 }
 
