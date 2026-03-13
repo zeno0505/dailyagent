@@ -6,7 +6,7 @@
  * 2. 생성된 배열을 Notion 하위 페이지(후속 작업)로 생성
  */
 
-import { TaskInfo, WorkModePlanResult, PlanModeResult } from '../types/core.js';
+import { TaskInfo, WorkModePlanResult, PlanModeResult, WorkModePlanResultSchema } from '../types/core.js';
 import { Workspace } from '../types/config.js';
 import { Logger } from '../logger.js';
 import { generateWorkModePlanPrompt } from './prompt-generator.js';
@@ -55,6 +55,7 @@ export async function executePlanMode(
       timeout: job.timeout || '15m',
       logger,
       model: job.model,
+      schema: WorkModePlanResultSchema,
     });
 
     const { rawOutput: _, ...logSafe } = planRunnerResult;
