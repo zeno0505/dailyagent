@@ -12,6 +12,7 @@ import { Logger } from '../logger.js';
 import { generateWorkModePlanPrompt } from './prompt-generator.js';
 import { createNotionSubPages } from '../notion-api.js';
 import { runClaude, runCursor } from './cli-runner.js';
+import { TokenExhaustedError } from '../utils/cli-runner.js';
 import chalk from 'chalk';
 
 export const WORK_MODE_PLAN = "계획";
@@ -105,6 +106,7 @@ export async function executePlanMode(
       task_count: tasks.length,
     };
   } catch (err) {
+    if (err instanceof TokenExhaustedError) throw err;
     const error = err as Error;
     await logger.error(`계획 모드 실패: ${error.message}`);
     return { success: false, created_page_ids: [], task_count: 0, error: error.message };

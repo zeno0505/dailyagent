@@ -1,7 +1,31 @@
 import fs from 'fs-extra';
-import { CliAgentConfig, RunnerOptions } from "../types/core.js";
+import { execFileSync } from 'child_process';
+import { CliAgentConfig, RunnerOptions } from '../types/core.js';
 
 export type Agent = 'claude-code' | 'cursor';
+
+/**
+ * headless 방식에서는 실제 사용량 조회 불가 — 실행 중 에러로 감지
+ */
+export class TokenExhaustedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TokenExhaustedError';
+  }
+}
+
+/**
+ * 토큰 소진 여부를 나타내는 에러 메시지 패턴 매칭
+ *
+ * 실제 확인된 메시지 예시:
+ *   "You've hit your limit · resets 2am (Asia/Seoul)"  ← Claude Max 세션 소진
+ */
+const USAGE_LIMIT_RE =
+  /hit your limit|usage limit|rate limit|quota exceeded|too many requests|daily limit|monthly limit|plan limit|limit reached|context window/i;
+
+export function isUsageLimitError(text: string): boolean {
+  return !!text && USAGE_LIMIT_RE.test(text);
+}
 
 /**
  * Cursor CLI 로 실행하는데, Claude 모델이 설정되어있는 경우 임시 파싱
@@ -110,26 +134,22 @@ export async function getAgentArgs(config: CliAgentConfig, options: RunnerOption
   const { model, logger, settingsFile, sessionId } = options;
   const args: string[] = [];
 
-  const agnet: Agent = config.command === "claude" ? "claude-code" : "cursor";
+  const agent: Agent = config.command === "claude" ? "claude-code" : "cursor";
 
-  // Common: Add model parameter if specified
   if (model) {
-    args.push('--model', parseValidModel(agnet, model));
+    args.push('--model', parseValidModel(agent, model));
   }
 
-  // Session continuation support
   if (sessionId) {
     args.push('--resume', sessionId);
     if (logger) await logger.info(`세션 이어서 실행: ${sessionId}`);
   }
 
-  // Claude Code specific: Add settings file if exists
-  if (config.command === 'claude') {
-    if (settingsFile && await fs.pathExists(settingsFile)) {
-      args.push('--settings', settingsFile);
-      if (logger) await logger.info(`설정 파일 사용: ${settingsFile}`);
-    }
+  if (config.command === 'claude' && settingsFile && await fs.pathExists(settingsFile)) {
+    args.push('--settings', settingsFile);
+    if (logger) await logger.info(`설정 파일 사용: ${settingsFile}`);
   }
 
   return args;
 }
+
