@@ -9,12 +9,13 @@ import { TaskInfo } from '../types/core.js';
 
 /**
  * 프롬프트에 안전하게 삽입 가능한 TaskInfo의 서브셋
- * is_review, page_url, review_count 같은 내부 메타데이터는 제외합니다.
+ * is_review, review_count 같은 내부 메타데이터는 제외합니다.
  */
 export interface SafeTaskContext {
   task_title: string;
   base_branch: string;
   requirements: string;
+  page_url: string;
 }
 
 /**
@@ -68,6 +69,7 @@ export function sanitizeTaskContext(taskInfo: TaskInfo): SafeTaskContext {
     task_title: sanitizeForPrompt(taskInfo.task_title || ''),
     base_branch: sanitizeGitBranchName(taskInfo.base_branch || ''),
     requirements: sanitizeForPrompt(taskInfo.requirements || ''),
+    page_url: sanitizeForPrompt(taskInfo.page_url || ''),
   };
 }
 

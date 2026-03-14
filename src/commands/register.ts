@@ -70,27 +70,23 @@ export async function registerCommand (): Promise<void> {
     },
   });
 
-  const timeout = await input({
-    message: '타임아웃 (예: 30m, 1h):',
-    default: '30m',
-  });
-
   const prompt_mode = await select<PromptMode>({
     message: '프롬프트 모드:',
     choices: [
-      { name: '기본 프롬프트 사용 (내장 템플릿)', value: 'default' },
-      { name: '커스텀 프롬프트 사용 (직접 작성)', value: 'custom' },
+      { name: 'Dailyagent 가 제공하는 프롬프트를 사용합니다.', value: 'default' },
+      { name: '직접 작성한 프롬프트를 사용합니다.', value: 'custom' },
     ],
     default: 'default',
   });
 
+  let timeout: string | undefined;
   let execution_config: ExecutionConfig | undefined;
   if (prompt_mode === "default") {
     const phase2_mode = await select<Phase2Mode>({
       message: '실행 모드:',
       choices: [
-        { name: '단일 실행 (한 세션에서 모든 작업이 수행됩니다.)', value: 'single' as const },
-        { name: '분할 실행 (각 작업을 별도의 세션에서 수행됩니다.)', value: 'session' as const },
+        { name: '단일 프롬프트로 모든 작업을 수행합니다.', value: 'single' as const },
+        { name: '분할 프롬프트로 각 작업을 단계별로 수행합니다. 모델도 각 단계별로 설정할 수 있습니다.', value: 'session' as const },
       ],
       default: 'single',
     });
@@ -115,6 +111,10 @@ export async function registerCommand (): Promise<void> {
         message: '계획 단계 타임아웃(예: 30m, 1h):',
         default: '10m',
       });
+      timeout = await input({
+        message: '실행 단계 타임아웃(예: 30m, 1h):',
+        default: '10m',
+      });
       const phase2_review_timeout = await input({
         message: '검토 단계 타임아웃(예: 30m, 1h):',
         default: '10m',
@@ -127,7 +127,17 @@ export async function registerCommand (): Promise<void> {
         phase2_plan_timeout,
         phase2_review_timeout,
       };
+    } else {
+      timeout = await input({
+        message: '타임아웃 (예: 30m, 1h):',
+        default: '30m',
+      });
     }
+  } else {
+    timeout = await input({
+      message: '타임아웃 (예: 30m, 1h):',
+      default: '30m',
+    });
   }
 
   try {

@@ -251,7 +251,7 @@ export function generateReviewPrompt({ taskInfo }: { taskInfo: TaskInfo }): stri
 3. \`gh\` CLI가 설치되어 있는 경우:
    - 인증 상태 확인: \`gh auth status\`
    - 인증된 경우 base 브랜치(\`${ctx.base_branch || 'main'}\`)를 대상으로 Draft PR 생성
-   - \`gh pr create --draft --base ${ctx.base_branch || 'main'} --title "<작업 제목>" --body "<작업 요약>"\`
+   - \`gh pr create --draft --base ${ctx.base_branch || 'main'} --title "<작업 제목>" --body "<작업 요약>${ctx.page_url ? `\\n\\n## 관련 Notion 문서\\n${ctx.page_url}` : ''}"\`
    - PR 생성에 실패해도 오류를 발생시키지 않고 \`pr_skipped_reason\`에 실패 이유를 설정
 
 ## 결과 출력
