@@ -2,7 +2,7 @@
   "name": "@zeno0505/dailyagent",
   "author": "Zeno",
   "email": "zeno55.dev@gmail.com",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "AI-powered task automation CLI that integrates with Notion and Claude Code",
   "type": "module",
   "main": "dist/cli.js",
