@@ -1,6 +1,6 @@
-import { spawn, execSync } from 'child_process';
+import { spawn, execFileSync } from 'child_process';
 import { RunnerOptions, RunnerResult, CliAgentConfig } from '../types/core.js';
-import { AGENT_CONFIGS, getAgentArgs, getFilteredEnv, parseTimeout, sanitizeOutput } from '../utils/cli-runner.js';
+import { AGENT_CONFIGS, getAgentArgs, getFilteredEnv, parseTimeout, sanitizeOutput, TokenExhaustedError, isUsageLimitError } from '../utils/cli-runner.js';
 import { ClaudeCliEnvelope, CursorCliEnvelope } from '../types/cli-runner.js';
 import { extractJsonFromCodeBlock } from '../utils/markdown.js';
 import chalk from 'chalk';
@@ -67,13 +67,34 @@ async function spawnCli<T>(
       if (logger) await logger.info(`${config.displayName} 실행 완료 (Exit Code: ${code})`);
 
       if (code !== 0) {
+        // stdout JSON의 is_error + result로 토큰 소진 판별
+        // 실제 사례: exit code 1, STDERR 없음, result:"You've hit your limit · resets 2am"
+        try {
+          const parsed = JSON.parse(stdout) as { is_error?: boolean; result?: string };
+          if (parsed.is_error && isUsageLimitError(parsed.result ?? '')) {
+            reject(new TokenExhaustedError(`${config.displayName} 토큰 소진: ${parsed.result}`));
+            return;
+          }
+        } catch { /* JSON 파싱 실패 시 아래 raw 텍스트로 폴백 */ }
+
+        if (isUsageLimitError(stderr) || isUsageLimitError(stdout)) {
+          const detail = (stderr || stdout).trim().substring(0, 300);
+          reject(new TokenExhaustedError(`${config.displayName} 토큰 소진: ${detail}`));
+          return;
+        }
+
         reject(new Error(`${config.displayName} 실행 실패 (Exit Code: ${code})\n${stderr}`));
         return;
       }
 
       try {
         const response = JSON.parse(stdout) as ClaudeCliEnvelope | CursorCliEnvelope;
-        const sanitized = sanitizeOutput(stdout); // SECURITY: Mask sensitive data
+        const sanitized = sanitizeOutput(stdout);
+
+        if (response.is_error && isUsageLimitError(response.result ?? '')) {
+          reject(new TokenExhaustedError(`${config.displayName} 토큰 소진: ${response.result?.substring(0, 300) ?? ''}`));
+          return;
+        }
 
         if (!response.result || response.result.trim() === '') {
           if (logger) await logger.warn(`${config.displayName} 결과가 비어있습니다 (stop_reason: ${response.stop_reason ?? 'N/A'})`);
@@ -88,7 +109,7 @@ async function spawnCli<T>(
           sessionId: response.session_id,
         });
       } catch (err) {
-        const sanitized = sanitizeOutput(stdout); // SECURITY: Mask sensitive data
+        const sanitized = sanitizeOutput(stdout);
         if (logger) await logger.error(`${config.displayName} 결과 파싱 실패: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
         resolve({ rawOutput: sanitized, exitCode: code });
       }
@@ -112,9 +133,8 @@ export async function runCli<T>(
   config: CliAgentConfig,
   options: RunnerOptions,
 ): Promise<RunnerResult<T>> {
-  // Verify CLI exists once before any attempt
   try {
-    execSync(`which ${config.command}`, { stdio: 'ignore' });
+    execFileSync('which', [config.command], { stdio: 'ignore' });
   } catch {
     throw new Error(`${config.command} 명령어를 찾을 수 없습니다. ${config.displayName}를 설치해주세요.`);
   }

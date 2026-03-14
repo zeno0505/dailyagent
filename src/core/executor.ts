@@ -13,7 +13,7 @@ import { runClaude, runCursor } from './cli-runner.js';
 import { resolveSettingsFile, validateEnvironment } from '../utils/executor.js';
 import { sendSlackNotification, sendPlanSlackNotification } from '../slack/webhook.js';
 import { executePlanMode, WORK_MODE_PLAN } from './plan-mode-executor.js';
-import { checkTokenSufficiency, Agent } from '../utils/cli-runner.js';
+import { TokenExhaustedError } from '../utils/cli-runner.js';
 
 /**
  * 작업 실행 오케스트레이터
@@ -136,36 +136,6 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
     const isPlanMode = !isCustomMode && taskInfo.work_mode === WORK_MODE_PLAN;
     let workResult: WorkResult | undefined;
     let planResult: PlanModeResult | undefined;
-
-    // ========================================
-    // 토큰 체크: Phase 2 시작 전 토큰 충분 여부 확인
-    // ========================================
-    const agentType: Agent = job.agent === 'cursor' ? 'cursor' : 'claude-code';
-    await logger.info(`--- 토큰 체크: ${agentType} 토큰 사용량 확인 ---`);
-    
-    const tokenCheck = checkTokenSufficiency(agentType);
-    
-    if (!tokenCheck.sufficient) {
-      await logger.warn(`토큰 부족으로 작업 패스: ${tokenCheck.error}`);
-      await logger.info('작업을 건너뜁니다 (Notion 업데이트 및 Slack 알림 생략)');
-      
-      await updateJob(jobName, {
-        last_run: new Date().toISOString(),
-        last_status: null,
-      });
-      
-      return { 
-        token_insufficient: true, 
-        reason: tokenCheck.error || '토큰 부족'
-      };
-    }
-    
-    if (tokenCheck.usage) {
-      const remainingPercentage = (100 - tokenCheck.usage.usedPercentage).toFixed(1);
-      await logger.info(`토큰 충분: 남은 토큰 ${tokenCheck.usage.remaining.toLocaleString()} (${remainingPercentage}%)`);
-    } else {
-      await logger.info('토큰 사용량 조회 실패 - 작업 계속 진행');
-    }
 
     // ========================================
     // Phase 2: 코드 작업 + Git Push
@@ -296,6 +266,8 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
           workResult = reviewRunnerResult.result;
         }
       } catch (err) {
+        // 토큰 소진은 외부 catch로 전파 (graceful 종료)
+        if (err instanceof TokenExhaustedError) throw err;
         const error = err as Error;
         if (error instanceof NoSessionIdError) {
           // Fallback to single mode
@@ -378,6 +350,19 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
 
     return result;
   } catch (err) {
+    // 토큰 소진: Notion 업데이트 없이 graceful 종료
+    if (err instanceof TokenExhaustedError) {
+      await logger.warn(`토큰 소진으로 작업 패스: ${err.message}`);
+      await logger.info('작업을 건너뜁니다 (Notion 업데이트 및 Slack 알림 생략)');
+
+      await updateJob(jobName, {
+        last_run: new Date().toISOString(),
+        last_status: null,
+      });
+
+      return { token_insufficient: true, reason: err.message };
+    }
+
     const error = err as Error;
     await logger.error(`작업 실패: ${error.message}`);
 
@@ -447,6 +432,7 @@ async function executePhase2Single(
     }
     return workRunnerResult.result;
   } catch (err) {
+    if (err instanceof TokenExhaustedError) throw err;
     const error = err as Error;
     await logger.error(`Phase 2 실패: ${error.message}`);
     return { success: false, error: error.message } as WorkResult;
@@ -495,6 +481,7 @@ async function executeReviewPhase(
     }
     return reviewRunnerResult.result;
   } catch (err) {
+    if (err instanceof TokenExhaustedError) throw err;
     const error = err as Error;
     await logger.error(`재검토 실패: ${error.message}`);
     return { success: false, error: error.message } as WorkResult;
