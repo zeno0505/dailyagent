@@ -65,6 +65,10 @@ export interface TaskInfo {
    * 작업 모드 ('실행' | '계획' | '')
    */
   work_mode?: string;
+  /**
+   * PR 번호
+   */
+  pr_number?: string;
 }
 
 
@@ -104,6 +108,10 @@ export interface WorkResult {
    * PR 건너뛰기 이유
    */
   pr_skipped_reason?: string;
+  /**
+   * PR 번호
+   */
+  pr_number?: string;
 }
 
 /**

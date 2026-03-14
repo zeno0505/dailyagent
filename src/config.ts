@@ -39,6 +39,7 @@ export const DEFAULT_WORKSPACE_NOTION_CONFIG = {
   column_created_time: '날짜',
   column_review_count: '검토 횟수',
   column_work_mode: '작업 모드',
+  column_pr_number: 'PR 번호',
   max_review_count: 3,
 } as const;
 
@@ -56,6 +57,7 @@ export function resolveColumns(columns: ColumnConfig) {
     columnCreatedTime: columns.column_created_time || DEFAULT_WORKSPACE_NOTION_CONFIG.column_created_time,
     columnReviewCount: columns.column_review_count || DEFAULT_WORKSPACE_NOTION_CONFIG.column_review_count,
     columnWorkMode: columns.column_work_mode || DEFAULT_WORKSPACE_NOTION_CONFIG.column_work_mode,
+    columnPrNumber: columns.column_pr_number || DEFAULT_WORKSPACE_NOTION_CONFIG.column_pr_number,
   }
 }
 
