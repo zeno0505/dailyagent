@@ -1,4 +1,9 @@
+import { z } from 'zod';
 import { Logger } from "../logger.js";
+
+// ============================================================
+// Runner infrastructure types (not AI output — no Zod schema)
+// ============================================================
 
 export interface RunnerOptions {
   prompt: string;
@@ -9,6 +14,10 @@ export interface RunnerOptions {
   model?: string | undefined;
   sessionId?: string | undefined;
   enableSessionPersistence?: boolean | undefined;
+  /** Zod schema to validate the parsed AI JSON output */
+  schema?: z.ZodType<unknown>;
+  /** Max correction retries on Zod validation failure (default: 3) */
+  maxZodRetries?: number;
 }
 
 export interface RunnerResult<T> {
@@ -24,166 +33,115 @@ export interface CliAgentConfig {
   displayName: string;
 }
 
+// ============================================================
+// Phase 1 — Notion task (fetched externally, no Zod schema)
+// ============================================================
 
-/**
- * Phase 1 결과 타입 : 실행할 태스크
- */
 export interface TaskInfo {
-  /**
-   * 페이지 ID
-   */
+  /** 페이지 ID */
   task_id?: string;
-  /**
-   * 태스크 제목
-   */
+  /** 태스크 제목 */
   task_title?: string;
-  /**
-   * 기준 브랜치
-   */
+  /** 기준 브랜치 */
   base_branch?: string;
-  /**
-   * 작업 브랜치 (검토 태스크에서 사용)
-   */
+  /** 작업 브랜치 (검토 태스크에서 사용) */
   work_branch?: string;
-  /**
-   * 요구사항
-   */
+  /** 요구사항 */
   requirements?: string;
-  /**
-   * 페이지 URL
-   */
+  /** 페이지 URL */
   page_url?: string;
-  /**
-   * 현재 검토 횟수 (검토 태스크에서 사용)
-   */
+  /** 현재 검토 횟수 (검토 태스크에서 사용) */
   review_count?: number;
-  /**
-   * 검토 모드 여부
-   */
+  /** 검토 모드 여부 */
   is_review?: boolean;
-  /**
-   * 작업 모드 ('실행' | '계획' | '')
-   */
+  /** 작업 모드 ('실행' | '계획' | '') */
   work_mode?: string;
 }
 
+// ============================================================
+// Phase 2 — AI output schemas (single source of truth)
+// ============================================================
 
 /**
- * Phase 2 결과 타입 : 코드 작업 결과
+ * Phase 2 / Phase 2-3: 코드 작업 결과
+ * generateWorkPrompt / generateReviewPrompt 반환 형식
  */
-export interface WorkResult {
-  /**
-   * 성공 여부
-   */
-  success?: boolean;
-  /**
-   * 에러 메시지
-   */
-  error?: string;
-  /**
-   * 작업한 브랜치 명
-   */
-  branch_name?: string;
-  /**
-   * 커밋 목록
-   */
-  commits?: { hash: string; message: string }[];
-  /**
-   * 변경된 파일 목록
-   */
-  files_changed?: string[];
-  /**
-   * 요약
-   */
-  summary?: string;
-  /**
-   * PR URL
-   */
-  pr_url?: string;
-  /**
-   * PR 건너뛰기 이유
-   */
-  pr_skipped_reason?: string;
-}
+export const WorkResultSchema = z.object({
+  branch_name: z.string(),
+  commits: z.array(z.object({ hash: z.string(), message: z.string() })),
+  files_changed: z.array(z.string()),
+  summary: z.string(),
+  pr_url: z.string().nullable(),
+  pr_skipped_reason: z.string().nullable(),
+  // Internal-only fields injected by executor on error — optional so schema
+  // still accepts them when the object is used as a general WorkResult.
+  success: z.boolean().optional(),
+  error: z.string().optional(),
+});
+export type WorkResult = z.infer<typeof WorkResultSchema>;
 
 /**
- * Phase 3 결과 타입 : Notion 업데이트 결과
+ * Phase 2-1: 개발 계획
+ * generatePlanPrompt 반환 형식
  */
+export const PlanResultSchema = z.object({
+  plan_summary: z.string(),
+  branch_name: z.string(),
+  files_to_modify: z.array(z.string()),
+  files_to_create: z.array(z.string()),
+  implementation_steps: z.array(z.string()),
+});
+export type PlanResult = z.infer<typeof PlanResultSchema>;
+
+/**
+ * Phase 2-2: 구현 결과
+ * generateImplementPrompt 반환 형식
+ */
+export const ImplResultSchema = z.object({
+  commits: z.array(z.object({ hash: z.string(), message: z.string() })),
+  files_changed: z.array(z.string()),
+  issues_found: z.array(z.string()),
+});
+export type ImplResult = z.infer<typeof ImplResultSchema>;
+
+/**
+ * 계획 모드: 개별 세부 작업 항목
+ */
+export const PlanTaskItemSchema = z.object({
+  id: z.string().optional(),
+  summary: z.string(),
+  detail: z.string(),
+  priority: z.string(),
+  depends_on: z.array(z.string()).optional(),
+});
+export type PlanTaskItem = z.infer<typeof PlanTaskItemSchema>;
+
+/**
+ * 계획 모드: AI 전체 결과
+ * generateWorkModePlanPrompt 반환 형식
+ */
+export const WorkModePlanResultSchema = z.object({
+  tasks: z.array(PlanTaskItemSchema),
+});
+export type WorkModePlanResult = z.infer<typeof WorkModePlanResultSchema>;
+
+// ============================================================
+// Phase 3 — Notion update results (internal, no Zod schema)
+// ============================================================
+
 export interface FinishResult {
-  /**
-   * 성공 여부
-   */
   success: boolean;
-  /**
-   * 페이지 ID
-   */
   task_id: string;
-  /**
-   * 태스크 제목
-   */
   task_title: string;
-  /**
-   * 작업한 브랜치 명
-   */
   branch_name: string;
-  /**
-   * 커밋 목록
-   */
   commits: { hash: string; message: string }[];
-  /**
-   * 변경된 파일 목록
-   */
   files_changed: string[];
-  /**
-   * PR URL
-   */
   pr_url: string;
-  /**
-   * PR 건너뛰기 이유
-   */
   pr_skipped_reason: string;
-  /**
-   * 요약
-   */
   summary: string;
-  /**
-   * Notion 업데이트 여부
-   */
   notion_updated: boolean;
-  }
-
-/**
- * Phase 2-1 결과 타입: 개발 계획
- */
-export interface PlanResult {
-  plan_summary: string;
-  branch_name: string;
-  files_to_modify: string[];
-  files_to_create: string[];
-  implementation_steps: string[];
 }
 
-/**
- * 계획 모드에서 생성되는 개별 작업 항목
- */
-export interface PlanTaskItem {
-  id?: string;         // 작업 식별자 (의존성 참조용, 예: "task-1")
-  summary: string;     // 간결한 작업 제목 (1문장, Notion 페이지 제목으로 사용)
-  detail: string;      // 상세 작업 설명 (2-3문장, Notion 페이지 본문으로 사용)
-  priority: string;    // "P1"-"P5"
-  depends_on?: string[]; // 이 작업이 의존하는 작업의 id 배열 (선행 작업)
-}
-
-/**
- * 계획 모드 AI 결과 타입
- */
-export interface WorkModePlanResult {
-  tasks: PlanTaskItem[];
-}
-
-/**
- * 계획 모드 실행 결과 타입
- */
 export interface PlanModeResult {
   success: boolean;
   created_page_ids: string[];
@@ -191,9 +149,6 @@ export interface PlanModeResult {
   error?: string;
 }
 
-/**
- * 계획 모드 Phase 3(Notion) 반영 결과 타입
- */
 export interface PlanFinishResult {
   success: boolean;
   task_id: string;
@@ -204,17 +159,11 @@ export interface PlanFinishResult {
   notion_updated: boolean;
 }
 
-/**
- * 실행 조기 종료(중지) 결과 타입
- */
 export interface JobSkippedResult {
   skipped: true;
   reason: 'paused';
 }
 
-/**
- * 실행 가능 작업 없음 결과 타입
- */
 export interface NoTasksResult {
   no_tasks: true;
 }
@@ -237,12 +186,3 @@ export type ExecuteJobResult =
   | JobSkippedResult
   | NoTasksResult
   | TokenInsufficientResult;
-
-/**
- * Phase 2-2 결과 타입: 구현 결과
- */
-export interface ImplResult {
-  commits: { hash: string; message: string }[];
-  files_changed: string[];
-  issues_found: string[];
-}

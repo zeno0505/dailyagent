@@ -7,7 +7,7 @@ import { Logger } from '../logger.js';
 import { generateWorkPrompt, generatePlanPrompt, generateImplementPrompt, generateReviewPrompt, generateReviewTaskPrompt } from './prompt-generator.js';
 import { executePhase3, executePhase3ForPlan } from './notion-updater.js';
 import chalk from 'chalk';
-import { TaskInfo, WorkResult, PlanResult, ImplResult, ExecuteJobResult, PlanModeResult, PlanFinishResult, FinishResult, TokenInsufficientResult } from '../types/core.js';
+import { TaskInfo, WorkResult, PlanResult, ImplResult, ExecuteJobResult, PlanModeResult, PlanFinishResult, FinishResult, WorkResultSchema, PlanResultSchema, ImplResultSchema, TokenInsufficientResult } from '../types/core.js';
 import { fetchPendingTask, fetchReviewTask } from '../notion-api.js';
 import { runClaude, runCursor } from './cli-runner.js';
 import { resolveSettingsFile, validateEnvironment } from '../utils/executor.js';
@@ -218,6 +218,7 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
           logger,
           model: planModel,
           enableSessionPersistence: true,
+          schema: PlanResultSchema,
         });
 
         const { rawOutput: _p, ...logSafePlan } = planRunnerResult;
@@ -252,6 +253,7 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
           model: implModel,
           sessionId: sessionId,
           enableSessionPersistence: true,
+          schema: ImplResultSchema,
         });
 
         const { rawOutput: _i, ...logSafeImpl } = implRunnerResult;
@@ -281,6 +283,7 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
           model: reviewModel,
           sessionId: sessionId,
           enableSessionPersistence: true,
+          schema: WorkResultSchema,
         });
 
         const { rawOutput: _r, ...logSafeReview } = reviewRunnerResult;
@@ -288,7 +291,7 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
 
         if (!reviewRunnerResult.result) {
           const errorMsg = `Phase 2-3 결과 파싱 실패 (exitCode: ${reviewRunnerResult.exitCode})\n${reviewRunnerResult.rawOutput?.substring(0, 500) || '출력 없음'}`;
-          workResult = { success: false, error: errorMsg };
+          workResult = { success: false, error: errorMsg } as WorkResult;
         } else {
           workResult = reviewRunnerResult.result;
         }
@@ -300,7 +303,7 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
           workResult = await executePhase2Single(runAgent, { workDir, taskInfo, settingsFile, job, jobName, logger });
         } else {
           await logger.error(`Phase 2 (session) 실패: ${error.message}`);
-          workResult = { success: false, error: error.message };
+          workResult = { success: false, error: error.message } as WorkResult;
         }
       }
       } else {
@@ -318,7 +321,7 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
 
     if (isCustomMode) {
       await logger.info('커스텀 모드: Phase 3 (Notion 업데이트) 스킵');
-      result = workResult || { success: false, error: 'Phase 2 결과가 없습니다.' };
+      result = workResult || { success: false, error: 'Phase 2 결과가 없습니다.' } as WorkResult;
     } else if (isPlanMode) {
       await logger.info('--- Phase 3: Notion 업데이트 시작 (계획 모드) ---');
       if (!planResult) {
@@ -363,7 +366,7 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
       } else {
         await sendSlackNotification({
           taskInfo,
-          workResult: workResult || { success: false, error: 'Phase 2 결과가 없습니다.' },
+          workResult: workResult || { success: false, error: 'Phase 2 결과가 없습니다.' } as WorkResult,
           webhookUrl: config.slack.webhook_url,
           logger,
         });
@@ -432,6 +435,7 @@ async function executePhase2Single(
       timeout: String(job.timeout || '30m'),
       logger,
       model: job.model,
+      schema: WorkResultSchema,
     });
 
     const { rawOutput: __, ...logSafeWork } = workRunnerResult;
@@ -439,13 +443,13 @@ async function executePhase2Single(
 
     if (!workRunnerResult.result) {
       const errorMsg = `Phase 2 결과 파싱 실패 (exitCode: ${workRunnerResult.exitCode})\n${workRunnerResult.rawOutput?.substring(0, 500) || '출력 없음'}`;
-      return { success: false, error: errorMsg };
+      return { success: false, error: errorMsg } as WorkResult;
     }
     return workRunnerResult.result;
   } catch (err) {
     const error = err as Error;
     await logger.error(`Phase 2 실패: ${error.message}`);
-    return { success: false, error: error.message };
+    return { success: false, error: error.message } as WorkResult;
   }
 }
 
@@ -479,6 +483,7 @@ async function executeReviewPhase(
       timeout: job.timeout || '30m',
       logger,
       model: job.model,
+      schema: WorkResultSchema,
     });
 
     const { rawOutput: __, ...logSafeReview } = reviewRunnerResult;
@@ -486,13 +491,13 @@ async function executeReviewPhase(
 
     if (!reviewRunnerResult.result) {
       const errorMsg = `재검토 결과 파싱 실패 (exitCode: ${reviewRunnerResult.exitCode})\n${reviewRunnerResult.rawOutput?.substring(0, 500) || '출력 없음'}`;
-      return { success: false, error: errorMsg };
+      return { success: false, error: errorMsg } as WorkResult;
     }
     return reviewRunnerResult.result;
   } catch (err) {
     const error = err as Error;
     await logger.error(`재검토 실패: ${error.message}`);
-    return { success: false, error: error.message };
+    return { success: false, error: error.message } as WorkResult;
   }
 }
 

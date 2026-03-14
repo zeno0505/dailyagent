@@ -2,7 +2,7 @@
 
 > Notion과 Claude Code를 연동한 AI 기반 개발 작업 자동화 CLI
 
-[![npm version](https://img.shields.io/npm/v/dailyagent)](https://www.npmjs.com/package/dailyagent)
+[![npm version](https://img.shields.io/npm/v/dailyagent)](https://www.npmjs.com/package/@zeno0505/dailyagent)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -294,3 +294,4 @@ dailyagent logs my-project
 ## 라이선스
 
 MIT License © [Zeno](https://github.com/zeno0505)
+
