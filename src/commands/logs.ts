@@ -31,14 +31,17 @@ export async function logsCommand(name: string, options: {
   if (options.follow) {
     // Follow mode: show latest log and monitor for changes
     const latestLog = logs[0]!;
-    const linesToShow = options.lines ?? 10;
+    const linesToShow = options.lines ?? 50;
     await tailLogFile(latestLog.fullPath, linesToShow, true);
   } else if (options.lines) {
     const latestLog = logs[0]!;
-    const linesToShow = options.lines ?? 10;
+    const linesToShow = options.lines ?? 50;
     await tailLogFile(latestLog.fullPath, linesToShow, false);
   } else {
-    // List mode: show all available logs
+    // List mode: show latest log preview, then all available logs
+    const latestLog = logs[0]!;
+    await tailLogFile(latestLog.fullPath, 100, false);
+
     console.log(chalk.bold(`\n  작업 "${name}"의 로그 파일 목록\n`));
 
     const table = new Table({
