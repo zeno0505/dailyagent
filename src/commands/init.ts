@@ -41,6 +41,13 @@ export async function initCommand(): Promise<void> {
   let slack_bot_token = '';
   let slack_target_email = '';
   if (enable_slack) {
+    console.log('');
+    console.log(chalk.bold('  Slack Bot 설정 안내'));
+    console.log(chalk.gray('  api.slack.com/apps 에서 Bot Token을 생성하고 다음 권한을 추가하세요:'));
+    console.log(chalk.cyan('    • chat:write') + chalk.gray('        — DM 메시지 발송'));
+    console.log(chalk.cyan('    • im:write') + chalk.gray('          — DM 채널 열기'));
+    console.log(chalk.cyan('    • users:read.email') + chalk.gray('  — 이메일로 사용자 ID 조회'));
+    console.log('');
     slack_bot_token = await input({
       message: 'Slack Bot 토큰 (xoxb-...):',
       validate: (val) => {
