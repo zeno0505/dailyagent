@@ -161,7 +161,7 @@ function buildWorkResultPayload(
                 },
                 {
                   type: 'mrkdwn',
-                  text: `*커밋*\n\`${workResult.commits?.[0]?.hash?.slice(0, 7) ?? 'N/A'}\``,
+                  text: `*커밋*\n\`${workResult.commits[0]?.hash.slice(0, 7) ?? 'N/A'}\``,
                 },
               ],
             },
@@ -320,7 +320,7 @@ export async function sendPlanSlackNotification(
   const { taskInfo, planResult, botToken, targetEmail, logger } = params;
 
   try {
-    const isSuccess = planResult.success !== false;
+    const isSuccess = planResult.success;
     const statusEmoji = isSuccess ? '✅' : '❌';
     const statusText = isSuccess ? '완료' : '실패';
 
