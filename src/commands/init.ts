@@ -38,12 +38,19 @@ export async function initCommand(): Promise<void> {
     default: false,
   });
 
-  let slack_webhook_url = '';
+  let slack_bot_token = '';
+  let slack_target_email = '';
   if (enable_slack) {
-    slack_webhook_url = await input({
-      message: 'Slack Webhook URL:',
+    slack_bot_token = await input({
+      message: 'Slack Bot 토큰 (xoxb-...):',
       validate: (val) => {
-        return val.startsWith('https://hooks.slack.com/services') ? true : 'Slack Webhook URL을 입력해주세요.';
+        return val.startsWith('xoxb-') ? true : 'xoxb- 로 시작하는 Slack Bot 토큰을 입력해주세요.';
+      },
+    });
+    slack_target_email = await input({
+      message: 'Slack DM 수신자 이메일:',
+      validate: (val) => {
+        return val.includes('@') ? true : '올바른 이메일 주소를 입력해주세요.';
       },
     });
   }
@@ -58,10 +65,9 @@ export async function initCommand(): Promise<void> {
     version: DEFAULT_CONFIG.version,
     workspaces: [defaultWorkspace],
     active_workspace: 'default',
-    slack: {
-      enabled: enable_slack,
-      webhook_url: slack_webhook_url,
-    },
+    slack: enable_slack
+      ? { enabled: true, bot_token: slack_bot_token, target_email: slack_target_email }
+      : { enabled: false },
   };
 
   await ensureConfigDir();
