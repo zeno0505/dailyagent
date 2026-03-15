@@ -14,7 +14,6 @@ export const DEFAULT_CONFIG = {
   version: '2.0.0',
   slack: {
     enabled: false,
-    webhook_url: '',
   },
   execution: {
     phase2_mode: 'single',

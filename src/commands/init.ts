@@ -38,12 +38,26 @@ export async function initCommand(): Promise<void> {
     default: false,
   });
 
-  let slack_webhook_url = '';
+  let slack_bot_token = '';
+  let slack_target_email = '';
   if (enable_slack) {
-    slack_webhook_url = await input({
-      message: 'Slack Webhook URL:',
+    console.log('');
+    console.log(chalk.bold('  Slack Bot 설정 안내'));
+    console.log(chalk.gray('  api.slack.com/apps 에서 Bot Token을 생성하고 다음 권한을 추가하세요:'));
+    console.log(chalk.cyan('    • chat:write') + chalk.gray('        — DM 메시지 발송'));
+    console.log(chalk.cyan('    • im:write') + chalk.gray('          — DM 채널 열기'));
+    console.log(chalk.cyan('    • users:read.email') + chalk.gray('  — 이메일로 사용자 ID 조회'));
+    console.log('');
+    slack_bot_token = await input({
+      message: 'Slack Bot 토큰 (xoxb-...):',
       validate: (val) => {
-        return val.startsWith('https://hooks.slack.com/services') ? true : 'Slack Webhook URL을 입력해주세요.';
+        return val.startsWith('xoxb-') ? true : 'xoxb- 로 시작하는 Slack Bot 토큰을 입력해주세요.';
+      },
+    });
+    slack_target_email = await input({
+      message: 'Slack DM 수신자 이메일:',
+      validate: (val) => {
+        return val.includes('@') ? true : '올바른 이메일 주소를 입력해주세요.';
       },
     });
   }
@@ -58,10 +72,9 @@ export async function initCommand(): Promise<void> {
     version: DEFAULT_CONFIG.version,
     workspaces: [defaultWorkspace],
     active_workspace: 'default',
-    slack: {
-      enabled: enable_slack,
-      webhook_url: slack_webhook_url,
-    },
+    slack: enable_slack
+      ? { enabled: true, bot_token: slack_bot_token, target_email: slack_target_email }
+      : { enabled: false },
   };
 
   await ensureConfigDir();

@@ -11,7 +11,7 @@ import { TaskInfo, WorkResult, PlanResult, ImplResult, ExecuteJobResult, PlanMod
 import { fetchPendingTask, fetchReviewTask } from '../notion-api.js';
 import { runClaude, runCursor } from './cli-runner.js';
 import { resolveSettingsFile, validateEnvironment } from '../utils/executor.js';
-import { sendSlackNotification, sendPlanSlackNotification } from '../slack/webhook.js';
+import { sendSlackNotification, sendPlanSlackNotification } from '../slack/bot.js';
 import { executePlanMode, WORK_MODE_PLAN } from './plan-mode-executor.js';
 import { TokenExhaustedError } from '../utils/cli-runner.js';
 
@@ -323,8 +323,8 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
     // ========================================
     // Phase 4: Slack 알림 발송 (선택사항)
     // ========================================
-    if (config.slack?.enabled && config.slack?.webhook_url) {
-      await logger.info('--- Phase 4: Slack 알림 발송 ---');
+    if (config.slack?.enabled && config.slack?.bot_token && config.slack?.target_email) {
+      await logger.info('--- Phase 4: Slack DM 알림 발송 ---');
       if (isPlanMode) {
         if (!planResult) {
           throw new Error('계획 모드 Slack 발송에 필요한 결과가 없습니다.');
@@ -332,14 +332,16 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
         await sendPlanSlackNotification({
           taskInfo,
           planResult,
-          webhookUrl: config.slack.webhook_url,
+          botToken: config.slack.bot_token,
+          targetEmail: config.slack.target_email,
           logger,
         });
       } else {
         await sendSlackNotification({
           taskInfo,
-          workResult: workResult || { success: false, error: 'Phase 2 결과가 없습니다.' } as WorkResult,
-          webhookUrl: config.slack.webhook_url,
+          workResult: workResult ?? { success: false, error: 'Phase 2 결과가 없습니다.' } as WorkResult,
+          botToken: config.slack.bot_token,
+          targetEmail: config.slack.target_email,
           logger,
         });
       }
