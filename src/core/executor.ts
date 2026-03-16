@@ -339,7 +339,7 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
       } else {
         await sendSlackNotification({
           taskInfo,
-          workResult: workResult ?? { success: false, error: 'Phase 2 결과가 없습니다.' } as WorkResult,
+          workResult: workResult ?? { success: false, error: 'Phase 2 결과가 없습니다.', branch_name: 'N/A', commits: [], files_changed: [], summary: 'No summary', pr_url: null, pr_skipped_reason: 'Phase 2 did not produce a result.' },
           botToken: config.slack.bot_token,
           targetEmail: config.slack.target_email,
           logger,

@@ -279,8 +279,20 @@ function buildPlanResultPayload(
 // ─── Public 함수 ─────────────────────────────────────────────────────────────
 
 /**
+ * 이메일 → User ID → DM 채널 → 메시지 순으로 3단계 API 호출하여 DM 발송
+ */
+async function sendDm(
+  botToken: string,
+  targetEmail: string,
+  payload: { text: string; blocks: unknown[] }
+): Promise<void> {
+  const userId = await lookupUserByEmail(botToken, targetEmail);
+  const channelId = await openDmChannel(botToken, userId);
+  await postMessage(botToken, channelId, payload);
+}
+
+/**
  * Slack Bot DM으로 작업 완료 알림 발송
- * 이메일 → User ID → DM 채널 → 메시지 순으로 3단계 API 호출
  */
 export async function sendSlackNotification(
   params: SlackNotificationParams
@@ -294,9 +306,7 @@ export async function sendSlackNotification(
 
     const payload = buildWorkResultPayload(taskInfo, workResult, isSuccess, statusEmoji, statusText);
 
-    const userId = await lookupUserByEmail(botToken, targetEmail);
-    const channelId = await openDmChannel(botToken, userId);
-    await postMessage(botToken, channelId, payload);
+    await sendDm(botToken, targetEmail, payload);
 
     if (logger) {
       await logger.info('Slack DM 알림 발송 완료');
@@ -326,9 +336,7 @@ export async function sendPlanSlackNotification(
 
     const payload = buildPlanResultPayload(taskInfo, planResult, isSuccess, statusEmoji, statusText);
 
-    const userId = await lookupUserByEmail(botToken, targetEmail);
-    const channelId = await openDmChannel(botToken, userId);
-    await postMessage(botToken, channelId, payload);
+    await sendDm(botToken, targetEmail, payload);
 
     if (logger) {
       await logger.info('계획 모드 Slack DM 알림 발송 완료');
