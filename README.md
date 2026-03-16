@@ -150,9 +150,23 @@ dailyagent init
 - **작업 디렉토리**: AI 에이전트가 코드 작업을 수행할 Git 저장소 경로
 - **Notion 데이터베이스 URL**: 작업을 관리하는 Notion DB 페이지 URL
 - **Notion 속성 이름**: 상태, 우선순위, 기준 브랜치 등의 컬럼명 (기본값 사용 가능)
-- **Slack 알림**: 선택사항, Webhook URL 입력 시 작업 결과를 Slack으로 알림
+- **Slack 알림**: 선택사항, Slack Bot 토큰과 수신자 이메일 입력 시 작업 결과를 DM으로 알림
 
 설정 파일 위치: `~/.dailyagent/dailyagent.config.json`
+
+---
+
+### Slack Bot 설정 (선택사항)
+
+`dailyagent init` 실행 시 Slack 알림을 활성화하면 작업 완료/실패 결과를 DM으로 받을 수 있습니다.
+
+1. [api.slack.com/apps](https://api.slack.com/apps) 에서 Slack App 생성
+2. **OAuth & Permissions** 에서 아래 Bot Token Scopes 추가:
+   - `chat:write` — DM 메시지 발송
+   - `im:write` — DM 채널 열기
+   - `users:read.email` — 이메일로 사용자 ID 조회
+3. 앱을 워크스페이스에 설치 후 **Bot User OAuth Token** (`xoxb-...`) 복사
+4. `dailyagent init` 실행 시 Bot 토큰과 DM 수신자 이메일 입력
 
 ---
 

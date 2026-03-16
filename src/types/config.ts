@@ -31,7 +31,8 @@ export interface NotionConfig extends ColumnConfig {
 
 export interface SlackConfig {
   enabled?: boolean;
-  webhook_url?: string;
+  bot_token?: string;    // xoxb-... 형식의 Slack Bot 토큰
+  target_email?: string; // DM 수신자 이메일 (users.lookupByEmail로 User ID 조회)
 }
 
 export interface Workspace {
