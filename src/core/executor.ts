@@ -323,7 +323,8 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
     // ========================================
     // Phase 4: Slack 알림 발송 (선택사항)
     // ========================================
-    if (config.slack?.enabled && config.slack?.bot_token && config.slack?.target_email) {
+    const slackConfig = config.slack;
+    if (slackConfig?.enabled && slackConfig.bot_token && slackConfig.target_email) {
       await logger.info('--- Phase 4: Slack DM 알림 발송 ---');
       if (isPlanMode) {
         if (!planResult) {
@@ -332,16 +333,17 @@ export async function executeJob (jobName: string): Promise<ExecuteJobResult> {
         await sendPlanSlackNotification({
           taskInfo,
           planResult,
-          botToken: config.slack.bot_token,
-          targetEmail: config.slack.target_email,
+          botToken: slackConfig.bot_token,
+          targetEmail: slackConfig.target_email,
           logger,
         });
       } else {
+        const fallbackWorkResult: WorkResult = { success: false, error: 'Phase 2 결과가 없습니다.', branch_name: 'N/A', commits: [], files_changed: [], summary: 'No summary', pr_url: null, pr_skipped_reason: 'Phase 2 did not produce a result.' };
         await sendSlackNotification({
           taskInfo,
-          workResult: workResult ?? { success: false, error: 'Phase 2 결과가 없습니다.', branch_name: 'N/A', commits: [], files_changed: [], summary: 'No summary', pr_url: null, pr_skipped_reason: 'Phase 2 did not produce a result.' },
-          botToken: config.slack.bot_token,
-          targetEmail: config.slack.target_email,
+          workResult: workResult ?? fallbackWorkResult,
+          botToken: slackConfig.bot_token,
+          targetEmail: slackConfig.target_email,
           logger,
         });
       }
@@ -398,10 +400,15 @@ async function executePhase2Single(
   let workPrompt: string;
   if (job.prompt_mode === 'custom') {
     const promptFile = path.join(PROMPTS_DIR, `${jobName}.md`);
-    if (!(await fs.pathExists(promptFile))) {
-      throw new Error(`커스텀 프롬프트 파일이 존재하지 않습니다: ${promptFile}`);
+    let template: string;
+    try {
+      template = await fs.readFile(promptFile, 'utf8');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        throw new Error(`커스텀 프롬프트 파일이 존재하지 않습니다: ${promptFile}`);
+      }
+      throw err;
     }
-    const template = await fs.readFile(promptFile, 'utf8');
     workPrompt = template
       .replace(/\{\{workDir\}\}/g, workDir);
     await logger.info(`커스텀 프롬프트 사용: ${promptFile}`);

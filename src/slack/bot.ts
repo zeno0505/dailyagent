@@ -39,28 +39,38 @@ interface ChatPostMessageResponse {
 // ─── 내부 헬퍼 ──────────────────────────────────────────────────────────────
 
 /**
+ * Slack Web API 호출 공통 헬퍼 — HTTP 및 API 수준 오류를 통합 처리
+ */
+async function slackApiCall<T extends { ok: boolean; error?: string }>(
+  url: string,
+  init: { method: string; body?: string },
+  botToken: string,
+  operationName: string,
+): Promise<T> {
+  const headers: Record<string, string> = { 'Authorization': `Bearer ${botToken}` };
+  if (init.body) headers['Content-Type'] = 'application/json; charset=utf-8';
+
+  const response = await fetch(url, { ...init, headers });
+  if (!response.ok) {
+    throw new Error(`${operationName} HTTP 오류: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json() as T;
+  if (!data.ok) {
+    throw new Error(`${operationName} API 오류: ${data.error ?? '알 수 없는 오류'}`);
+  }
+
+  return data;
+}
+
+/**
  * 이메일로 Slack User ID 조회 (users.lookupByEmail)
  * 필요 scope: users:read.email
  */
 async function lookupUserByEmail(botToken: string, email: string): Promise<string> {
   const url = `https://slack.com/api/users.lookupByEmail?email=${encodeURIComponent(email)}`;
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${botToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`users.lookupByEmail HTTP 오류: ${response.status} ${response.statusText}`);
-  }
-
-  const data = await response.json() as UsersLookupByEmailResponse;
-
-  if (!data.ok || !data.user?.id) {
-    throw new Error(`users.lookupByEmail API 오류: ${data.error ?? '알 수 없는 오류'}`);
-  }
-
+  const data = await slackApiCall<UsersLookupByEmailResponse>(url, { method: 'GET' }, botToken, 'users.lookupByEmail');
+  if (!data.user?.id) throw new Error('users.lookupByEmail API 오류: user ID 없음');
   return data.user.id;
 }
 
@@ -69,25 +79,12 @@ async function lookupUserByEmail(botToken: string, email: string): Promise<strin
  * 필요 scope: im:write
  */
 async function openDmChannel(botToken: string, userId: string): Promise<string> {
-  const response = await fetch('https://slack.com/api/conversations.open', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Authorization': `Bearer ${botToken}`,
-    },
-    body: JSON.stringify({ users: userId }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`conversations.open HTTP 오류: ${response.status} ${response.statusText}`);
-  }
-
-  const data = await response.json() as ConversationsOpenResponse;
-
-  if (!data.ok || !data.channel?.id) {
-    throw new Error(`conversations.open API 오류: ${data.error ?? '알 수 없는 오류'}`);
-  }
-
+  const data = await slackApiCall<ConversationsOpenResponse>(
+    'https://slack.com/api/conversations.open',
+    { method: 'POST', body: JSON.stringify({ users: userId }) },
+    botToken, 'conversations.open',
+  );
+  if (!data.channel?.id) throw new Error('conversations.open API 오류: channel ID 없음');
   return data.channel.id;
 }
 
@@ -100,24 +97,11 @@ async function postMessage(
   channelId: string,
   payload: { text: string; blocks: unknown[] }
 ): Promise<void> {
-  const response = await fetch('https://slack.com/api/chat.postMessage', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Authorization': `Bearer ${botToken}`,
-    },
-    body: JSON.stringify({ channel: channelId, ...payload }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`chat.postMessage HTTP 오류: ${response.status} ${response.statusText}`);
-  }
-
-  const data = await response.json() as ChatPostMessageResponse;
-
-  if (!data.ok) {
-    throw new Error(`chat.postMessage API 오류: ${data.error ?? '알 수 없는 오류'}`);
-  }
+  await slackApiCall<ChatPostMessageResponse>(
+    'https://slack.com/api/chat.postMessage',
+    { method: 'POST', body: JSON.stringify({ channel: channelId, ...payload }) },
+    botToken, 'chat.postMessage',
+  );
 }
 
 function buildWorkResultPayload(
@@ -292,33 +276,39 @@ async function sendDm(
 }
 
 /**
+ * sendDm 호출 공통 래퍼 — 성공/실패 로깅과 boolean 반환 처리
+ */
+async function trySendDm(
+  botToken: string,
+  targetEmail: string,
+  payload: { text: string; blocks: unknown[] },
+  logger: Logger | undefined,
+  successMsg: string,
+  errorPrefix: string,
+): Promise<boolean> {
+  try {
+    await sendDm(botToken, targetEmail, payload);
+    if (logger) await logger.info(successMsg);
+    return true;
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    if (logger) await logger.error(`${errorPrefix}: ${error}`);
+    return false;
+  }
+}
+
+/**
  * Slack Bot DM으로 작업 완료 알림 발송
  */
 export async function sendSlackNotification(
   params: SlackNotificationParams
 ): Promise<boolean> {
   const { taskInfo, workResult, botToken, targetEmail, logger } = params;
-
-  try {
-    const isSuccess = workResult.success !== false && !workResult.error;
-    const statusEmoji = isSuccess ? '✅' : '❌';
-    const statusText = isSuccess ? '완료' : '실패';
-
-    const payload = buildWorkResultPayload(taskInfo, workResult, isSuccess, statusEmoji, statusText);
-
-    await sendDm(botToken, targetEmail, payload);
-
-    if (logger) {
-      await logger.info('Slack DM 알림 발송 완료');
-    }
-    return true;
-  } catch (err) {
-    const error = err instanceof Error ? err.message : String(err);
-    if (logger) {
-      await logger.error(`Slack DM 알림 발송 중 오류: ${error}`);
-    }
-    return false;
-  }
+  const isSuccess = workResult.success !== false && !workResult.error;
+  const statusEmoji = isSuccess ? '✅' : '❌';
+  const statusText = isSuccess ? '완료' : '실패';
+  const payload = buildWorkResultPayload(taskInfo, workResult, isSuccess, statusEmoji, statusText);
+  return trySendDm(botToken, targetEmail, payload, logger, 'Slack DM 알림 발송 완료', 'Slack DM 알림 발송 중 오류');
 }
 
 /**
@@ -328,25 +318,9 @@ export async function sendPlanSlackNotification(
   params: PlanSlackNotificationParams
 ): Promise<boolean> {
   const { taskInfo, planResult, botToken, targetEmail, logger } = params;
-
-  try {
-    const isSuccess = planResult.success;
-    const statusEmoji = isSuccess ? '✅' : '❌';
-    const statusText = isSuccess ? '완료' : '실패';
-
-    const payload = buildPlanResultPayload(taskInfo, planResult, isSuccess, statusEmoji, statusText);
-
-    await sendDm(botToken, targetEmail, payload);
-
-    if (logger) {
-      await logger.info('계획 모드 Slack DM 알림 발송 완료');
-    }
-    return true;
-  } catch (err) {
-    const error = err instanceof Error ? err.message : String(err);
-    if (logger) {
-      await logger.error(`계획 모드 Slack DM 알림 발송 중 오류: ${error}`);
-    }
-    return false;
-  }
+  const isSuccess = planResult.success;
+  const statusEmoji = isSuccess ? '✅' : '❌';
+  const statusText = isSuccess ? '완료' : '실패';
+  const payload = buildPlanResultPayload(taskInfo, planResult, isSuccess, statusEmoji, statusText);
+  return trySendDm(botToken, targetEmail, payload, logger, '계획 모드 Slack DM 알림 발송 완료', '계획 모드 Slack DM 알림 발송 중 오류');
 }

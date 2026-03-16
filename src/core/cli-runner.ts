@@ -87,9 +87,9 @@ async function spawnCli<T>(
         return;
       }
 
+      const sanitized = sanitizeOutput(stdout);
       try {
         const response = JSON.parse(stdout) as ClaudeCliEnvelope | CursorCliEnvelope;
-        const sanitized = sanitizeOutput(stdout);
 
         if (response.is_error && isUsageLimitError(response.result ?? '')) {
           reject(new TokenExhaustedError(`${config.displayName} 토큰 소진: ${response.result?.substring(0, 300) ?? ''}`));
@@ -109,7 +109,6 @@ async function spawnCli<T>(
           sessionId: response.session_id,
         });
       } catch (err) {
-        const sanitized = sanitizeOutput(stdout);
         if (logger) await logger.error(`${config.displayName} 결과 파싱 실패: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
         resolve({ rawOutput: sanitized, exitCode: code });
       }
