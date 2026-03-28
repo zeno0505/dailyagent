@@ -29,6 +29,16 @@ export function isCommandAvailable(command: string): boolean {
 }
 
 /**
+ * Native Windows 환경 여부를 확인합니다.
+ * WSL(Windows Subsystem for Linux)에서는 false를 반환합니다.
+ */
+export function isWindowsNative(): boolean {
+  if (process.platform !== 'win32') return false;
+  // WSL 환경에서는 WSLENV 또는 WSL_DISTRO_NAME 환경변수가 설정됨
+  return !process.env.WSLENV && !process.env.WSL_DISTRO_NAME;
+}
+
+/**
  * dailyagent 실행 명령을 찾습니다.
  */
 export function resolveDailyagentCommand(): string {

@@ -3,12 +3,9 @@ import Table from 'cli-table3';
 import os from 'os';
 import { isInitialized } from '../config.js';
 import { getJob, listJobs } from '../jobs.js';
-import {
-  listCronJobs,
-} from '../scheduler/crontab.js';
-import {
-  listLaunchdJobs,
-} from '../scheduler/launchd.js';
+import { listCronJobs } from '../scheduler/crontab.js';
+import { listLaunchdJobs } from '../scheduler/launchd.js';
+import { listSchtasksJobs } from '../scheduler/schtasks.js';
 import { detectScheduler, installJob, isJobInstalled, schedulerName, SchedulerType, uninstallJob } from '../utils/schedule.js';
 
 
@@ -24,7 +21,8 @@ export async function scheduleCommand(action: string, name?: string): Promise<vo
   if (!scheduler) {
     console.log(chalk.red('\n  사용 가능한 스케줄러가 없습니다.'));
     console.log(chalk.gray('  macOS: launchd (기본 제공)'));
-    console.log(chalk.gray('  Linux: cron 서비스가 설치되어 있는지 확인하세요.\n'));
+    console.log(chalk.gray('  Linux/WSL: cron 서비스가 설치되어 있는지 확인하세요.'));
+    console.log(chalk.gray('  Windows (Git Bash 등): schtasks.exe가 필요합니다.\n'));
     process.exit(1);
   }
 
@@ -119,7 +117,10 @@ async function scheduleStatus(scheduler: SchedulerType): Promise<void> {
     style: { head: ['cyan'] },
   });
 
-  const schedules = scheduler === 'launchd' ? listLaunchdJobs() : listCronJobs();
+  const schedules =
+    scheduler === 'launchd' ? listLaunchdJobs() :
+    scheduler === 'schtasks' ? listSchtasksJobs() :
+    listCronJobs();
   for (const job of jobs) {
     const entry = schedules.find((s) => s.jobName === job.name);
     const status = entry ? chalk.green('등록됨') : chalk.gray('미등록');
