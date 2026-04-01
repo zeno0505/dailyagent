@@ -1,8 +1,7 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import os from 'os';
-import { isInitialized } from '../config.js';
-import { getJob, listJobs } from '../jobs.js';
+import { listJobs } from '../jobs.js';
 import {
   listCronJobs,
 } from '../scheduler/crontab.js';
@@ -10,14 +9,12 @@ import {
   listLaunchdJobs,
 } from '../scheduler/launchd.js';
 import { detectScheduler, installJob, isJobInstalled, schedulerName, SchedulerType, uninstallJob } from '../utils/schedule.js';
+import { requireInitialized, requireJob } from '../utils/validation.js';
 
 
 
 export async function scheduleCommand(action: string, name?: string): Promise<void> {
-  if (!isInitialized()) {
-    console.log(chalk.red('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.'));
-    process.exit(1);
-  }
+  requireInitialized();
 
   const scheduler = detectScheduler();
 
@@ -55,12 +52,7 @@ async function scheduleOn(name: string | undefined, scheduler: SchedulerType): P
     process.exit(1);
   }
 
-  const job = await getJob(name);
-  if (!job) {
-    console.log(chalk.red(`\n  작업 "${name}"을(를) 찾을 수 없습니다.`));
-    console.log(`  ${chalk.cyan('dailyagent list')} 명령으로 작업 목록을 확인하세요.\n`);
-    process.exit(1);
-  }
+  const job = await requireJob(name);
 
   if (isJobInstalled(name)) {
     console.log(chalk.yellow(`\n  작업 "${name}"은(는) 이미 스케줄이 등록되어 있습니다.`));
@@ -87,11 +79,7 @@ async function scheduleOff(name: string | undefined, scheduler: SchedulerType): 
     process.exit(1);
   }
 
-  const job = await getJob(name);
-  if (!job) {
-    console.log(chalk.red(`\n  작업 "${name}"을(를) 찾을 수 없습니다.\n`));
-    process.exit(1);
-  }
+  await requireJob(name);
 
   try {
     uninstallJob(name);

@@ -1,15 +1,12 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
-import { isInitialized, loadConfig } from '../config.js';
 import { listJobs } from '../jobs.js';
+import { formatDate, truncatePath } from '../utils/format.js';
+import { requireConfig } from '../utils/validation.js';
 import { getWorkspace, listWorkspaces } from '../workspace.js';
 
 export async function listCommand(): Promise<void> {
-  const config = await loadConfig();
-  if (!config || !isInitialized()) {
-    console.log(chalk.red('설정이 초기화되지 않았습니다. "dailyagent init"을 먼저 실행하세요.'));
-    process.exit(1);
-  }
+  const config = await requireConfig();
 
   const jobs = await listJobs();
 
@@ -43,18 +40,14 @@ export async function listCommand(): Promise<void> {
           ? chalk.red
           : chalk.gray;
 
-    const lastRun = job.last_run
-      ? new Date(job.last_run).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
-      : '-';
+    const lastRun = formatDate(job.last_run);
     const workspace = await getWorkspace(job.workspace || config.active_workspace || 'default');
     if (!workspace) {
       console.log(chalk.red(`\n  Workspace "${job.workspace || config.active_workspace || 'default'}"을(를) 찾을 수 없습니다.`));
       process.exit(1);
     }
 
-    const dir = workspace.working_dir.length > dirW
-      ? '...' + workspace.working_dir.slice(-(dirW - 3))
-      : workspace.working_dir;
+    const dir = truncatePath(workspace.working_dir, dirW);
 
     table.push([
       chalk.bold(job.name),
