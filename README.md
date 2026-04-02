@@ -305,6 +305,65 @@ dailyagent logs my-project
 
 ---
 
+## 배포 가이드
+
+DailyAgent는 npm 레지스트리를 통해 배포됩니다. GitHub Actions를 사용한 자동 배포 워크플로우가 구성되어 있으며, 배포를 위해서는 `NPM_TOKEN` 시크릿 설정이 필요합니다.
+
+### NPM_TOKEN 설정하기
+
+#### 1단계: npmjs.com에서 Access Token 발급
+
+1. [npmjs.com](https://www.npmjs.com/)에 로그인합니다
+2. 우측 상단 프로필 아이콘 클릭 → **Access Tokens** 메뉴로 이동
+3. **Generate New Token** 버튼 클릭
+4. 토큰 타입 선택 화면에서 **Automation** 선택
+   - `Automation` 타입: CI/CD 파이프라인에서 사용하도록 설계된 토큰
+   - 읽기/쓰기 권한 포함, 2FA 없이 사용 가능
+5. 토큰 이름 입력 (예: `dailyagent-github-actions`)
+6. **Generate Token** 클릭
+7. 생성된 토큰을 복사합니다 (한 번만 표시되므로 반드시 저장)
+
+> ⚠️ **중요**: 토큰은 생성 직후 한 번만 표시됩니다. 분실 시 재생성해야 합니다.
+
+#### 2단계: GitHub Repository에 Secret 등록
+
+1. GitHub 레포지토리 페이지로 이동
+2. **Settings** 탭 클릭
+3. 좌측 사이드바에서 **Secrets and variables** → **Actions** 선택
+4. **New repository secret** 버튼 클릭
+5. Secret 정보 입력:
+   - **Name**: `NPM_TOKEN` (정확히 이 이름으로 입력)
+   - **Secret**: 1단계에서 복사한 npm 토큰 값 붙여넣기
+6. **Add secret** 클릭
+
+#### 3단계: npm 배포 실행
+
+1. GitHub 레포지토리의 **Actions** 탭으로 이동
+2. 좌측에서 **Publish to npm** 워크플로우 선택
+3. **Run workflow** 드롭다운 클릭
+4. 버전 타입 선택:
+   - `patch`: 버그 수정 (0.0.1 → 0.0.2)
+   - `minor`: 새 기능 추가 (0.0.1 → 0.1.0)
+   - `major`: 호환성 깨지는 변경 (0.0.1 → 1.0.0)
+5. **Run workflow** 버튼 클릭
+
+워크플로우는 다음 작업을 자동으로 수행합니다:
+- 의존성 설치 및 타입 체크
+- `package.json` 버전 업데이트
+- 빌드 실행
+- npm 레지스트리에 패키지 배포
+- Git 태그 생성 및 푸시
+
+### 보안 주의사항
+
+- **NPM_TOKEN은 절대 코드나 로그에 노출하지 마세요**
+- 토큰은 GitHub Secrets에만 저장하고, 로컬 환경에는 저장하지 마세요
+- 토큰이 유출된 경우 즉시 npmjs.com에서 해당 토큰을 삭제하고 새로 생성하세요
+- `Automation` 타입 토큰만 사용하세요 (Publish 타입은 2FA 필요)
+- 토큰 권한을 정기적으로 검토하고, 사용하지 않는 토큰은 삭제하세요
+
+---
+
 ## 라이선스
 
 MIT License © [Zeno](https://github.com/zeno0505)
